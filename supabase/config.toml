@@ -1,0 +1,3 @@
+[functions.trios-auth]
+verify_jwt = false
+entrypoint = "./functions/trios-auth/index.ts"

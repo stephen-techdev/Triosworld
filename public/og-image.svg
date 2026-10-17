@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#171717"/>
+  <circle cx="460" cy="330" r="180" fill="#B7FF43"/>
+  <circle cx="740" cy="330" r="180" fill="#B7FF43" opacity="0.5"/>
+  <circle cx="600" cy="200" r="180" fill="#B7FF43" opacity="0.25"/>
+  <text x="600" y="420" text-anchor="middle" font-family="'Space Grotesk', sans-serif" font-size="72" font-weight="700" fill="#F7F5F0" letter-spacing="-3">TRIO<tspan fill="#B7FF43">S</tspan>WORLD</text>
+  <text x="600" y="480" text-anchor="middle" font-family="Inter, sans-serif" font-size="28" font-weight="400" fill="#F7F5F0" opacity="0.6" letter-spacing="6">THREE VIBES. ONE WORLD.</text>
+  <text x="600" y="540" text-anchor="middle" font-family="Inter, sans-serif" font-size="20" font-weight="400" fill="#B7FF43" opacity="0.8">Men's Streetwear &amp; T-Shirts — India</text>
+</svg>

@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-ivory text-ink font-sans antialiased;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    @apply bg-lime text-ink;
+  }
+  h1, h2, h3, h4, h5 {
+    @apply font-display tracking-tightest;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme('colors.ink');
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid theme('colors.ink');
+    outline-offset: 2px;
+  }
+
+  img {
+    -webkit-user-drag: none;
+  }
+
+  /* Subtle, professional scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(23, 23, 23, 0.2) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(23, 23, 23, 0.18);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(23, 23, 23, 0.32);
+  }
+}
+
+@layer components {
+  /* Shared page container — consistent gutters from small phones up to ultrawide. */
+  .page-container {
+    @apply mx-auto w-full max-w-page px-4 sm:px-6 lg:px-8 2xl:max-w-[1600px] 3xl:max-w-pageWide;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .text-balance { text-wrap: balance; }
+
+  .fluid-h1 {
+    font-size: clamp(2rem, 5vw, 5.5rem);
+    line-height: 0.95;
+  }
+  .fluid-h2 {
+    font-size: clamp(1.5rem, 3vw, 3rem);
+    line-height: 1.05;
+  }
+  .fluid-h3 {
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+    line-height: 1.15;
+  }
+  .fluid-hero-sub {
+    font-size: clamp(0.875rem, 1.2vw, 1.125rem);
+  }
+
+  /* Frosted surface for sticky / overlay chrome */
+  .glass {
+    background-color: rgba(247, 245, 240, 0.72);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+
+  /* Animated link underline that grows from the left */
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+
+  /* Softly fade the edges of horizontal rails */
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+  }
+}
+
+.snap-x { scroll-snap-type: x mandatory; }
+.snap-start { scroll-snap-align: start; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

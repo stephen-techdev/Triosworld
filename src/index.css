@@ -124,6 +124,75 @@
   }
 }
 
+/* ═══ Floating WhatsApp action button ═══
+   A fixed green circle with a pulsing ring — matches the button on
+   heavy-store.vercel.app so the icon behaves identically on both storefronts.
+   z-index 45 puts it above page content but below the header (50), cart
+   drawer (55) and search overlay (60). */
+.wa-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  z-index: 45;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+}
+.wa-fab svg {
+  width: 31px;
+  height: 31px;
+}
+.wa-fab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(37, 211, 102, 0.5);
+  animation: wa-pulse 2.8s ease-out infinite;
+}
+.wa-fab:hover {
+  box-shadow: 0 12px 28px rgba(37, 211, 102, 0.45);
+}
+/* Clear of the mobile sticky add-to-cart bar on product pages. */
+.wa-fab[data-lift] {
+  bottom: calc(86px + env(safe-area-inset-bottom));
+}
+@keyframes wa-pulse {
+  0% { transform: scale(1); opacity: 0.75; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { opacity: 0; }
+}
+@media (min-width: 701px) and (max-width: 1080px) {
+  .wa-fab {
+    width: 58px;
+    height: 58px;
+    right: 22px;
+    bottom: calc(26px + env(safe-area-inset-bottom));
+  }
+  .wa-fab svg { width: 32px; height: 32px; }
+}
+@media (max-width: 700px) {
+  .wa-fab {
+    width: 54px;
+    height: 54px;
+    right: 14px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .wa-fab svg { width: 29px; height: 29px; }
+  .wa-fab[data-lift] {
+    bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wa-fab::after { animation: none; opacity: 0; }
+}
+
 .snap-x { scroll-snap-type: x mandatory; }
 .snap-start { scroll-snap-align: start; }
 

@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
 import SearchOverlay from '@/components/SearchOverlay';
+import WhatsAppFloat from '@/components/WhatsAppFloat';
 import { EASE } from '@/components/Motion';
 
 const AUTH_PAGES = ['/login', '/register', '/forgot-password'];
@@ -38,6 +39,7 @@ export default function Layout() {
       {!isAuthPage && <Footer />}
       {!isAuthPage && <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />}
       {!isAuthPage && <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />}
+      {!isAuthPage && <WhatsAppFloat />}
     </div>
   );
 }

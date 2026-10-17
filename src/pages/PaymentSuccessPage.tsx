@@ -10,8 +10,8 @@ import { EASE } from '@/components/Motion';
 import { formatINR } from '@/data/catalog';
 import { useStore } from '@/store/StoreContext';
 import {
-  demoSettle, findOrderToken, getReceipt, getStatus, takePendingOrder,
-  type StatusResult,
+  PaymentServiceUnavailableError, demoSettle, findOrderToken, getReceipt, getStatus,
+  takePendingOrder, type StatusResult,
 } from '@/lib/payments';
 import { downloadReceipt } from '@/lib/receipt';
 
@@ -47,6 +47,7 @@ export default function PaymentSuccessPage() {
   const [result, setResult] = useState<StatusResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serviceDown, setServiceDown] = useState(false);
   const [checking, setChecking] = useState(false);
   const [settling, setSettling] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -67,8 +68,13 @@ export default function PaymentSuccessPage() {
       const next = await getStatus(orderNumber, token);
       setResult(next);
       setError(null);
+      setServiceDown(false);
     } catch (err) {
-      if (!opts.silent) setError(err instanceof Error ? err.message : 'Could not check the payment.');
+      if (err instanceof PaymentServiceUnavailableError) {
+        setServiceDown(true);
+      } else if (!opts.silent) {
+        setError(err instanceof Error ? err.message : 'Could not check the payment.');
+      }
     } finally {
       setChecking(false);
       setLoading(false);
@@ -149,6 +155,39 @@ export default function PaymentSuccessPage() {
       setDownloading(false);
     }
   };
+
+  // -------------------------------------------------------------------------
+  // The payment service is unreachable — do not imply the order is missing.
+  // -------------------------------------------------------------------------
+  if (!loading && !result && serviceDown) {
+    return (
+      <div className="page-container py-20 md:py-28 max-w-lg text-center">
+        <SEO title="Order" noindex />
+        <div className="w-14 h-14 rounded-full bg-stone mx-auto flex items-center justify-center mb-5">
+          <Clock size={26} className="text-ink/50" />
+        </div>
+        <h1 className="font-display text-2xl md:text-3xl font-bold mb-3">
+          We can’t reach the payment service
+        </h1>
+        <p className="text-sm text-ink/60 mb-8">
+          Your order may still be fine — we just cannot check its status this second. Please try
+          again in a moment. Nothing is ever marked paid unless our server confirms it with the bank.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          <button
+            type="button"
+            onClick={() => { setServiceDown(false); void refresh(); }}
+            className="px-6 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition inline-flex items-center gap-2"
+          >
+            <RefreshCw size={16} /> Try again
+          </button>
+          <Link to="/contact" className="px-6 py-3 rounded-full border border-ink/15 text-sm font-semibold hover:bg-stone/30 transition">
+            Contact support
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // -------------------------------------------------------------------------
   // No token: nothing we can safely show.

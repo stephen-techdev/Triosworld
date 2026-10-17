@@ -10,9 +10,9 @@ import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { PRODUCTS, formatINR } from '@/data/catalog';
 import {
-  AdminAuthError, adminLogin, adminLogout, changeAdminPassword, getCustomers, getFeedback,
-  getOrderEvents, getOrders, getOverview, getProducts, readSession, setFeedbackStatus,
-  updateOrder, updateProduct,
+  AdminAuthError, AdminServiceUnavailableError, adminLogin, adminLogout, changeAdminPassword,
+  getCustomers, getFeedback, getOrderEvents, getOrders, getOverview, getProducts, readSession,
+  setFeedbackStatus, updateOrder, updateProduct,
   type AdminCustomer, type AdminFeedback, type AdminOrder, type AdminProduct, type AdminSession,
   type Overview,
 } from '@/lib/admin';
@@ -174,7 +174,9 @@ function AdminLogin({ onSignedIn }: { onSignedIn: () => void }) {
       setError(
         err instanceof AdminAuthError
           ? 'Invalid email or password'
-          : err instanceof Error ? err.message : 'Could not sign in',
+          : err instanceof AdminServiceUnavailableError
+            ? 'The admin service is not reachable yet. Deploy the trios-admin function to continue.'
+            : err instanceof Error ? err.message : 'Could not sign in',
       );
       setLoading(false);
     }

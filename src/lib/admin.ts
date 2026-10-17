@@ -109,6 +109,18 @@ export interface AdminFeedback {
 
 export class AdminAuthError extends Error {}
 
+/**
+ * Thrown when the `trios-admin` function cannot be reached at all — usually
+ * because it has not been deployed yet. The dashboard shows a plain explanation
+ * rather than making it look like a wrong password.
+ */
+export class AdminServiceUnavailableError extends Error {
+  constructor() {
+    super('The admin service is not reachable right now.');
+    this.name = 'AdminServiceUnavailableError';
+  }
+}
+
 export function readSession(): AdminSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -129,16 +141,33 @@ function writeSession(session: AdminSession | null) {
 
 async function adminRequest<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const session = readSession();
-  const res = await fetch(`${FUNCTIONS_URL}/trios-admin${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
 
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  let res: Response;
+  try {
+    res = await fetch(`${FUNCTIONS_URL}/trios-admin${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new AdminServiceUnavailableError();
+  }
+
+  if (res.status === 502 || res.status === 503) throw new AdminServiceUnavailableError();
+
+  const text = await res.text().catch(() => '');
+  let data: (T & { error?: string }) | null = null;
+  try {
+    data = text ? (JSON.parse(text) as T & { error?: string }) : null;
+  } catch {
+    data = null;
+  }
+
+  // A 404 with no `error` body means the function is not deployed.
+  if (res.status === 404 && !data?.error) throw new AdminServiceUnavailableError();
 
   // Expired or revoked session: clear it so the dashboard returns to the login.
   if (res.status === 401 && retry) {
@@ -147,6 +176,7 @@ async function adminRequest<T>(path: string, init: RequestInit = {}, retry = tru
   }
 
   if (!res.ok) throw new Error(data?.error ?? 'Request failed');
+  if (!data) throw new AdminServiceUnavailableError();
   return data;
 }
 

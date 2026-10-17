@@ -8,7 +8,10 @@ import { useStore, resolveProduct } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
 import { formatINR } from '@/data/catalog';
 import SEO from '@/components/SEO';
-import { createOrder, markPendingOrder, rememberOrder } from '@/lib/payments';
+import { whatsappLink } from '@/components/WhatsApp';
+import {
+  PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
+} from '@/lib/payments';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat',
@@ -54,6 +57,7 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [serviceDown, setServiceDown] = useState(false);
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -110,6 +114,7 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     setServerError(null);
+    setServiceDown(false);
 
     try {
       const order = await createOrder({
@@ -138,7 +143,14 @@ export default function CheckoutPage() {
 
       navigate(`/order/${order.order_number}?token=${order.receipt_token}`);
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Could not start the payment. Please try again.');
+      if (err instanceof PaymentServiceUnavailableError) {
+        setServiceDown(true);
+        setServerError(
+          'Online payment is not available at the moment. Your bag is saved — you can order on WhatsApp and we will take it from there.',
+        );
+      } else {
+        setServerError(err instanceof Error ? err.message : 'Could not start the payment. Please try again.');
+      }
       setSubmitting(false);
     }
   };
@@ -251,7 +263,19 @@ export default function CheckoutPage() {
             </div>
 
             {serverError && (
-              <p className="text-sm text-red-600 mt-4" role="alert">{serverError}</p>
+              <div className="mt-4" role="alert">
+                <p className="text-sm text-red-600">{serverError}</p>
+                {serviceDown && (
+                  <a
+                    href={whatsappLink('Hi TriosWorld, I want to place an order — the website payment is not available.')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition"
+                  >
+                    Order on WhatsApp instead
+                  </a>
+                )}
+              </div>
             )}
 
             <motion.button

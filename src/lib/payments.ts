@@ -112,6 +112,20 @@ export interface ReceiptPayload {
   tax_included: number;
 }
 
+/**
+ * Thrown when the payment service itself cannot be reached — most commonly
+ * because the `trios-pay` edge function has not been deployed yet, or because
+ * it booted with an error. Distinguished from ordinary validation errors so the
+ * UI can offer a sensible fallback (e.g. ordering on WhatsApp) rather than a
+ * generic "try again" that can never succeed.
+ */
+export class PaymentServiceUnavailableError extends Error {
+  constructor() {
+    super('Payments are temporarily unavailable.');
+    this.name = 'PaymentServiceUnavailableError';
+  }
+}
+
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 /** Attach the customer's session when signed in, so the order links to their account. */
@@ -122,18 +136,41 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${FUNCTIONS_URL}/trios-pay${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${FUNCTIONS_URL}/trios-pay${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch {
+    // DNS failure, offline, CORS preflight rejection — nothing to retry here.
+    throw new PaymentServiceUnavailableError();
+  }
 
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  // A 502/503 means the function exists but could not run (e.g. a boot error).
+  if (res.status === 502 || res.status === 503) throw new PaymentServiceUnavailableError();
+
+  // Read as text first: a missing function is not JSON, and our own 404s are.
+  const text = await res.text().catch(() => '');
+  let data: (T & { error?: string }) | null = null;
+  try {
+    data = text ? (JSON.parse(text) as T & { error?: string }) : null;
+  } catch {
+    data = null;
+  }
+
+  // A 404 with no `error` body is Supabase reporting that the function is not
+  // deployed; our own "order not found" responses always carry `error`.
+  if (res.status === 404 && !data?.error) throw new PaymentServiceUnavailableError();
+
   if (!res.ok) {
     throw new Error(data?.error ?? 'Something went wrong. Please try again.');
   }
+  if (!data) throw new PaymentServiceUnavailableError();
+
   return data;
 }
 

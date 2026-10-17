@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
@@ -10,7 +10,7 @@ import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { PRODUCTS, formatINR } from '@/data/catalog';
 import {
-  AdminAuthError, AdminServiceUnavailableError, adminLogin, adminLogout, changeAdminPassword,
+  AdminAuthError, adminLogout, changeAdminPassword,
   getCustomers, getFeedback, getOrderEvents, getOrders, getOverview, getProducts, readSession,
   setFeedbackStatus, updateOrder, updateProduct,
   type AdminCustomer, type AdminFeedback, type AdminOrder, type AdminProduct, type AdminSession,
@@ -52,7 +52,8 @@ export default function AdminPage() {
     setSession(null);
   }, []);
 
-  if (!session) return <AdminLogin onSignedIn={() => setSession(readSession())} />;
+  // Sign-in lives on its own page at /admin/login; don't duplicate the form here.
+  if (!session) return <Navigate to="/admin/login" replace />;
 
   return (
     <div className="min-h-screen bg-stone/25">
@@ -148,119 +149,6 @@ export default function AdminPage() {
           </AnimatePresence>
         </main>
       </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// Login
-// ════════════════════════════════════════════════════════════════════════════
-
-function AdminLogin({ onSignedIn }: { onSignedIn: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await adminLogin(email.trim(), password);
-      onSignedIn();
-    } catch (err) {
-      setError(
-        err instanceof AdminAuthError
-          ? 'Invalid email or password'
-          : err instanceof AdminServiceUnavailableError
-            ? 'The admin service is not reachable yet. Deploy the trios-admin function to continue.'
-            : err instanceof Error ? err.message : 'Could not sign in',
-      );
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-ink px-4 py-12">
-      <SEO title="Admin sign in" noindex />
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: EASE }}
-        className="w-full max-w-sm"
-      >
-        <div className="text-center mb-8">
-          <p className="font-display font-bold text-2xl tracking-tightest text-ivory">
-            TRIO<span className="text-lime">S</span>WORLD
-          </p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-ivory/40 mt-2">Admin dashboard</p>
-        </div>
-
-        <form onSubmit={submit} className="bg-ivory rounded-2xl p-6 md:p-7 shadow-2xl space-y-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <Lock size={16} /> Operator sign in
-          </div>
-
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700" role="alert">
-              {error}
-            </div>
-          )}
-
-          <label className="block" htmlFor="admin-email">
-            <span className="text-xs font-medium text-ink/60">Email</span>
-            <input
-              id="admin-email"
-              type="email"
-              value={email}
-              onChange={e => { setEmail(e.target.value); setError(null); }}
-              placeholder="admin@triosworld.in"
-              autoComplete="username"
-              required
-              className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink"
-            />
-          </label>
-
-          <label className="block" htmlFor="admin-password">
-            <span className="text-xs font-medium text-ink/60">Password</span>
-            <div className="mt-1.5 relative">
-              <input
-                id="admin-password"
-                type={showPwd ? 'text' : 'password'}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError(null); }}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-                className="w-full rounded-lg border border-ink/15 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:border-ink"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(s => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-ink/40 hover:text-ink"
-              >
-                {showPwd ? 'Hide' : 'Show'}
-              </button>
-            </div>
-          </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 size={17} className="animate-spin" /> : 'Sign in'}
-          </button>
-
-          <p className="text-[11px] text-ink/40 text-center">
-            Operators can also sign in from the store’s{' '}
-            <Link to="/login" className="underline hover:text-ink/70">customer login</Link>{' '}
-            using this email.
-          </p>
-        </form>
-      </motion.div>
     </div>
   );
 }

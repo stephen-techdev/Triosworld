@@ -22,6 +22,7 @@ import NotFoundPage from '@/pages/NotFoundPage';
 // pulls in the QR renderer and jsPDF, and the dashboard is admin-only.
 const PaymentSuccessPage = lazy(() => import('@/pages/PaymentSuccessPage'));
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
+const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
 
 function RouteFallback() {
   return (
@@ -39,6 +40,9 @@ export default function App() {
           <BrowserRouter>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
+                {/* Operator sign-in sits outside the storefront Layout so it
+                    renders full-bleed with no header, footer or floating buttons. */}
+                <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route element={<Layout />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/shop/:slug" element={<ShopPage />} />

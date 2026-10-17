@@ -193,6 +193,47 @@
   .wa-fab::after { animation: none; opacity: 0; }
 }
 
+/* ═══ Floating feedback button ═══
+   Mirrors the WhatsApp button but anchored bottom-left, so the two never
+   collide. z-index 44 keeps it just under the WhatsApp button (45). */
+.fb-fab {
+  position: fixed;
+  left: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  height: 48px;
+  padding: 0 18px 0 14px;
+  border-radius: 999px;
+  background: #171717;
+  color: #f7f5f0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 44;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+}
+.fb-fab:hover {
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+}
+/* Clear of the mobile sticky add-to-cart bar on product pages. */
+.fb-fab[data-lift] {
+  bottom: calc(86px + env(safe-area-inset-bottom));
+}
+@media (max-width: 700px) {
+  .fb-fab {
+    height: 46px;
+    left: 14px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    padding: 0 14px;
+  }
+  .fb-fab__label { display: none; }
+  .fb-fab[data-lift] {
+    bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+}
+
 .snap-x { scroll-snap-type: x mandatory; }
 .snap-start { scroll-snap-align: start; }
 

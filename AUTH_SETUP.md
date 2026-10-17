@@ -111,3 +111,14 @@ Temporary numbers used: `9000000001` and `9000000002`. Delete them afterwards
 ```sql
 DELETE FROM auth.users WHERE phone IN ('+919000000001', '+919000000002');
 ```
+
+---
+
+## Payments, admin dashboard & feedback
+
+UPI payments, PDF receipts, the `/admin` dashboard, product overrides and the
+customer feedback widget are documented separately in **[PAYMENTS_SETUP.md](./PAYMENTS_SETUP.md)**.
+
+That document also contains the default admin credentials and the
+`trios-pay` / `trios-admin` deployment steps, which must be completed **before**
+deploying the frontend (the checkout now creates orders through `trios-pay`).

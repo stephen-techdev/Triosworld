@@ -1,3 +1,20 @@
+# TriosWorld Supabase function configuration.
+
+# Mobile + password auth, password reset, Google profile completion.
+# Unauthenticated by design: the customer has no Supabase session yet.
 [functions.trios-auth]
 verify_jwt = false
 entrypoint = "./functions/trios-auth/index.ts"
+
+# UPI payments: create order, poll status, signed webhook, demo settle, receipt.
+# Unauthenticated by design: guests must be able to pay, and the webhook
+# authenticates with an HMAC signature instead of a JWT.
+[functions.trios-pay]
+verify_jwt = false
+entrypoint = "./functions/trios-pay/index.ts"
+
+# Admin dashboard API. Unauthenticated at the gateway because it issues and
+# verifies its OWN signed operator session (see supabase/functions/trios-admin).
+[functions.trios-admin]
+verify_jwt = false
+entrypoint = "./functions/trios-admin/index.ts"

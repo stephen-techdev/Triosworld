@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star, MessageCircle } from 'lucide-react';
+import { ChevronRight, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star } from 'lucide-react';
+import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import { getProduct, relatedProducts, formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { useStore } from '@/store/StoreContext';
 import { ProductCardMotion } from '@/components/ProductCard';
@@ -211,10 +212,10 @@ export default function ProductPage() {
           </div>
 
           {/* WhatsApp enquiry */}
-          <a href="https://wa.me/9190000000000?text=Hi%20TriosWorld%2C%20I%20have%20a%20question%20about%20this%20product%3A%20{encodeURIComponent(product.name)}"
+          <a href={whatsappLink(`Hi TriosWorld, I have a question about this product: ${product.name}`)}
             target="_blank" rel="noreferrer"
             className="mt-4 inline-flex items-center gap-2 text-sm text-ink/60 hover:text-ink transition">
-            <MessageCircle size={16} /> Ask about this product on WhatsApp
+            <WhatsAppIcon size={16} /> Ask about this product on WhatsApp
           </a>
 
           {/* Tabs */}

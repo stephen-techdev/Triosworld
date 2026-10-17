@@ -48,7 +48,7 @@ const content: Record<string, { title: string; body: { h?: string; p: string }[]
     body: [
       { p: 'We are here to help. Reach us any of the ways below — typical response time is under 24 hours on business days.' },
       { h: 'Email', p: 'hello@triosworld.in' },
-      { h: 'Phone', p: '+91 90000 00000 (Mon–Sat, 10am–7pm IST)' },
+      { h: 'Phone', p: '+91 88836 26787 (Mon–Sat, 10am–7pm IST)' },
       { h: 'Address', p: 'TriosWorld, Mumbai, India' },
     ],
   },

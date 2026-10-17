@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import { Instagram, Mail, Phone, MapPin } from 'lucide-react';
 import { Wordmark, TriosMark } from '@/components/Brand';
+import WhatsAppIcon, { WHATSAPP_DISPLAY, whatsappLink } from '@/components/WhatsApp';
 import Newsletter from '@/components/Newsletter';
 import { Reveal } from '@/components/Motion';
 
@@ -28,7 +29,7 @@ const cols = [
 
 const socials = [
   { href: 'https://instagram.com', label: 'Instagram', Icon: Instagram },
-  { href: 'https://wa.me/9190000000000', label: 'WhatsApp', Icon: MessageCircle },
+  { href: whatsappLink('Hi TriosWorld 👋'), label: 'WhatsApp', Icon: WhatsAppIcon },
   { href: 'mailto:hello@triosworld.in', label: 'Email', Icon: Mail },
 ];
 
@@ -74,8 +75,27 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-2 space-y-3">
             <h4 className="text-xs font-semibold tracking-widest uppercase text-ivory/40 mb-4">Contact</h4>
             <p className="text-sm text-ivory/80 flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0" /> Mumbai, India</p>
-            <p className="text-sm text-ivory/80 flex items-center gap-2"><Phone size={16} /> +91 90000 00000</p>
+            <p className="text-sm text-ivory/80 flex items-center gap-2"><Phone size={16} /> {WHATSAPP_DISPLAY}</p>
             <p className="text-sm text-ivory/80 flex items-center gap-2"><Mail size={16} /> hello@triosworld.in</p>
+
+            {/* WhatsApp CTA — right side of the footer */}
+            <a
+              href={whatsappLink()}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Chat with us on WhatsApp at ${WHATSAPP_DISPLAY}`}
+              className="mt-2 flex items-start gap-2.5 rounded-2xl border border-lime/25 bg-lime/10 p-3.5 transition-all duration-300 ease-smooth hover:bg-lime/20 active:scale-[0.98]"
+            >
+              <WhatsAppIcon size={22} className="mt-0.5 shrink-0 text-lime" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-snug text-ivory">
+                  come on bro your at the right place
+                </span>
+                <span className="mt-1 block text-xs text-ivory/60">
+                  WhatsApp · {WHATSAPP_DISPLAY}
+                </span>
+              </span>
+            </a>
           </div>
         </Reveal>
         <div className="border-t border-ivory/10 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-ivory/50">

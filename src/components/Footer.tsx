@@ -89,7 +89,7 @@ export default function Footer() {
               <WhatsAppIcon size={22} className="mt-0.5 shrink-0 text-lime" />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold leading-snug text-ivory">
-                  come on bro your at the right place
+                  Chat with us on WhatsApp
                 </span>
                 <span className="mt-1 block text-xs text-ivory/60">
                   WhatsApp · {WHATSAPP_DISPLAY}

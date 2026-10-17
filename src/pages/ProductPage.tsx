@@ -262,7 +262,7 @@ export default function ProductPage() {
       {related.length > 0 && (
         <section className="mt-20">
           <h2 className="font-display text-xl md:text-2xl md:text-3xl font-semibold mb-8">You may also like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-8 md:gap-x-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">
             {related.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
           </div>
         </section>

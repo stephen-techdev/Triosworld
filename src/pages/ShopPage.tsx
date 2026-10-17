@@ -187,7 +187,7 @@ export default function ShopPage() {
               <button onClick={() => setFilters(emptyFilters)} className="bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80">Clear filters</button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-3 gap-y-8 md:gap-x-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">
               {filtered.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
             </div>
           )}

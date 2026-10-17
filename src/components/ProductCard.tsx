@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Plus, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { type Product, formatINR, discountPercent, SIZES } from '@/data/catalog';
+import { type Product, formatINR, SIZES } from '@/data/catalog';
 import { useStore } from '@/store/StoreContext';
 import { EASE } from '@/components/Motion';
 
@@ -10,13 +10,14 @@ interface Props {
   product: Product;
 }
 
+/* Clean, editorial badges — mostly monochrome with a lime accent for "New". */
 const badgeStyles: Record<string, string> = {
   Bestseller: 'bg-ink text-ivory',
   New: 'bg-lime text-ink',
-  Limited: 'bg-burgundy text-ivory',
-  Essential: 'bg-stone text-ink',
-  Street: 'bg-ink text-lime',
-  Graphic: 'bg-cobalt text-ivory',
+  Limited: 'bg-ink text-ivory',
+  Essential: 'bg-ivory text-ink',
+  Street: 'bg-ivory text-ink',
+  Graphic: 'bg-ivory text-ink',
 };
 
 export default function ProductCard({ product }: Props) {
@@ -40,92 +41,52 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <div className="group">
-      {/* Image + overlays share one stacking context so the quick-add stays on the image
-          (previously it was absolute to the whole card and covered the title/price on mobile) */}
+      {/* Image + overlays share one stacking context so the quick-add stays on the image */}
       <div className="relative">
         <Link
           to={`/product/${product.slug}`}
-          className="block relative overflow-hidden bg-stone/40 rounded-2xl aspect-[3/4] shadow-soft transition-shadow duration-500 ease-smooth group-hover:shadow-lift"
+          className="block relative overflow-hidden bg-stone/50 aspect-[4/5]"
         >
           <img
             src={v.images[0]}
             alt={product.name}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+            className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-[350ms] ease-out group-hover:scale-[1.02] ${hasSecondImage ? 'group-hover:opacity-0' : ''}`}
             loading="lazy"
           />
           {hasSecondImage && (
             <img
               src={v.images[1]}
               alt={`${product.name} alternate view`}
-              className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out"
+              className="absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-all duration-[350ms] ease-out group-hover:scale-[1.02] group-hover:opacity-100"
               loading="lazy"
               decoding="async"
             />
           )}
 
-          {/* Badge — top left */}
+          {/* Badge — top left, clean pill */}
           <span
-            className={`absolute top-3 left-3 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full ${badgeStyles[product.badge] ?? 'bg-ink text-ivory'}`}
+            className={`absolute top-2.5 left-2.5 z-[5] rounded-full px-[11px] py-[5px] text-[9px] font-bold uppercase leading-none tracking-[0.09em] ${badgeStyles[product.badge] ?? 'bg-ivory text-ink'}`}
           >
             {product.badge}
           </span>
-
-          {/* Discount — top right area, below wishlist */}
-          {hasDiscount && (
-            <span className="absolute top-14 right-3 bg-lime text-ink text-[10px] font-bold px-2 py-1 rounded-full">
-              {discountPercent(product)}% OFF
-            </span>
-          )}
         </Link>
 
-        {/* Quick add — DESKTOP: inline size tray revealed on hover, chips stagger in */}
-        <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 z-10 hidden md:block">
-          <div className="pointer-events-auto invisible grid grid-cols-3 gap-1 rounded-xl bg-ivory/95 p-1.5 opacity-0 shadow-card backdrop-blur translate-y-[140%] transition-all duration-300 ease-smooth group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-            {SIZES.map((s, i) => {
-              const oos = stockOf(s) === 0;
-              const done = addedSize === s;
-              return (
-                <span
-                  key={s}
-                  style={{ transitionDelay: `${i * 25}ms` }}
-                  className="translate-y-2 opacity-0 transition-all duration-300 ease-smooth group-hover:translate-y-0 group-hover:opacity-100"
-                >
-                  <button
-                    disabled={oos}
-                    onClick={() => handleQuickAdd(s)}
-                    aria-label={oos ? `${s} out of stock` : `Add size ${s} to bag`}
-                    className={`w-full h-8 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                      done
-                        ? 'bg-lime text-ink'
-                        : oos
-                          ? 'text-ink/25 cursor-not-allowed line-through'
-                          : 'text-ink hover:bg-ink hover:text-ivory'
-                    }`}
-                  >
-                    <span className="flex items-center justify-center">{done ? <Check size={14} /> : s}</span>
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Quick add — MOBILE: the bar expands into a full size card (same 3-col order as desktop) */}
-        <div className="absolute inset-x-2.5 bottom-2.5 z-10 md:hidden">
+        {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card */}
+        <div className="absolute inset-x-2.5 bottom-2.5 z-10">
           <AnimatePresence mode="wait" initial={false}>
             {sheetOpen ? (
               <motion.div
                 key="size-card"
-                initial={{ opacity: 0, y: 14, scale: 0.96 }}
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                exit={{ opacity: 0, y: 8, scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                className="origin-bottom rounded-2xl bg-ivory/95 p-2.5 shadow-lift backdrop-blur"
+                className="origin-bottom-right rounded-2xl bg-ivory/95 p-2.5 shadow-lift backdrop-blur"
               >
                 <div className="mb-2 flex items-start justify-between gap-2 px-0.5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-ink">Select size</p>
-                    <p className="truncate text-[10px] text-ink/45">{product.name} · {v.color}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink">Select size</p>
+                    <p className="truncate text-[10px] uppercase tracking-[0.04em] text-ink/45">{product.name}</p>
                   </div>
                   <button
                     onClick={() => setSheetOpen(false)}
@@ -147,7 +108,7 @@ export default function ProductCard({ product }: Props) {
                         disabled={oos}
                         onClick={() => handleQuickAdd(s)}
                         aria-label={oos ? `${s} out of stock` : `Add size ${s} to bag`}
-                        className={`h-9 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                        className={`h-9 rounded-md text-xs font-semibold transition-colors duration-200 ${
                           oos
                             ? 'text-ink/25 cursor-not-allowed line-through'
                             : 'text-ink hover:bg-ink hover:text-ivory active:bg-ink active:text-ivory'
@@ -160,26 +121,29 @@ export default function ProductCard({ product }: Props) {
                 </div>
               </motion.div>
             ) : (
-              <motion.button
-                key="quick-add"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                onClick={() => setSheetOpen(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-ivory/95 py-2.5 text-xs font-semibold text-ink shadow-soft backdrop-blur transition-transform duration-200 active:scale-[0.98]"
-              >
-                {addedSize ? <><Check size={14} /> Added — {addedSize}</> : <><Plus size={14} /> Quick Add</>}
-              </motion.button>
+              <div className="flex justify-end">
+                <motion.button
+                  key="quick-add"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.18 }}
+                  onClick={() => setSheetOpen(true)}
+                  aria-label="Quick add — choose a size"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95"
+                >
+                  {addedSize ? <Check size={16} /> : <Plus size={16} />}
+                </motion.button>
+              </div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Wishlist — always visible, top right */}
+        {/* Wishlist — subtle, top right */}
         <button
           onClick={() => toggleWishlist(product.id)}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className={`absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center hover:bg-ivory active:scale-90 transition-all duration-200 ${wished ? 'text-burgundy' : 'text-ink'}`}
+          className={`absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-ivory/75 backdrop-blur-sm transition-all duration-200 active:scale-90 ${wished ? 'text-burgundy' : 'text-ink/70 hover:text-ink'}`}
         >
           <Heart size={16} fill={wished ? 'currentColor' : 'none'} />
         </button>
@@ -200,30 +164,34 @@ export default function ProductCard({ product }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* Product info */}
-      <div className="mt-2.5">
+      {/* Product info — clean editorial block */}
+      <div className="pt-2.5">
         <Link
           to={`/product/${product.slug}`}
-          className="text-sm font-medium leading-snug hover:text-ink/60 line-clamp-1"
+          className="block text-[13px] font-bold uppercase leading-[1.3] tracking-[0.02em] text-ink transition-colors line-clamp-2 hover:text-ink/60"
         >
           {product.name}
         </Link>
-        <p className="text-[11px] text-ink/45 mt-0.5">{product.fit} fit · {product.fabric}</p>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-sm font-semibold">{formatINR(product.price)}</span>
+        <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.04em] text-ink/50">
+          {product.fit} fit · {product.fabric}
+        </p>
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <span className="text-[13px] font-bold text-ink">{formatINR(product.price)}</span>
           {hasDiscount && <span className="text-xs text-ink/40 line-through">{formatINR(product.mrp)}</span>}
         </div>
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-1.5 flex items-center gap-1.5">
           {product.variants.slice(0, 4).map(variant => (
             <span
               key={variant.color}
               title={variant.color}
-              className="w-3.5 h-3.5 rounded-full border border-ink/15"
+              className="h-[9px] w-[9px] rounded-full ring-1 ring-inset ring-ink/25"
               style={{ backgroundColor: variant.hex }}
             />
           ))}
-          {product.variants.length > 4 && (
-            <span className="text-[10px] text-ink/40 ml-0.5">+{product.variants.length - 4}</span>
+          {product.variants.length > 1 && (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink/50">
+              {product.variants.length} colors
+            </span>
           )}
         </div>
       </div>

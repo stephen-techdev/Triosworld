@@ -121,7 +121,7 @@ export default function HomePage() {
           <h2 className="font-display fluid-h2 font-semibold">Bestsellers</h2>
           <Link to="/shop/bestsellers" className="link-underline text-sm font-medium text-ink/70 hover:text-ink inline-flex items-center gap-1">Shop all <ArrowRight size={16} /></Link>
         </Reveal>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-8 md:gap-x-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">
           {bestsellers.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
         </div>
       </section>

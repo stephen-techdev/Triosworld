@@ -83,16 +83,13 @@ export default function Footer() {
               href={whatsappLink()}
               target="_blank"
               rel="noreferrer"
-              aria-label={`Chat with us on WhatsApp at ${WHATSAPP_DISPLAY}`}
+              aria-label="Chat with us on WhatsApp"
               className="mt-2 flex items-start gap-2.5 rounded-2xl border border-lime/25 bg-lime/10 p-3.5 transition-all duration-300 ease-smooth hover:bg-lime/20 active:scale-[0.98]"
             >
               <WhatsAppIcon size={22} className="mt-0.5 shrink-0 text-lime" />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold leading-snug text-ivory">
                   Chat with us on WhatsApp
-                </span>
-                <span className="mt-1 block text-xs text-ivory/60">
-                  WhatsApp · {WHATSAPP_DISPLAY}
                 </span>
               </span>
             </a>

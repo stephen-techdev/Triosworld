@@ -12,7 +12,7 @@ Orders are **created by the `trios-pay` edge function using the service role**,
 never by the browser. That is why `orders` gets no INSERT policy: a client can
 no longer write its own `total` (a real hole in the previous checkout, which
 inserted straight from the browser). The function reprices every line from
-`supabase/functions/trios-pay/prices.ts` before creating a payment.
+`supabase/functions/_shared/prices.ts` before creating a payment.
 
 ### Guest checkout
 `orders.user_id` becomes nullable so guests can order without an account.

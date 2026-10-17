@@ -742,7 +742,15 @@ Deno.serve(async (req: Request) => {
       if (!order) return json({ ok: true, ignored: "unknown order" });
 
       if (event === "payment.captured" || event === "order.paid" || event === "qr_code.credited") {
-        const amount = typeof entity.amount === "number" ? Math.round(entity.amount / 100) : order.total;
+        // Different events report the settled amount under different keys, all
+        // in paise. Read whichever is present; only fall back to the order total
+        // if the gateway sent none at all.
+        const paise =
+          typeof entity.amount === "number" ? entity.amount
+            : typeof entity.amount_paid === "number" ? entity.amount_paid
+              : typeof entity.payment_amount === "number" ? entity.payment_amount
+                : null;
+        const amount = paise != null ? Math.round(paise / 100) : order.total;
         await markPaid(order, {
           provider: "razorpay",
           paymentId: String(entity.id ?? orderNumber),

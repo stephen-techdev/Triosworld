@@ -71,8 +71,9 @@ export default function ProductCard({ product }: Props) {
           </span>
         </Link>
 
-        {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card */}
-        <div className="absolute inset-x-2.5 bottom-2.5 z-10">
+        {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card.
+            On phones it sits higher up so it isn't crowded against the card's text below. */}
+        <div className="absolute inset-x-2.5 bottom-8 z-10 md:bottom-2.5">
           <AnimatePresence mode="wait" initial={false}>
             {sheetOpen ? (
               <motion.div

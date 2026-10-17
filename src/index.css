@@ -180,14 +180,15 @@
 @media (max-width: 700px) {
   .wa-fab {
     right: 14px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
+    /* Raised clear of the footer's last rows on small screens. */
+    bottom: calc(40px + env(safe-area-inset-bottom));
     height: 46px;
     padding: 0 16px 0 13px;
     gap: 7px;
     font-size: 12.5px;
   }
   .wa-fab[data-lift] {
-    bottom: calc(82px + env(safe-area-inset-bottom));
+    bottom: calc(106px + env(safe-area-inset-bottom));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -226,12 +227,13 @@
   .fb-fab {
     height: 46px;
     left: 14px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
+    /* Raised clear of the footer's last rows on small screens. */
+    bottom: calc(40px + env(safe-area-inset-bottom));
     padding: 0 14px;
   }
   .fb-fab__label { display: none; }
   .fb-fab[data-lift] {
-    bottom: calc(82px + env(safe-area-inset-bottom));
+    bottom: calc(106px + env(safe-area-inset-bottom));
   }
 }
 

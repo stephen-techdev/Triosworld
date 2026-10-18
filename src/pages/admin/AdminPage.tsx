@@ -14,6 +14,7 @@ import {
   AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
   getProducts, muteCustomer, readSession, restoreProduct, setFeedbackStatus, updateOrder, updateProduct,
+  uploadProductImage,
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview,
 } from '@/lib/admin';
@@ -833,7 +834,6 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
               <div className="text-xs text-ink/50 space-y-1">
                 <p>Type: {data.has_account ? 'Registered account' : 'Guest (no account)'}</p>
                 {data.joined_at && <p>Joined: {shortDate(data.joined_at)}</p>}
-                {data.last_login_at && <p>Last sign-in: {shortDate(data.last_login_at)}</p>}
                 {data.google_id && <p>Linked Google ID: <span className="font-mono text-[10px]">{data.google_id}</span></p>}
               </div>
 
@@ -1370,13 +1370,43 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
   const [mrp, setMrp] = useState('');
   const [category, setCategory] = useState('new-arrivals');
   const [colors, setColors] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [stock, setStock] = useState<Record<string, string>>(
     () => Object.fromEntries(SIZES.map(s => [s, '10'])),
   );
+  const [images, setImages] = useState<{ url: string; name: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  // Upload through the admin function so the storage bucket never needs a
+  // public write policy.
+  const onPick = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploadErr(null);
+    setUploading(true);
+    try {
+      for (const file of Array.from(files).slice(0, 8 - images.length)) {
+        if (file.size > 4 * 1024 * 1024) {
+          setUploadErr(`${file.name} is over 4MB — please compress it`);
+          continue;
+        }
+        const data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+          reader.onerror = () => reject(new Error('Could not read that file'));
+          reader.readAsDataURL(file);
+        });
+        const res = await uploadProductImage(file.name, file.type, data);
+        setImages(prev => [...prev, { url: res.url, name: file.name }].slice(0, 8));
+      }
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1388,11 +1418,11 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         mrp: mrp ? Number(mrp) : undefined,
         category,
         colors: colors.split(',').map(c => c.trim()).filter(Boolean),
-        image_url: imageUrl.trim() || undefined,
+        images: images.map(i => i.url),
         stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
       });
       setOk(`Created "${name.trim()}" as /product/${res.slug}`);
-      setName(''); setPrice(''); setMrp(''); setColors(''); setImageUrl('');
+      setName(''); setPrice(''); setMrp(''); setColors(''); setImages([]);
       onCreated();
       setTimeout(() => setOk(null), 5000);
     } catch (e) {
@@ -1450,12 +1480,54 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
           <input value={colors} onChange={e => setColors(e.target.value)} placeholder="Black, White"
             className={`mt-1 ${input}`} />
         </label>
+      </div>
 
-        <label className="block sm:col-span-2">
-          <span className="text-[11px] text-ink/50">Image URL</span>
-          <input value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-            placeholder="https://images.pexels.com/…" className={`mt-1 ${input}`} />
+      {/* Images */}
+      <div>
+        <span className="text-[11px] text-ink/50">
+          Images — up to 8. The first is the thumbnail; the second becomes the hover image.
+        </span>
+
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {images.map((img, i) => (
+              <div key={img.url} className="relative">
+                <img src={img.url} alt={img.name}
+                  className="w-16 h-20 object-cover object-top rounded-lg border border-ink/10 bg-stone/40" />
+                {i === 0 && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] uppercase bg-ink text-ivory rounded-full px-1.5 py-0.5">
+                    Main
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white grid place-items-center"
+                  aria-label={`Remove ${img.name}`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label className="mt-2 flex items-center justify-center gap-2 py-6 px-4 rounded-xl border border-dashed border-ink/20 hover:border-ink/40 cursor-pointer transition">
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif"
+            multiple
+            className="sr-only"
+            onChange={e => { void onPick(e.target.files); e.target.value = ''; }}
+          />
+          {uploading ? (
+            <><Loader2 size={16} className="animate-spin" /> Uploading…</>
+          ) : (
+            <><Package size={16} /> Choose images (PNG, JPEG, WebP · max 4MB each)</>
+          )}
         </label>
+
+        {uploadErr && <p className="text-[11px] text-red-600 mt-1.5">{uploadErr}</p>}
       </div>
 
       <div>

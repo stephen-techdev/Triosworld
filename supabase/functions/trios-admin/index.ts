@@ -436,6 +436,7 @@ Deno.serve(async (req: Request) => {
           deleted_at: (o as { deleted_at?: string | null } | undefined)?.deleted_at ?? null,
           category: null as string | null,
           image_url: null as string | null,
+          images: [] as string[],
           created_at: null as string | null,
         };
       });
@@ -449,12 +450,12 @@ Deno.serve(async (req: Request) => {
       if (runtimeErr) return json({ error: runtimeErr.message }, 500);
 
       const runtimeProducts = (runtimeRows ?? []).map((r) => {
-        const stock = (r.stock as Record<string, number> | null) ?? {};
-        const mergedStock = Object.keys(stock).length ? stock : Object.fromEntries(
-          (PRICES as Record<string, { sizes: Record<string, number> }>)["p01"]?.sizes
-            ? Object.entries((PRICES as Record<string, { sizes: Record<string, number> }>)["p01"].sizes)
-            : [],
-        );
+        // Runtime products carry their own per-size stock; fall back to a flat
+        // "all sizes" entry so the edit form always has something to show.
+        const saved = (r.stock as Record<string, number> | null) ?? {};
+        const stock: Record<string, number> = Object.keys(saved).length
+          ? saved
+          : { ONE: Math.max(0, Number(r.price) ? 10 : 0) };
         return {
           id: r.id,
           name: r.name,
@@ -463,8 +464,8 @@ Deno.serve(async (req: Request) => {
           catalog_price: r.price,
           price: r.price,
           colors: (r.colors as string[] | null) ?? [],
-          stock: mergedStock,
-          stock_total: Object.values(mergedStock).reduce((s, n) => s + (Number(n) || 0), 0),
+          stock,
+          stock_total: Object.values(stock).reduce((s, n) => s + (Number(n) || 0), 0),
           is_active: r.is_active,
           updated_at: r.updated_at,
           overridden: false,
@@ -473,6 +474,7 @@ Deno.serve(async (req: Request) => {
           deleted_at: null,
           category: r.category,
           image_url: r.image_url,
+          images: (r.images as string[] | null) ?? (r.image_url ? [r.image_url] : []),
           created_at: r.created_at,
         };
       });
@@ -527,6 +529,71 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true });
     }
 
+    // ==================== IMAGE UPLOAD ====================
+    // Images go up through this function rather than straight from the browser,
+    // so the storage bucket never needs a public write policy — an anon key
+    // could otherwise upload to it.
+    if (path === "/image-upload" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const filename = String(body.filename ?? "").trim();
+      const contentType = String(body.contentType ?? "").trim();
+      const dataBase64 = String(body.data ?? "");
+
+      const ALLOWED: Record<string, string> = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/webp": "webp",
+        "image/avif": "avif",
+      };
+
+      const ext = ALLOWED[contentType];
+      if (!ext) return json({ error: "Only PNG, JPEG, WebP or AVIF images are allowed" }, 400);
+      if (!filename) return json({ error: "filename is required" }, 400);
+      if (!dataBase64) return json({ error: "No image data received" }, 400);
+
+      // base64 inflates by ~4/3, so cap the decoded payload at 4MB.
+      const approxBytes = (dataBase64.length * 3) / 4;
+      if (approxBytes > 4 * 1024 * 1024) {
+        return json({ error: "Image is larger than 4MB — please compress it first" }, 413);
+      }
+
+      const bytes = Uint8Array.from(atob(dataBase64), (c) => c.charCodeAt(0));
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const safeBase = slugify(filename.replace(/\.[^.]+$/, "")).slice(0, 40) || "image";
+      const key = `${stamp}/${crypto.randomUUID()}-${safeBase}.${ext}`;
+
+      const { error: upErr } = await supabase.storage
+        .from("product-images")
+        .upload(key, bytes, { contentType, upsert: false });
+
+      if (upErr) return json({ error: upErr.message }, 500);
+
+      const { data: pub } = supabase.storage.from("product-images").getPublicUrl(key);
+
+      await audit(session.email, "image.upload", "storage", key, {
+        filename,
+        bytes: bytes.length,
+      });
+
+      return json({ ok: true, path: key, url: pub.publicUrl });
+    }
+
+    // ==================== PRODUCT DELETE IMAGE ====================
+    if (path === "/image-delete" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const path_ = String(body.path ?? "");
+      // Only ever touch our own bucket, and never accept a traversal.
+      if (!path_.startsWith("product-images/") || path_.includes("..")) {
+        return json({ error: "Invalid image path" }, 400);
+      }
+      const key = path_.replace(/^product-images\//, "");
+      const { error } = await supabase.storage.from("product-images").remove([key]);
+      if (error) return json({ error: error.message }, 500);
+      await audit(session.email, "image.delete", "storage", key, {});
+      return json({ ok: true });
+    }
+
     // ==================== PRODUCT CREATE ====================
     if (path === "/product-create" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
@@ -571,6 +638,14 @@ Deno.serve(async (req: Request) => {
         ? (body.colors as unknown[]).map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
         : [];
 
+      // Uploaded images come back as public URLs; the first one is also kept in
+      // image_url so the single-image surfaces keep working.
+      const images = Array.isArray(body.images)
+        ? (body.images as unknown[]).map((i) => String(i).trim()).filter(Boolean).slice(0, 8)
+        : [];
+      const explicitUrl = body.image_url ? String(body.image_url).trim() : "";
+      const allImages = explicitUrl ? [explicitUrl, ...images] : images;
+
       const { error } = await supabase.from("products").insert({
         id,
         slug,
@@ -581,13 +656,14 @@ Deno.serve(async (req: Request) => {
         category: String(body.category ?? "new-arrivals"),
         colors,
         stock,
-        image_url: body.image_url ? String(body.image_url) : null,
+        images: allImages,
+        image_url: allImages[0] ?? null,
         is_active: body.is_active !== false,
       });
 
       if (error) return json({ error: error.message }, 500);
 
-      await audit(admin.email, "product.create", "product", id, { name, slug, price: Math.round(price) });
+      await audit(session.email, "product.create", "product", id, { name, slug, price: Math.round(price) });
       return json({ ok: true, id, slug });
     }
 
@@ -618,7 +694,7 @@ Deno.serve(async (req: Request) => {
         }, { onConflict: "product_id" });
 
         if (error) return json({ error: error.message }, 500);
-        await audit(admin.email, "product.delete", "product", productId, { soft: true, inOrders });
+        await audit(session.email, "product.delete", "product", productId, { soft: true, inOrders });
         return json({ ok: true, mode: "retired", inOrders });
       }
 
@@ -636,13 +712,13 @@ Deno.serve(async (req: Request) => {
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq("id", productId);
         if (error) return json({ error: error.message }, 500);
-        await audit(admin.email, "product.delete", "product", productId, { soft: true, inOrders: true });
+        await audit(session.email, "product.delete", "product", productId, { soft: true, inOrders: true });
         return json({ ok: true, mode: "hidden", inOrders: true });
       }
 
       const { error } = await supabase.from("products").delete().eq("id", productId);
       if (error) return json({ error: error.message }, 500);
-      await audit(admin.email, "product.delete", "product", productId, { soft: false, slug: row.slug });
+      await audit(session.email, "product.delete", "product", productId, { soft: false, slug: row.slug });
       return json({ ok: true, mode: "deleted", inOrders: false });
     }
 
@@ -661,6 +737,15 @@ Deno.serve(async (req: Request) => {
         }, { onConflict: "product_id" });
         if (error) return json({ error: error.message }, 500);
       } else {
+        const { data: row } = await supabase
+          .from("products")
+          .select("id")
+          .eq("id", productId)
+          .maybeSingle();
+
+        // Previously this branch updated zero rows and still reported success.
+        if (!row) return json({ error: "Unknown product" }, 404);
+
         const { error } = await supabase
           .from("products")
           .update({ is_active: true, updated_at: new Date().toISOString() })
@@ -668,7 +753,7 @@ Deno.serve(async (req: Request) => {
         if (error) return json({ error: error.message }, 500);
       }
 
-      await audit(admin.email, "product.restore", "product", productId, {});
+      await audit(session.email, "product.restore", "product", productId, {});
       return json({ ok: true });
     }
 
@@ -677,9 +762,11 @@ Deno.serve(async (req: Request) => {
       const mobile = (url.searchParams.get("mobile") ?? "").replace(/\D/g, "").slice(-10);
       if (!mobile) return json({ error: "mobile is required" }, 400);
 
+      // `profiles` has no last_login_at column — selecting it made PostgREST reject
+      // the whole query, so the drawer silently fell back to "Customer".
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, full_name, mobile, gender, avatar_url, google_id, is_muted, muted_reason, muted_at, deleted_at, created_at, last_login_at")
+        .select("id, full_name, mobile, gender, avatar_url, google_id, is_muted, muted_reason, muted_at, deleted_at, created_at")
         .eq("mobile", mobile)
         .maybeSingle();
 
@@ -719,7 +806,7 @@ Deno.serve(async (req: Request) => {
           muted_at: profile?.muted_at ?? null,
           deleted_at: profile?.deleted_at ?? null,
           joined_at: profile?.created_at ?? rows[rows.length - 1]?.created_at ?? null,
-          last_login_at: profile?.last_login_at ?? null,
+          last_login_at: null,
           has_account: Boolean(profile),
           orders: rows,
           addresses: addresses ?? [],
@@ -758,7 +845,7 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message }, 500);
       if (!data) return json({ error: "That customer has no account to mute. They can still place guest orders." }, 404);
 
-      await audit(admin.email, muted ? "customer.mute" : "customer.unmute", "profile", data.id, { mobile, reason });
+      await audit(session.email, muted ? "customer.mute" : "customer.unmute", "profile", data.id, { mobile, reason });
       return json({ ok: true, is_muted: data.is_muted });
     }
 
@@ -803,7 +890,7 @@ Deno.serve(async (req: Request) => {
       // Sign the Auth user out everywhere by banning them.
       await supabase.auth.admin.updateUserById(profile.id, { ban_duration: "876000h" });
 
-      await audit(admin.email, "customer.delete", "profile", profile.id, {
+      await audit(session.email, "customer.delete", "profile", profile.id, {
         mobile,
         full_name: profile.full_name,
         orders_preserved: orderCount ?? 0,

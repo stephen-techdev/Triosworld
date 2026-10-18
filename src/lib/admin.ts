@@ -287,6 +287,16 @@ export const deleteCustomer = (mobile: string) =>
   });
 
 // ───────────────────────── product management ──────────────────────
+/**
+ * Upload a product image. Goes through the admin function rather than Storage
+ * directly so the `product-images` bucket never needs a public write policy.
+ */
+export const uploadProductImage = (filename: string, contentType: string, data: string) =>
+  adminRequest<{ ok: true; path: string; url: string }>('/image-upload', {
+    method: 'POST',
+    body: JSON.stringify({ filename, contentType, data }),
+  });
+
 export const createProduct = (payload: {
   name: string;
   slug?: string;
@@ -295,6 +305,7 @@ export const createProduct = (payload: {
   category?: string;
   colors?: string[];
   stock?: Record<string, number>;
+  images?: string[];
   image_url?: string;
   description?: string;
   is_active?: boolean;

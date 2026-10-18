@@ -120,8 +120,13 @@ export default function AdminLoginPage() {
             />
           </label>
 
-          <label className="block" htmlFor="admin-password">
-            <span className="text-xs font-medium text-ink/60">Password</span>
+          {/* The toggle must not sit inside the <label>: a nested interactive
+              control breaks the label/control association, so assistive tech
+              could not reach the password field or this button. */}
+          <div>
+            <label className="block" htmlFor="admin-password">
+              <span className="text-xs font-medium text-ink/60">Password</span>
+            </label>
             <div className="mt-1.5 relative">
               <input
                 id="admin-password"
@@ -131,17 +136,20 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 required
+                aria-label="Password"
                 className="w-full rounded-lg border border-ink/15 px-3 py-2.5 pr-16 text-sm focus:outline-none focus:border-ink"
               />
               <button
                 type="button"
                 onClick={() => setShowPwd(s => !s)}
+                aria-label={showPwd ? 'Hide password' : 'Show password'}
+                aria-pressed={showPwd}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-ink/40 hover:text-ink"
               >
                 {showPwd ? 'Hide' : 'Show'}
               </button>
             </div>
-          </label>
+          </div>
 
           <button
             type="submit"

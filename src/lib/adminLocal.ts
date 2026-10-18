@@ -91,34 +91,39 @@ export function localSignOut() {
 /**
  * Local password change, so the operator can move off the shipped default even
  * before the backend exists. Replaces the stored password for this browser.
+ *
+ * Deliberately has NO expiry. A session expires; a password change must not —
+ * an earlier version reused the 12h session TTL here and silently reverted the
+ * operator to the shipped default overnight.
  */
 export function localChangePassword(current: string, next: string): { ok: boolean; error?: string } {
-  if (current !== LOCAL_PASSWORD) return { ok: false, error: 'Current password is incorrect.' };
+  if (current !== effectiveLocalPassword()) {
+    return { ok: false, error: 'Current password is incorrect.' };
+  }
   if (!/^(?=.*[A-Za-z])(?=.*\d).{10,}$/.test(next)) {
     return { ok: false, error: 'Use at least 10 characters with a letter and a number.' };
   }
+  if (next === effectiveLocalPassword()) {
+    return { ok: false, error: 'Choose a password different from the current one.' };
+  }
   try {
-    localStorage.setItem(
-      `${KEY}:pwd`,
-      JSON.stringify({ value: next, expiresAt: Date.now() + TTL_MS }),
-    );
+    localStorage.setItem(`${KEY}:pwd`, JSON.stringify({ value: next }));
   } catch {
     return { ok: false, error: 'Could not save the new password in this browser.' };
   }
   return { ok: true };
 }
 
-/** The stored override set by {@link localChangePassword}, if any. */
+/**
+ * The stored override set by {@link localChangePassword}, if any. Falls back to
+ * the shipped default when nothing has been changed.
+ */
 function effectiveLocalPassword(): string {
   try {
     const raw = localStorage.getItem(`${KEY}:pwd`);
     if (!raw) return LOCAL_PASSWORD;
-    const rec = JSON.parse(raw) as { value?: string; expiresAt?: number };
-    if (typeof rec.expiresAt === 'number' && Date.now() > rec.expiresAt) {
-      localStorage.removeItem(`${KEY}:pwd`);
-      return LOCAL_PASSWORD;
-    }
-    return typeof rec.value === 'string' ? rec.value : LOCAL_PASSWORD;
+    const rec = JSON.parse(raw) as { value?: string };
+    return typeof rec.value === 'string' && rec.value.length > 0 ? rec.value : LOCAL_PASSWORD;
   } catch {
     return LOCAL_PASSWORD;
   }

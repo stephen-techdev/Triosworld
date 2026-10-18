@@ -85,7 +85,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               <button className="xl:hidden p-1 -ml-1 rounded-full hover:bg-ink/5 transition-colors" onClick={() => setMobileOpen(true)} aria-label="Open menu">
                 <Menu size={22} />
               </button>
-              <Link to="/" className="text-xl md:text-2xl transition-opacity hover:opacity-80"><Wordmark /></Link>
+              <Link to="/" className="text-xl md:text-2xl text-ink transition-opacity hover:opacity-70"><Wordmark variant="ink" /></Link>
             </div>
 
             <nav className="hidden xl:flex items-center gap-6 xl:gap-8 flex-1 justify-center" onMouseLeave={leaveMega}>
@@ -198,7 +198,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               transition={{ type: 'spring', stiffness: 380, damping: 40 }}
               className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-ivory z-50 xl:hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-ink/10">
-                <span className="text-lg"><Wordmark /></span>
+                <span className="text-lg text-ink"><Wordmark variant="ink" /></span>
                 <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="-mr-1 p-2 rounded-full hover:bg-ink/5 transition-colors"><X size={22} /></button>
               </div>
               <motion.nav

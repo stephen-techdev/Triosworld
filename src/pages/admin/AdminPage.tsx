@@ -7,6 +7,7 @@ import {
   ArrowLeft, TrendingUp, UserRound,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
+import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
 import { PRODUCTS, formatINR } from '@/data/catalog';
 import {
@@ -62,8 +63,8 @@ export default function AdminPage() {
       <header className="sticky top-0 z-30 bg-ink text-ivory">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Link to="/" className="font-display font-bold tracking-tightest text-lg shrink-0">
-              TRIO<span className="text-lime">S</span>WORLD
+            <Link to="/" className="text-lg shrink-0">
+              <Wordmark variant="chrome" />
             </Link>
             <span className="hidden sm:inline text-[11px] uppercase tracking-widest text-ivory/40 border border-ivory/20 rounded-full px-2.5 py-1">
               Admin

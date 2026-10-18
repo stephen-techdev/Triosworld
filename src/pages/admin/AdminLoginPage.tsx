@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Lock, ShieldAlert } from 'lucide-react';
 import SEO from '@/components/SEO';
+import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
 import { AdminAuthError, AdminServiceUnavailableError, adminLogin, readSession } from '@/lib/admin';
 
@@ -64,8 +65,8 @@ export default function AdminLoginPage() {
         className="w-full max-w-sm"
       >
         <div className="text-center mb-8">
-          <p className="font-display font-bold text-2xl tracking-tightest text-ivory">
-            TRIO<span className="text-lime">S</span>WORLD
+          <p className="text-2xl flex justify-center">
+            <Wordmark variant="chrome" />
           </p>
           <p className="text-[11px] uppercase tracking-[0.2em] text-ivory/40 mt-2">Operator access</p>
         </div>

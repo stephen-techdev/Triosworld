@@ -25,6 +25,7 @@
 //   never a client-side "success" toggle. The success page labels it clearly.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { PRICES } from "../_shared/prices.ts";
+import { routePath } from "../_shared/http.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -429,7 +430,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/functions\/v1\/trios-pay/, "");
+  const path = routePath(url.pathname, "trios-pay");
 
   try {
     // ==================== HEALTH ====================

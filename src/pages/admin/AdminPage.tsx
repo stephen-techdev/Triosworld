@@ -10,16 +10,12 @@ import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { PRODUCTS, formatINR } from '@/data/catalog';
 import {
-  AdminAuthError, AdminServiceUnavailableError, adminLogout, changeAdminPassword,
+  AdminAuthError, adminLogout, changeAdminPassword,
   getCustomers, getFeedback, getOrderEvents, getOrders, getOverview, getProducts, readSession,
   setFeedbackStatus, updateOrder, updateProduct,
   type AdminCustomer, type AdminFeedback, type AdminOrder, type AdminProduct, type AdminSession,
   type Overview,
 } from '@/lib/admin';
-import { localSignOut, readLocalSession, localChangePassword, type LocalSession } from '@/lib/adminLocal';
-import {
-  localCustomers, localFeedback, localOrders, localOverview, localProducts, localUpdateProduct,
-} from '@/lib/adminLocalData';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'feedback' | 'settings';
 
@@ -48,24 +44,12 @@ function shortDate(iso: string | null): string {
  * request — the browser holding a token is never sufficient on its own.
  */
 export default function AdminPage() {
-  const [remote, setRemote] = useState<AdminSession | null>(() => readSession());
-  const [local, setLocal] = useState<LocalSession | null>(() => readLocalSession());
+  const [session, setSession] = useState<AdminSession | null>(() => readSession());
   const [tab, setTab] = useState<Tab>('overview');
-
-  // Local mode is active only when the server-issued session is absent.
-  const localMode = !remote && !!local;
-
-  // A local session presents the same shape as a server one so the dashboard
-  // shell does not need to care which is in play.
-  const session: AdminSession | null = remote ?? (local ? { token: 'local', admin: {
-    id: 'local', email: local.email, name: local.name, role: local.role,
-  } } : null);
 
   const signOut = useCallback(() => {
     adminLogout();
-    localSignOut();
-    setRemote(null);
-    setLocal(null);
+    setSession(null);
   }, []);
 
   // Sign-in lives on its own page at /admin/login; don't duplicate the form here.
@@ -99,20 +83,6 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
-
-        {localMode && (
-          <div className="bg-amber-400 text-ink">
-            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-2 flex items-start gap-2 text-[11px]">
-              <AlertTriangle size={14} className="shrink-0 mt-px" />
-              <p className="leading-relaxed">
-                <strong>Local mode.</strong> The <code className="font-mono">trios-admin</code> function
-                isn&apos;t deployed, so this dashboard is running on browser-only data. Product edits save to
-                this browser; orders, customers and payments are empty. Sign-in here is a UI gate, not
-                security.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Mobile / tablet tab strip */}
         <div className="lg:hidden overflow-x-auto border-t border-ivory/10">
@@ -169,12 +139,12 @@ export default function AdminPage() {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.25, ease: EASE }}
             >
-              {tab === 'overview' && <OverviewSection local={localMode} />}
-              {tab === 'orders' && <OrdersSection onAuthFail={signOut} local={localMode} />}
-              {tab === 'customers' && <CustomersSection onAuthFail={signOut} local={localMode} />}
-              {tab === 'products' && <ProductsSection onAuthFail={signOut} local={localMode} />}
-              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} local={localMode} />}
-              {tab === 'settings' && <SettingsSection local={localMode} />}
+              {tab === 'overview' && <OverviewSection />}
+              {tab === 'orders' && <OrdersSection onAuthFail={signOut} />}
+              {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
+              {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
+              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
+              {tab === 'settings' && <SettingsSection />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -245,12 +215,8 @@ function PaymentChip({ status }: { status: string }) {
   );
 }
 
-/**
- * Loads a section's data. In local mode (`local` true) an unreachable function
- * is not an error — it falls back to browser-only fixtures so the dashboard is
- * still usable. Outside local mode the error surfaces as before.
- */
-function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void, local?: () => T) {
+/** Loads a section's data from the trios-admin function. */
+function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -262,15 +228,11 @@ function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void, local
       setData(await loader());
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
-      if (local && err instanceof AdminServiceUnavailableError) {
-        setData(local());
-      } else {
-        setError(err instanceof Error ? err.message : 'Could not load data');
-      }
+      setError(err instanceof Error ? err.message : 'Could not load data');
     } finally {
       setLoading(false);
     }
-  }, [loader, onAuthFail, local]);
+  }, [loader, onAuthFail]);
 
   useEffect(() => { void load(); }, [load]);
   return { data, error, loading, reload: load };
@@ -280,9 +242,9 @@ function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void, local
 // Overview
 // ════════════════════════════════════════════════════════════════════════════
 
-function OverviewSection({ local }: { local?: boolean }) {
+function OverviewSection() {
   const loader = useCallback(() => getOverview(), []);
-  const { data, error, loading, reload } = useAdminData<Overview>(loader, () => {}, local ? localOverview : undefined);
+  const { data, error, loading, reload } = useAdminData<Overview>(loader, () => {});
 
   const cards = data ? [
     { label: 'Revenue (paid)', value: formatINR(data.revenue), icon: TrendingUp, accent: true },
@@ -329,7 +291,7 @@ function OverviewSection({ local }: { local?: boolean }) {
 const ORDER_FILTERS = ['all', 'paid', 'pending', 'failed', 'expired'] as const;
 const FULFILMENT = ['placed', 'dispatched', 'delivered', 'cancelled'] as const;
 
-function OrdersSection({ onAuthFail, local }: { onAuthFail: () => void; local?: boolean }) {
+function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [filter, setFilter] = useState<(typeof ORDER_FILTERS)[number]>('all');
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -340,7 +302,7 @@ function OrdersSection({ onAuthFail, local }: { onAuthFail: () => void; local?: 
   }, [search]);
 
   const loader = useCallback(() => getOrders({ status: filter, q: debounced }), [filter, debounced]);
-  const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail, local ? localOrders : undefined);
+  const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
 
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -582,9 +544,9 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
 // Customers
 // ════════════════════════════════════════════════════════════════════════════
 
-function CustomersSection({ onAuthFail, local }: { onAuthFail: () => void; local?: boolean }) {
+function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getCustomers(), []);
-  const { data, error, loading, reload } = useAdminData<AdminCustomer[]>(loader, onAuthFail, local ? localCustomers : undefined);
+  const { data, error, loading, reload } = useAdminData<AdminCustomer[]>(loader, onAuthFail);
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -656,9 +618,9 @@ function CustomersSection({ onAuthFail, local }: { onAuthFail: () => void; local
 // Products
 // ════════════════════════════════════════════════════════════════════════════
 
-function ProductsSection({ onAuthFail, local }: { onAuthFail: () => void; local?: boolean }) {
+function ProductsSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getProducts(), []);
-  const { data, error, loading, reload } = useAdminData<AdminProduct[]>(loader, onAuthFail, local ? localProducts : undefined);
+  const { data, error, loading, reload } = useAdminData<AdminProduct[]>(loader, onAuthFail);
 
   return (
     <div>
@@ -672,14 +634,14 @@ function ProductsSection({ onAuthFail, local }: { onAuthFail: () => void; local?
       {loading && !data && <Centered><Loader2 className="animate-spin" /></Centered>}
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {data?.map(p => <ProductCard key={p.id} product={p} onSaved={reload} onAuthFail={onAuthFail} local={local} />)}
+        {data?.map(p => <ProductCard key={p.id} product={p} onSaved={reload} onAuthFail={onAuthFail} />)}
       </div>
     </div>
   );
 }
 
-function ProductCard({ product, onSaved, onAuthFail, local }: {
-  product: AdminProduct; onSaved: () => void; onAuthFail: () => void; local?: boolean;
+function ProductCard({ product, onSaved, onAuthFail }: {
+  product: AdminProduct; onSaved: () => void; onAuthFail: () => void;
 }) {
   const [price, setPrice] = useState(String(product.price));
   const [mrp, setMrp] = useState(String(product.mrp));
@@ -704,38 +666,18 @@ function ProductCard({ product, onSaved, onAuthFail, local }: {
     setErr(null);
     setSaved(false);
     try {
-      const payload = {
+      await updateProduct({
         productId: product.id,
         price: Number(price),
         mrp: Number(mrp),
         stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
         is_active: active,
-      };
-      // Prefer the live function; persist to this browser if it isn't deployed.
-      if (local) {
-        localUpdateProduct(payload);
-      } else {
-        await updateProduct(payload);
-      }
+      });
       setSaved(true);
       onSaved();
       setTimeout(() => setSaved(false), 2200);
     } catch (e) {
       if (e instanceof AdminAuthError) { onAuthFail(); return; }
-      // A live backend that is simply not deployed yet shouldn't block an edit.
-      if (local && e instanceof AdminServiceUnavailableError) {
-        localUpdateProduct({
-          productId: product.id,
-          price: Number(price),
-          mrp: Number(mrp),
-          stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
-          is_active: active,
-        });
-        setSaved(true);
-        onSaved();
-        setTimeout(() => setSaved(false), 2200);
-        return;
-      }
       setErr(e instanceof Error ? e.message : 'Could not save');
     } finally {
       setSaving(false);
@@ -824,10 +766,10 @@ function ProductCard({ product, onSaved, onAuthFail, local }: {
 // Feedback
 // ════════════════════════════════════════════════════════════════════════════
 
-function FeedbackSection({ onAuthFail, local }: { onAuthFail: () => void; local?: boolean }) {
+function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [filter, setFilter] = useState<'all' | 'new' | 'read' | 'resolved'>('all');
   const loader = useCallback(() => getFeedback(filter), [filter]);
-  const { data, error, loading, reload } = useAdminData<AdminFeedback[]>(loader, onAuthFail, local ? localFeedback : undefined);
+  const { data, error, loading, reload } = useAdminData<AdminFeedback[]>(loader, onAuthFail);
 
   const setStatus = async (id: string, status: 'new' | 'read' | 'resolved') => {
     try {
@@ -929,7 +871,7 @@ function FeedbackSection({ onAuthFail, local }: { onAuthFail: () => void; local?
 // Settings
 // ════════════════════════════════════════════════════════════════════════════
 
-function SettingsSection({ local }: { local?: boolean }) {
+function SettingsSection() {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -946,31 +888,10 @@ function SettingsSection({ local }: { local?: boolean }) {
     setState('saving');
     setError(null);
     try {
-      if (local) {
-        // No `admins` table yet, so the change is kept in this browser only.
-        const res = localChangePassword(current, next);
-        if (!res.ok) {
-          setError(res.error ?? 'Could not change the password.');
-          setState('idle');
-          return;
-        }
-      } else {
-        await changeAdminPassword(current, next);
-      }
+      await changeAdminPassword(current, next);
       setState('done');
       setCurrent(''); setNext(''); setConfirm('');
     } catch (err) {
-      if (local && err instanceof AdminServiceUnavailableError) {
-        const res = localChangePassword(current, next);
-        if (res.ok) {
-          setState('done');
-          setCurrent(''); setNext(''); setConfirm('');
-          return;
-        }
-        setError(res.error ?? 'Could not change the password.');
-        setState('idle');
-        return;
-      }
       setError(err instanceof Error ? err.message : 'Could not change the password.');
       setState('idle');
     }

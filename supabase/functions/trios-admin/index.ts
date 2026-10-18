@@ -19,6 +19,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import bcrypt from "npm:bcryptjs@3.0.3";
 import { PRICES } from "../_shared/prices.ts";
+import { routePath } from "../_shared/http.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -156,7 +157,16 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/functions\/v1\/trios-admin/, "");
+  const path = routePath(url.pathname, "trios-admin");
+
+  // Unauthenticated liveness probe, used by scripts/check-functions.mjs.
+  if (path === "/health") {
+    return json({ ok: true, function: "trios-admin", rawPath: url.pathname });
+  }
+  // Distinct path used to defeat stale edge caching while diagnosing.
+  if (path === "/health-canary") {
+    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 3 });
+  }
 
   try {
     // ==================== LOGIN (unauthenticated) ====================

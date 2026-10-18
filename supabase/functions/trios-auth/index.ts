@@ -9,6 +9,7 @@
 // which produces standard $2a$ hashes and runs fine in the edge runtime.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import bcrypt from "npm:bcryptjs@3.0.3";
+import { routePath } from "../_shared/http.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -141,7 +142,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
-    const path = url.pathname.replace(/\/functions\/v1\/trios-auth/, "");
+    const path = routePath(url.pathname, "trios-auth");
     const body = await req.json().catch(() => ({}));
 
     // ============ REGISTER ============

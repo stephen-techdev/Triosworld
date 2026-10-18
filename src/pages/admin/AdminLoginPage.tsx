@@ -5,9 +5,6 @@ import { Loader2, Lock, ShieldAlert } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { AdminAuthError, AdminServiceUnavailableError, adminLogin, readSession } from '@/lib/admin';
-import {
-  isLocalAdminEnabled, localSignInWithStoredPassword, readLocalSession,
-} from '@/lib/adminLocal';
 
 /**
  * Standalone operator sign-in at `/admin/login`.
@@ -32,42 +29,25 @@ export default function AdminLoginPage() {
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (readSession() || readLocalSession()) navigate('/admin', { replace: true });
+    if (readSession()) navigate('/admin', { replace: true });
   }, [navigate]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-
-    // The real, server-verified login is always tried first.
     try {
       await adminLogin(email.trim(), password);
       navigate('/admin', { replace: true });
-      return;
     } catch (err) {
-      // Wrong password on a live backend is a hard failure — never fall back,
-      // or that would turn a genuine auth failure into a bypass.
-      if (err instanceof AdminAuthError) {
-        setError('Invalid email or password');
-        setLoading(false);
-        return;
-      }
-
-      // Only when the function genuinely isn't deployed do we consider local mode.
-      if (err instanceof AdminServiceUnavailableError && isLocalAdminEnabled()) {
-        const local = localSignInWithStoredPassword(email.trim(), password);
-        if (local) {
-          navigate('/admin', { replace: true });
-          return;
-        }
-        setError('Invalid email or password');
-        setLoading(false);
-        return;
-      }
-
       setError(
-        err instanceof Error ? err.message : 'Could not sign in',
+        err instanceof AdminAuthError
+          ? 'Invalid email or password'
+          : err instanceof AdminServiceUnavailableError
+            ? 'The admin service is not reachable right now.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not sign in',
       );
       setLoading(false);
     }

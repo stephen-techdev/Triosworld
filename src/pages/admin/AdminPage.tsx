@@ -4,18 +4,18 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
-  ArrowLeft, TrendingUp, UserRound,
+  ArrowLeft, TrendingUp, UserRound, X, Trash2,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
-import { PRODUCTS, formatINR } from '@/data/catalog';
+import { CATEGORIES, PRODUCTS, SIZES, formatINR } from '@/data/catalog';
 import {
-  AdminAuthError, adminLogout, changeAdminPassword,
-  getCustomers, getFeedback, getOrderEvents, getOrders, getOverview, getProducts, readSession,
-  setFeedbackStatus, updateOrder, updateProduct,
-  type AdminCustomer, type AdminFeedback, type AdminOrder, type AdminProduct, type AdminSession,
-  type Overview,
+  AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
+  deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
+  getProducts, muteCustomer, readSession, restoreProduct, setFeedbackStatus, updateOrder, updateProduct,
+  type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
+  type AdminSession, type Overview,
 } from '@/lib/admin';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'feedback' | 'settings';
@@ -549,6 +549,7 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getCustomers(), []);
   const { data, error, loading, reload } = useAdminData<AdminCustomer[]>(loader, onAuthFail);
   const [query, setQuery] = useState('');
+  const [openMobile, setOpenMobile] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -583,34 +584,333 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
 
       <div className="space-y-2">
         {filtered.map(c => (
-          <div key={`${c.mobile}-${c.type}`} className="rounded-xl border border-ink/10 bg-ivory p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-stone grid place-items-center shrink-0">
-              <UserRound size={17} className="text-ink/50" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium truncate">{c.name}</p>
-                <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${
-                  c.type === 'guest' ? 'bg-stone text-ink/60' : 'bg-lime text-ink'
-                }`}>
-                  {c.type}
-                </span>
-              </div>
-              <p className="text-xs text-ink/50 mt-0.5">
-                +91 {c.mobile}
-                {c.email && <span className="text-ink/40"> · {c.email}</span>}
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-sm font-semibold">{formatINR(c.spent)}</p>
-              <p className="text-[11px] text-ink/45">
-                {c.orders} order{c.orders === 1 ? '' : 's'}
-                {c.last_order && <> · {shortDate(c.last_order)}</>}
-              </p>
-            </div>
-          </div>
+          <CustomerRow key={`${c.mobile}-${c.type}`} customer={c} onChanged={reload} onView={() => setOpenMobile(c.mobile)} />
         ))}
       </div>
+
+      {openMobile && (
+        <CustomerDrawer
+          mobile={openMobile}
+          onClose={() => setOpenMobile(null)}
+          onAuthFail={onAuthFail}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────── customer row + moderation ───────────────────────
+
+function CustomerRow({ customer: c, onChanged, onView }: {
+  customer: AdminCustomer; onChanged: () => void; onView: () => void;
+}) {
+  const [busy, setBusy] = useState<'mute' | 'unmute' | 'delete' | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [askingMute, setAskingMute] = useState(false);
+  const [askingDelete, setAskingDelete] = useState(false);
+
+  const run = async (kind: 'mute' | 'unmute' | 'delete') => {
+    setBusy(kind); setErr(null);
+    try {
+      if (kind === 'delete') await deleteCustomer(c.mobile);
+      else await muteCustomer(c.mobile, kind === 'mute', reason);
+      setAskingMute(false); setAskingDelete(false); setReason('');
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not complete that action');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-ink/10 bg-ivory p-4">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="w-10 h-10 rounded-full bg-stone grid place-items-center shrink-0">
+          <UserRound size={17} className="text-ink/50" />
+        </div>
+
+        <button onClick={onView} className="flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium truncate">{c.name}</p>
+            <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${
+              c.type === 'guest' ? 'bg-stone text-ink/60' : 'bg-lime text-ink'
+            }`}>
+              {c.type}
+            </span>
+          </div>
+          <p className="text-xs text-ink/50 mt-0.5 truncate">
+            +91 {c.mobile}
+            {c.email && <span className="text-ink/40"> · {c.email}</span>}
+          </p>
+        </button>
+
+        <div className="text-right shrink-0 hidden sm:block">
+          <p className="text-sm font-semibold">{formatINR(c.spent)}</p>
+          <p className="text-[11px] text-ink/45">
+            {c.orders} order{c.orders === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={onView}
+            className="p-2 rounded-lg text-ink/50 hover:bg-stone/60 hover:text-ink transition"
+            aria-label={`View profile for ${c.name}`}
+            title="View profile"
+          >
+            <ChevronDown size={16} className="-rotate-90" />
+          </button>
+
+          {c.type === 'registered' ? (
+            <>
+              <button
+                onClick={() => (askingMute ? run('mute') : setAskingMute(v => !v))}
+                disabled={busy !== null}
+                className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition disabled:opacity-40"
+                aria-label={askingMute ? 'Confirm mute' : `Mute ${c.name}`}
+                title={askingMute ? 'Confirm mute' : 'Mute'}
+              >
+                {busy === 'mute' ? <Loader2 size={16} className="animate-spin" /> : <AlertTriangle size={16} />}
+              </button>
+              <button
+                onClick={() => (askingDelete ? run('delete') : setAskingDelete(v => !v))}
+                disabled={busy !== null}
+                className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                aria-label={askingDelete ? 'Confirm delete' : `Delete ${c.name}`}
+                title={askingDelete ? 'Confirm delete' : 'Delete'}
+              >
+                {busy === 'delete' ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              </button>
+            </>
+          ) : (
+            <span className="text-[10px] text-ink/35 px-2">guest</span>
+          )}
+        </div>
+      </div>
+
+      {askingMute && (
+        <div className="mt-3 pt-3 border-t border-ink/10 flex flex-col sm:flex-row gap-2">
+          <input
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Reason (optional) — shown to the customer if they try to sign in"
+            className="flex-1 text-sm border border-ink/15 rounded-lg px-3 py-2 outline-none focus:border-ink"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setAskingMute(false)} className="px-3 py-2 text-sm rounded-lg border border-ink/15 hover:bg-stone/50">
+              Cancel
+            </button>
+            <button onClick={() => run('mute')} disabled={busy !== null}
+              className="px-3 py-2 text-sm rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50">
+              {busy === 'mute' ? 'Muting…' : 'Mute account'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {askingDelete && (
+        <div className="mt-3 pt-3 border-t border-ink/10">
+          <p className="text-xs text-red-700 mb-2">
+            Delete <strong>{c.name}</strong>? Their past orders and invoices are kept so revenue reporting
+            stays correct, but they will be signed out permanently and cannot sign in again.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setAskingDelete(false)} className="px-3 py-2 text-sm rounded-lg border border-ink/15 hover:bg-stone/50">
+              Cancel
+            </button>
+            <button onClick={() => run('delete')} disabled={busy !== null}
+              className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
+              {busy === 'delete' ? 'Deleting…' : 'Yes, delete'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {err && <p className="text-xs text-red-600 mt-2">{err}</p>}
+    </div>
+  );
+}
+
+// ───────────────────────── customer detail drawer ──────────────────────────
+
+function CustomerDrawer({ mobile, onClose, onAuthFail }: {
+  mobile: string; onClose: () => void; onAuthFail: () => void;
+}) {
+  const [data, setData] = useState<AdminCustomerDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      setData(await getCustomer(mobile));
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setError(e instanceof Error ? e.message : 'Could not load this customer');
+    } finally {
+      setLoading(false);
+    }
+  }, [mobile, onAuthFail]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const toggleMute = async () => {
+    if (!data) return;
+    setBusy(true); setError(null);
+    try {
+      if (data.is_muted) await muteCustomer(data.mobile, false);
+      else await muteCustomer(data.mobile, true, 'Blocked by operator');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!data) return;
+    setBusy(true); setError(null);
+    try {
+      await deleteCustomer(data.mobile);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex justify-end">
+      <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <aside className="relative w-full sm:w-[480px] max-w-full bg-ivory h-full overflow-y-auto shadow-2xl">
+        <div className="sticky top-0 bg-ivory/95 backdrop-blur border-b border-ink/10 px-5 py-4 flex items-center justify-between gap-3">
+          <h3 className="font-display text-lg font-semibold">Customer profile</h3>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-stone/60" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {loading && <Centered><Loader2 className="animate-spin" /></Centered>}
+          {error && <ErrorNote message={error} onRetry={load} />}
+
+          {data && (
+            <>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <p className="font-display text-xl font-semibold">{data.full_name}</p>
+                  {data.is_muted && (
+                    <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">
+                      {data.deleted_at ? 'Deleted' : 'Muted'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-ink/60">+91 {data.mobile}</p>
+                {data.email && <p className="text-sm text-ink/50 break-all">{data.email}</p>}
+                {data.gender && <p className="text-sm text-ink/50 capitalize">{data.gender}</p>}
+                {data.muted_reason && data.is_muted && (
+                  <p className="text-xs text-amber-700 mt-2">Reason: {data.muted_reason}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Orders', value: String(data.stats.order_count) },
+                  { label: 'Paid', value: String(data.stats.paid_count) },
+                  { label: 'Spent', value: formatINR(data.stats.total_spent) },
+                ].map(s => (
+                  <div key={s.label} className="rounded-lg border border-ink/10 p-3 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-ink/45">{s.label}</p>
+                    <p className="font-display text-lg font-bold mt-0.5">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-xs text-ink/50 space-y-1">
+                <p>Type: {data.has_account ? 'Registered account' : 'Guest (no account)'}</p>
+                {data.joined_at && <p>Joined: {shortDate(data.joined_at)}</p>}
+                {data.last_login_at && <p>Last sign-in: {shortDate(data.last_login_at)}</p>}
+                {data.google_id && <p>Linked Google ID: <span className="font-mono text-[10px]">{data.google_id}</span></p>}
+              </div>
+
+              {data.has_account && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-ink/10">
+                  <button onClick={toggleMute} disabled={busy || Boolean(data.deleted_at)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-amber-300 text-amber-800 hover:bg-amber-50 disabled:opacity-40">
+                    {busy ? <Loader2 size={13} className="animate-spin" /> : <AlertTriangle size={13} />}
+                    {data.is_muted ? 'Unmute account' : 'Mute account'}
+                  </button>
+                  <button onClick={remove} disabled={busy}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-40">
+                    {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    Delete account
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                  Orders ({data.orders.length})
+                </h4>
+                {data.orders.length === 0 ? (
+                  <p className="text-xs text-ink/45">No orders yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {data.orders.map(o => (
+                      <div key={o.order_number} className="flex items-center justify-between gap-2 text-xs border border-ink/10 rounded-lg px-3 py-2">
+                        <span className="font-medium">{o.order_number}</span>
+                        <span className="flex items-center gap-2">
+                          <PaymentChip status={o.payment_status} />
+                          <span className="text-ink/45">{shortDate(o.created_at)}</span>
+                          <span className="font-semibold">{formatINR(o.total)}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {data.addresses.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                    Saved addresses ({data.addresses.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {data.addresses.map((a, i) => (
+                      <div key={i} className="text-xs border border-ink/10 rounded-lg px-3 py-2">
+                        {String(a.label ?? 'Address')}
+                        <span className="block text-ink/60">
+                          {[a.address_line, a.city, a.state, a.pincode].filter(Boolean).join(', ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.feedback.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                    Feedback ({data.feedback.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {data.feedback.map(f => (
+                      <div key={f.id} className="text-xs border border-ink/10 rounded-lg px-3 py-2">
+                        <span className="text-ink/50">{f.category}</span>
+                        <span className="block">{f.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
@@ -622,6 +922,9 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
 function ProductsSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getProducts(), []);
   const { data, error, loading, reload } = useAdminData<AdminProduct[]>(loader, onAuthFail);
+  const [adding, setAdding] = useState(false);
+
+  const duplicates = (data ?? []).filter(p => p.duplicate && !p.deleted);
 
   return (
     <div>
@@ -633,6 +936,30 @@ function ProductsSection({ onAuthFail }: { onAuthFail: () => void }) {
       />
       {error && <ErrorNote message={error} onRetry={reload} />}
       {loading && !data && <Centered><Loader2 className="animate-spin" /></Centered>}
+
+      <div className="mb-4">
+        <button
+          onClick={() => setAdding(v => !v)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition"
+        >
+          {adding ? <X size={15} /> : <Package size={15} />}
+          {adding ? 'Close' : 'Add a product'}
+        </button>
+      </div>
+
+      {adding && <div className="mb-4"><AddProductForm onCreated={reload} onAuthFail={onAuthFail} /></div>}
+
+      {duplicates.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900 mb-1">
+            {duplicates.length} duplicate card{duplicates.length === 1 ? '' : 's'} found
+          </p>
+          <p className="text-xs text-amber-800">
+            Two live products share the same URL slug. Remove the newer one on its card below so only one
+            appears on the storefront.
+          </p>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {data?.map(p => <ProductCard key={p.id} product={p} onSaved={reload} onAuthFail={onAuthFail} />)}
@@ -654,7 +981,45 @@ function ProductCard({ product, onSaved, onAuthFail }: {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const image = PRODUCTS.find(c => c.id === product.id)?.variants?.[0]?.images?.[0];
+  const image = product.image_url ?? PRODUCTS.find(c => c.id === product.id)?.variants?.[0]?.images?.[0];
+  const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const remove = async () => {
+    setRemoving(true); setErr(null); setNote(null);
+    try {
+      const res = await deleteProduct(product.id);
+      // Products already bought are only hidden, never removed, so past
+      // invoices keep resolving.
+      setNote(res.inOrders
+        ? 'Hidden from the store — it appears in past orders, so it was hidden rather than deleted.'
+        : 'Removed from the store.');
+      setConfirmRemove(false);
+      onSaved();
+      setTimeout(() => setNote(null), 4000);
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not remove this product');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const restore = async () => {
+    setRemoving(true); setErr(null); setNote(null);
+    try {
+      await restoreProduct(product.id);
+      setNote('Restored to the store.');
+      onSaved();
+      setTimeout(() => setNote(null), 3000);
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not restore this product');
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const dirty =
     price !== String(product.price) ||
@@ -686,18 +1051,33 @@ function ProductCard({ product, onSaved, onAuthFail }: {
   };
 
   return (
-    <div className={`rounded-xl border bg-ivory overflow-hidden flex flex-col ${active ? 'border-ink/10' : 'border-ink/10 opacity-70'}`}>
+    <div className={`rounded-xl border bg-ivory overflow-hidden flex flex-col ${active && !product.deleted ? 'border-ink/10' : 'border-ink/10 opacity-70'}`}>
+      {product.deleted && (
+        <div className="bg-red-600 text-white text-[11px] font-medium px-3 py-1.5 flex items-center gap-2">
+          <Trash2 size={12} /> Removed from the storefront
+        </div>
+      )}
       <div className="flex gap-3 p-3 border-b border-ink/10">
         <div className="w-16 h-20 rounded-lg bg-stone/40 overflow-hidden shrink-0">
           {image && <img src={image} alt={product.name} className="w-full h-full object-cover object-top" loading="lazy" />}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-tight">{product.name}</p>
-          <p className="text-[11px] text-ink/45 mt-1 font-mono">{product.id}</p>
+          <p className="text-[11px] text-ink/45 mt-1 font-mono truncate">{product.id}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
               {product.stock_total} in stock
             </span>
+            {product.source === 'runtime' && (
+              <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-blue-100 text-blue-800">
+                added in dashboard
+              </span>
+            )}
+            {product.duplicate && (
+              <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">
+                duplicate slug
+              </span>
+            )}
             {product.overridden && (
               <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-ink text-ivory">
                 edited
@@ -749,15 +1129,53 @@ function ProductCard({ product, onSaved, onAuthFail }: {
         </label>
 
         {err && <p className="text-[11px] text-red-600">{err}</p>}
+        {note && <p className="text-[11px] bg-lime text-ink px-2.5 py-1.5 rounded">{note}</p>}
 
         <button
           type="button"
           onClick={save}
-          disabled={saving || !dirty}
+          disabled={saving || !dirty || Boolean(product.deleted)}
           className="w-full py-2.5 rounded-full text-sm font-semibold transition disabled:opacity-40 inline-flex items-center justify-center gap-2 bg-ink text-ivory hover:bg-ink/80"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : saved ? <><Check size={15} /> Saved</> : <><Save size={15} /> Save changes</>}
         </button>
+
+        {/* Remove / restore */}
+        <div className="pt-3 border-t border-ink/10">
+          {confirmRemove ? (
+            <div className="space-y-2">
+              <p className="text-[11px] text-red-700">
+                Remove <strong>{product.name}</strong> from the storefront? If it appears in a past order it
+                will be hidden rather than deleted, so invoices keep working.
+              </p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setConfirmRemove(false)}
+                  className="px-3 py-1.5 text-[11px] rounded-lg border border-ink/15 hover:bg-stone/50">
+                  Cancel
+                </button>
+                <button type="button" onClick={remove} disabled={removing}
+                  className="px-3 py-1.5 text-[11px] rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
+                  {removing ? 'Removing…' : 'Yes, remove'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => (product.deleted ? restore() : setConfirmRemove(true))}
+              disabled={removing}
+              className={`w-full py-2 rounded-full text-xs font-medium border transition disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ${
+                product.deleted
+                  ? 'border-ink/20 text-ink/70 hover:bg-stone/50'
+                  : 'border-red-200 text-red-600 hover:bg-red-50'
+              }`}
+            >
+              {removing ? <Loader2 size={13} className="animate-spin" />
+                : product.deleted ? <><RefreshCw size={13} /> Restore to store</>
+                : <><Trash2 size={13} /> Remove from store</>}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -939,5 +1357,125 @@ function SettingsSection() {
         </form>
       </div>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Add product
+// ════════════════════════════════════════════════════════════════════════════
+
+function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAuthFail: () => void }) {
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [mrp, setMrp] = useState('');
+  const [category, setCategory] = useState('new-arrivals');
+  const [colors, setColors] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [stock, setStock] = useState<Record<string, string>>(
+    () => Object.fromEntries(SIZES.map(s => [s, '10'])),
+  );
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null); setOk(null); setSaving(true);
+    try {
+      const res = await createProduct({
+        name: name.trim(),
+        price: Number(price),
+        mrp: mrp ? Number(mrp) : undefined,
+        category,
+        colors: colors.split(',').map(c => c.trim()).filter(Boolean),
+        image_url: imageUrl.trim() || undefined,
+        stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
+      });
+      setOk(`Created "${name.trim()}" as /product/${res.slug}`);
+      setName(''); setPrice(''); setMrp(''); setColors(''); setImageUrl('');
+      onCreated();
+      setTimeout(() => setOk(null), 5000);
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not create this product');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const input = "w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink";
+
+  return (
+    <form onSubmit={submit} className="rounded-xl border border-ink/10 bg-ivory p-4 md:p-5 space-y-4">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Package size={16} /> Add a product
+      </div>
+
+      <p className="text-xs text-ink/50">
+        New products live in the database and appear on the storefront alongside the catalog.
+        The URL slug is generated from the name and is de-duplicated automatically.
+      </p>
+
+      {err && <p className="text-xs text-red-600">{err}</p>}
+      {ok && <p className="text-xs bg-lime text-ink px-3 py-2 rounded-lg">{ok}</p>}
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <label className="block sm:col-span-2">
+          <span className="text-[11px] text-ink/50">Product name</span>
+          <input value={name} onChange={e => setName(e.target.value)} required placeholder="Midnight Oversized Tee"
+            className={`mt-1 ${input}`} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Selling price (₹)</span>
+          <input type="number" min={0} value={price} onChange={e => setPrice(e.target.value)} required
+            className={`mt-1 ${input}`} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">MRP (₹)</span>
+          <input type="number" min={0} value={mrp} onChange={e => setMrp(e.target.value)}
+            placeholder="Defaults to the selling price" className={`mt-1 ${input}`} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Collection</span>
+          <select value={category} onChange={e => setCategory(e.target.value)} className={`mt-1 ${input}`}>
+            {CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Colours (comma separated)</span>
+          <input value={colors} onChange={e => setColors(e.target.value)} placeholder="Black, White"
+            className={`mt-1 ${input}`} />
+        </label>
+
+        <label className="block sm:col-span-2">
+          <span className="text-[11px] text-ink/50">Image URL</span>
+          <input value={imageUrl} onChange={e => setImageUrl(e.target.value)}
+            placeholder="https://images.pexels.com/…" className={`mt-1 ${input}`} />
+        </label>
+      </div>
+
+      <div>
+        <span className="text-[11px] text-ink/50">Stock per size</span>
+        <div className="grid grid-cols-3 gap-1.5 mt-1">
+          {Object.entries(stock).map(([size, value]) => (
+            <label key={size} className="block">
+              <span className="text-[10px] text-ink/40">{size}</span>
+              <input type="number" min={0} value={value}
+                onChange={e => setStock(s => ({ ...s, [size]: e.target.value }))}
+                className="mt-0.5 w-full rounded-lg border border-ink/15 px-2 py-1.5 text-sm focus:outline-none focus:border-ink" />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <button type="submit" disabled={saving}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50">
+        {saving ? <Loader2 size={15} className="animate-spin" /> : <Package size={15} />} Create product
+      </button>
+    </form>
   );
 }

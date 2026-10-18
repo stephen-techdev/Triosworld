@@ -91,6 +91,50 @@ export interface AdminProduct {
   is_active: boolean;
   updated_at: string | null;
   overridden: boolean;
+  /** "catalog" ships in src/data/catalog.ts; "runtime" was created in the dashboard. */
+  source?: 'catalog' | 'runtime';
+  /** Retired. Catalog products are soft-deleted so their edits survive. */
+  deleted?: boolean;
+  deleted_at?: string | null;
+  /** Two live cards sharing a slug. */
+  duplicate?: boolean;
+  category?: string | null;
+  image_url?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminCustomerDetail {
+  mobile: string;
+  full_name: string;
+  email: string | null;
+  gender: string | null;
+  avatar_url: string | null;
+  google_id: string | null;
+  is_muted: boolean;
+  muted_reason: string | null;
+  muted_at: string | null;
+  deleted_at: string | null;
+  joined_at: string | null;
+  last_login_at: string | null;
+  has_account: boolean;
+  orders: {
+    order_number: string;
+    status: string;
+    payment_status: string;
+    total: number;
+    created_at: string;
+    shipping_address: Record<string, unknown> | null;
+  }[];
+  addresses: Record<string, unknown>[];
+  feedback: {
+    id: string;
+    rating: number | null;
+    category: string;
+    message: string;
+    status: string;
+    created_at: string;
+  }[];
+  stats: { order_count: number; paid_count: number; total_spent: number; last_order: string | null };
 }
 
 export interface AdminFeedback {
@@ -223,6 +267,54 @@ export const updateProduct = (payload: {
   stock?: Record<string, number>;
   is_active?: boolean;
 }) => adminRequest<{ ok: boolean }>('/product', { method: 'POST', body: JSON.stringify(payload) });
+
+// ─────────────────────── customer moderation ───────────────────────
+export const getCustomer = (mobile: string) =>
+  adminRequest<{ customer: AdminCustomerDetail }>(
+    `/customer?mobile=${encodeURIComponent(mobile)}`,
+  ).then(r => r.customer);
+
+export const muteCustomer = (mobile: string, muted: boolean, reason?: string) =>
+  adminRequest<{ ok: boolean; is_muted: boolean }>('/customer-mute', {
+    method: 'POST',
+    body: JSON.stringify({ mobile, muted, reason }),
+  });
+
+export const deleteCustomer = (mobile: string) =>
+  adminRequest<{ ok: boolean; orders_preserved: number }>('/customer-delete', {
+    method: 'POST',
+    body: JSON.stringify({ mobile }),
+  });
+
+// ───────────────────────── product management ──────────────────────
+export const createProduct = (payload: {
+  name: string;
+  slug?: string;
+  price: number;
+  mrp?: number;
+  category?: string;
+  colors?: string[];
+  stock?: Record<string, number>;
+  image_url?: string;
+  description?: string;
+  is_active?: boolean;
+}) => adminRequest<{ ok: true; id: string; slug: string }>('/product-create', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
+/** Retires a card. Catalog products are soft-deleted; runtime ones are removed. */
+export const deleteProduct = (productId: string) =>
+  adminRequest<{ ok: true; mode: string; inOrders: boolean }>('/product-delete', {
+    method: 'POST',
+    body: JSON.stringify({ productId }),
+  });
+
+export const restoreProduct = (productId: string) =>
+  adminRequest<{ ok: true }>('/product-restore', {
+    method: 'POST',
+    body: JSON.stringify({ productId }),
+  });
 
 export const getFeedback = (status?: string) =>
   adminRequest<{ feedback: AdminFeedback[] }>(`/feedback?status=${status ?? 'all'}`).then(r => r.feedback);

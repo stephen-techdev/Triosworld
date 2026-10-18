@@ -270,6 +270,23 @@ Deno.serve(async (req: Request) => {
       if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
       if (!password) return json({ error: "Password is required" }, 400);
 
+      // Moderation is enforced here, not just hidden in the dashboard: a muted
+      // or deleted account must not be able to sign in, whatever it holds.
+      const { data: moderation } = await supabase
+        .from("profiles")
+        .select("is_muted, muted_reason, deleted_at")
+        .eq("mobile", cleanMobile)
+        .maybeSingle();
+
+      if (moderation?.deleted_at) {
+        return json({ error: "This account has been closed. Please contact support." }, 403);
+      }
+      if (moderation?.is_muted) {
+        return json({
+          error: `This account is temporarily blocked${moderation.muted_reason ? `: ${moderation.muted_reason}` : "."} Please contact support.`,
+        }, 403);
+      }
+
       // Rate limiting — 5 attempts per 15 minutes per mobile number.
       const blocked = await checkRateLimit(cleanMobile);
       if (blocked) {

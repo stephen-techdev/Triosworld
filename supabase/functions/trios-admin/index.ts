@@ -58,6 +58,40 @@ function b64url(input: string): string {
   return btoa(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+/** URL slug from a product name, matching the catalog's slug style. */
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+/**
+ * Append to the moderation trail. Never throws: losing an audit row must not
+ * fail the operator's action.
+ */
+async function audit(
+  adminEmail: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  detail: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await supabase.from("admin_actions").insert({
+      admin_email: adminEmail,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      detail,
+    });
+  } catch {
+    // intentionally ignored
+  }
+}
+
 function fromB64url(input: string): string {
   const padded = input.replace(/-/g, "+").replace(/_/g, "/");
   return atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
@@ -379,14 +413,14 @@ Deno.serve(async (req: Request) => {
       const { data: overrides } = await supabase.from("product_overrides").select("*");
       const byId = new Map((overrides ?? []).map((o) => [o.product_id, o]));
 
-      const products = Object.entries(PRICES).map(([id, entry]) => {
+      const catalogProducts = Object.entries(PRICES).map(([id, entry]) => {
         const o = byId.get(id);
         const stock = (o?.stock as Record<string, number> | undefined) ?? entry.sizes;
         return {
           id,
           name: entry.name,
           slug: entry.slug,
-          mrp: entry.mrp,
+          mrp: o?.mrp ?? entry.mrp,
           catalog_price: entry.price,
           price: o?.price ?? entry.price,
           colors: entry.colors,
@@ -395,10 +429,66 @@ Deno.serve(async (req: Request) => {
           is_active: o?.is_active ?? true,
           updated_at: o?.updated_at ?? null,
           overridden: Boolean(o),
+          // `runtime` products were created in the dashboard and have no entry in
+          // the static catalog; `duplicate` flags two cards sharing a slug.
+          source: "catalog" as const,
+          deleted: Boolean((o as { deleted_at?: string | null } | undefined)?.deleted_at),
+          deleted_at: (o as { deleted_at?: string | null } | undefined)?.deleted_at ?? null,
+          category: null as string | null,
+          image_url: null as string | null,
+          created_at: null as string | null,
         };
       });
 
-      return json({ products });
+      // Products created from the dashboard. These only exist in the database.
+      const { data: runtimeRows, error: runtimeErr } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (runtimeErr) return json({ error: runtimeErr.message }, 500);
+
+      const runtimeProducts = (runtimeRows ?? []).map((r) => {
+        const stock = (r.stock as Record<string, number> | null) ?? {};
+        const mergedStock = Object.keys(stock).length ? stock : Object.fromEntries(
+          (PRICES as Record<string, { sizes: Record<string, number> }>)["p01"]?.sizes
+            ? Object.entries((PRICES as Record<string, { sizes: Record<string, number> }>)["p01"].sizes)
+            : [],
+        );
+        return {
+          id: r.id,
+          name: r.name,
+          slug: r.slug,
+          mrp: r.mrp,
+          catalog_price: r.price,
+          price: r.price,
+          colors: (r.colors as string[] | null) ?? [],
+          stock: mergedStock,
+          stock_total: Object.values(mergedStock).reduce((s, n) => s + (Number(n) || 0), 0),
+          is_active: r.is_active,
+          updated_at: r.updated_at,
+          overridden: false,
+          source: "runtime" as const,
+          deleted: false,
+          deleted_at: null,
+          category: r.category,
+          image_url: r.image_url,
+          created_at: r.created_at,
+        };
+      });
+
+      // Surface duplicate slugs across both sources so the dashboard can offer
+      // a one-click "remove the duplicate" action.
+      const slugCounts = new Map<string, number>();
+      for (const p of [...catalogProducts, ...runtimeProducts]) {
+        if (!p.deleted) slugCounts.set(p.slug, (slugCounts.get(p.slug) ?? 0) + 1);
+      }
+      const withFlags = [...catalogProducts, ...runtimeProducts].map((p) => ({
+        ...p,
+        duplicate: !p.deleted && (slugCounts.get(p.slug) ?? 0) > 1,
+      }));
+
+      return json({ products: withFlags });
     }
 
     if (path === "/product" && req.method === "POST") {
@@ -435,6 +525,291 @@ Deno.serve(async (req: Request) => {
       const { error } = await supabase.from("product_overrides").upsert(patch, { onConflict: "product_id" });
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
+    }
+
+    // ==================== PRODUCT CREATE ====================
+    if (path === "/product-create" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const name = String(body.name ?? "").trim();
+      if (!name) return json({ error: "Product name is required" }, 400);
+
+      const price = Number(body.price);
+      if (!Number.isFinite(price) || price < 0) return json({ error: "Price must be zero or more" }, 400);
+
+      const mrpRaw = Number(body.mrp);
+      const mrp = Number.isFinite(mrpRaw) && mrpRaw > 0 ? Math.round(mrpRaw) : Math.round(price);
+
+      // Slug must be unique across the database AND must not collide with the
+      // static catalog, otherwise the storefront would show two identical cards.
+      const baseSlug = slugify(String(body.slug ?? name));
+      if (!baseSlug) return json({ error: "Could not derive a URL slug from that name" }, 400);
+
+      let slug = baseSlug;
+      for (let n = 2; ; n++) {
+        const inCatalog = Object.values(PRICES).some((e) => e.slug === slug);
+        if (!inCatalog) {
+          const { data: clash } = await supabase
+            .from("products")
+            .select("id")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (!clash) break;
+        }
+        if (n > 50) return json({ error: "Could not find a free slug" }, 409);
+        slug = `${baseSlug}-${n}`;
+      }
+
+      const id = `r_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+      const stock: Record<string, number> = {};
+      for (const [size, n] of Object.entries((body.stock ?? {}) as Record<string, unknown>)) {
+        const v = Number(n);
+        if (Number.isFinite(v) && v >= 0) stock[size] = Math.floor(v);
+      }
+
+      const colors = Array.isArray(body.colors)
+        ? (body.colors as unknown[]).map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
+        : [];
+
+      const { error } = await supabase.from("products").insert({
+        id,
+        slug,
+        name,
+        description: body.description ? String(body.description) : null,
+        price: Math.round(price),
+        mrp,
+        category: String(body.category ?? "new-arrivals"),
+        colors,
+        stock,
+        image_url: body.image_url ? String(body.image_url) : null,
+        is_active: body.is_active !== false,
+      });
+
+      if (error) return json({ error: error.message }, 500);
+
+      await audit(admin.email, "product.create", "product", id, { name, slug, price: Math.round(price) });
+      return json({ ok: true, id, slug });
+    }
+
+    // ==================== PRODUCT DELETE ====================
+    // Retires a card. Catalog products are soft-deleted via product_overrides so
+    // their price/stock edits survive a restore; runtime products are hard
+    // removed because nothing else references them.
+    if (path === "/product-delete" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const productId = String(body.productId ?? "");
+      if (!productId) return json({ error: "productId is required" }, 400);
+
+      // A product that appears in a paid order must not vanish from history.
+      const { data: ordered } = await supabase
+        .from("orders")
+        .select("id")
+        .contains("items", [{ productId }])
+        .limit(1);
+
+      const inOrders = (ordered ?? []).length > 0;
+
+      if (PRICES[productId]) {
+        const { error } = await supabase.from("product_overrides").upsert({
+          product_id: productId,
+          deleted_at: new Date().toISOString(),
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "product_id" });
+
+        if (error) return json({ error: error.message }, 500);
+        await audit(admin.email, "product.delete", "product", productId, { soft: true, inOrders });
+        return json({ ok: true, mode: "retired", inOrders });
+      }
+
+      const { data: row } = await supabase
+        .from("products")
+        .select("name, slug")
+        .eq("id", productId)
+        .maybeSingle();
+
+      if (!row) return json({ error: "Unknown product" }, 404);
+
+      if (inOrders) {
+        const { error } = await supabase
+          .from("products")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("id", productId);
+        if (error) return json({ error: error.message }, 500);
+        await audit(admin.email, "product.delete", "product", productId, { soft: true, inOrders: true });
+        return json({ ok: true, mode: "hidden", inOrders: true });
+      }
+
+      const { error } = await supabase.from("products").delete().eq("id", productId);
+      if (error) return json({ error: error.message }, 500);
+      await audit(admin.email, "product.delete", "product", productId, { soft: false, slug: row.slug });
+      return json({ ok: true, mode: "deleted", inOrders: false });
+    }
+
+    // ==================== PRODUCT RESTORE ====================
+    if (path === "/product-restore" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const productId = String(body.productId ?? "");
+      if (!productId) return json({ error: "productId is required" }, 400);
+
+      if (PRICES[productId]) {
+        const { error } = await supabase.from("product_overrides").upsert({
+          product_id: productId,
+          deleted_at: null,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "product_id" });
+        if (error) return json({ error: error.message }, 500);
+      } else {
+        const { error } = await supabase
+          .from("products")
+          .update({ is_active: true, updated_at: new Date().toISOString() })
+          .eq("id", productId);
+        if (error) return json({ error: error.message }, 500);
+      }
+
+      await audit(admin.email, "product.restore", "product", productId, {});
+      return json({ ok: true });
+    }
+
+    // ==================== CUSTOMER DETAIL ====================
+    if (path === "/customer" && req.method === "GET") {
+      const mobile = (url.searchParams.get("mobile") ?? "").replace(/\D/g, "").slice(-10);
+      if (!mobile) return json({ error: "mobile is required" }, 400);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, mobile, gender, avatar_url, google_id, is_muted, muted_reason, muted_at, deleted_at, created_at, last_login_at")
+        .eq("mobile", mobile)
+        .maybeSingle();
+
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("order_number, status, payment_status, total, created_at, shipping_address")
+        .eq("customer_mobile", mobile)
+        .order("created_at", { ascending: false })
+        .limit(25);
+
+      const { data: addresses } = await supabase
+        .from("addresses")
+        .select("*")
+        .eq("mobile", mobile)
+        .order("created_at", { ascending: false });
+
+      const { data: feedback } = await supabase
+        .from("feedback")
+        .select("id, rating, category, message, status, created_at")
+        .eq("mobile", mobile)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const rows = orders ?? [];
+      const paid = rows.filter((o) => o.payment_status === "paid");
+
+      return json({
+        customer: {
+          mobile,
+          full_name: profile?.full_name ?? rows[0]?.shipping_address?.fullName ?? "Customer",
+          email: profile?.email ?? rows[0]?.customer_email ?? null,
+          gender: profile?.gender ?? null,
+          avatar_url: profile?.avatar_url ?? null,
+          google_id: profile?.google_id ?? null,
+          is_muted: profile?.is_muted ?? false,
+          muted_reason: profile?.muted_reason ?? null,
+          muted_at: profile?.muted_at ?? null,
+          deleted_at: profile?.deleted_at ?? null,
+          joined_at: profile?.created_at ?? rows[rows.length - 1]?.created_at ?? null,
+          last_login_at: profile?.last_login_at ?? null,
+          has_account: Boolean(profile),
+          orders: rows,
+          addresses: addresses ?? [],
+          feedback: feedback ?? [],
+          stats: {
+            order_count: rows.length,
+            paid_count: paid.length,
+            total_spent: paid.reduce((s, o) => s + (Number(o.total) || 0), 0),
+            last_order: rows[0]?.created_at ?? null,
+          },
+        },
+      });
+    }
+
+    // ==================== CUSTOMER MUTE ====================
+    if (path === "/customer-mute" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const mobile = String(body.mobile ?? "").replace(/\D/g, "").slice(-10);
+      if (!/^[6-9]\d{9}$/.test(mobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+
+      const muted = body.muted !== false;
+      const reason = muted ? String(body.reason ?? "").trim().slice(0, 200) : null;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          is_muted: muted,
+          muted_reason: muted ? (reason || "No reason given") : null,
+          muted_at: muted ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("mobile", mobile)
+        .select("id, mobile, is_muted")
+        .maybeSingle();
+
+      if (error) return json({ error: error.message }, 500);
+      if (!data) return json({ error: "That customer has no account to mute. They can still place guest orders." }, 404);
+
+      await audit(admin.email, muted ? "customer.mute" : "customer.unmute", "profile", data.id, { mobile, reason });
+      return json({ ok: true, is_muted: data.is_muted });
+    }
+
+    // ==================== CUSTOMER DELETE ====================
+    // Soft delete: the profile is kept so order history and revenue still
+    // resolve, the Auth user is signed out of future logins, and any sign-in is
+    // refused. Orders are never touched.
+    if (path === "/customer-delete" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const mobile = String(body.mobile ?? "").replace(/\D/g, "").slice(-10);
+      if (!/^[6-9]\d{9}$/.test(mobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, mobile")
+        .eq("mobile", mobile)
+        .maybeSingle();
+
+      if (!profile) return json({ error: "No customer account with that mobile number" }, 404);
+      if (profile.id === admin.id) return json({ error: "You cannot delete your own operator account" }, 400);
+
+      const { count: orderCount } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("customer_mobile", mobile);
+
+      const nowIso = new Date().toISOString();
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          deleted_at: nowIso,
+          is_muted: true,
+          muted_reason: "Account deleted by operator",
+          muted_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("id", profile.id);
+
+      if (error) return json({ error: error.message }, 500);
+
+      // Sign the Auth user out everywhere by banning them.
+      await supabase.auth.admin.updateUserById(profile.id, { ban_duration: "876000h" });
+
+      await audit(admin.email, "customer.delete", "profile", profile.id, {
+        mobile,
+        full_name: profile.full_name,
+        orders_preserved: orderCount ?? 0,
+      });
+
+      return json({ ok: true, orders_preserved: orderCount ?? 0 });
     }
 
     // ==================== FEEDBACK ====================

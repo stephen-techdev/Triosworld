@@ -28,7 +28,10 @@ export default function HomePage() {
   useLiveCatalog();
   const bestsellers = liveCollection('bestsellers').slice(0, 8);
   const orgJsonLd = organizationJsonLd();
-  const newArrivals = liveCollection('new-arrivals');
+  // A product flagged as both would otherwise show the same card twice on the
+  // page — once in Bestsellers and again in New Drops. Keep each card unique.
+  const inBestellers = new Set(bestsellers.map(p => p.id));
+  const newArrivals = liveCollection('new-arrivals').filter(p => !inBestellers.has(p.id));
   const railRef = useRef<HTMLDivElement>(null);
 
   const scrollRail = (dir: number) => {

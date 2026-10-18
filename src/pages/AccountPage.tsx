@@ -211,24 +211,34 @@ export default function AccountPage() {
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-12 gap-8">
+      {/* min-w-0 on both items is essential: grid items default to min-width:auto,
+            which let the tab strip size the whole column to 905px and pushed the
+            page wider than the viewport. */}
+      <div className="grid lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8">
         {/* Sidebar */}
-        <aside className="lg:col-span-3">
-          <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-2 lg:pb-0">
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition ${tab === t.id ? 'bg-ink text-ivory' : 'hover:bg-stone/30 text-ink/70'}`}>
-                <t.icon size={18} /> {t.label}
+        <aside className="lg:col-span-3 min-w-0">
+          {/* On phones the tabs scroll sideways; the fade signals there is more. */}
+          <div className="relative">
+            <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-2 lg:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-start">
+              {tabs.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 snap-start transition ${tab === t.id ? 'bg-ink text-ivory' : 'hover:bg-stone/30 text-ink/70'}`}>
+                  <t.icon size={18} /> {t.label}
+                </button>
+              ))}
+              <button onClick={handleSignOut} className="lg:hidden flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 snap-start text-red-600 hover:bg-red-50">
+                <LogOut size={18} /> Logout
               </button>
-            ))}
-            <button onClick={handleSignOut} className="lg:hidden flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap text-red-600 hover:bg-red-50">
-              <LogOut size={18} /> Logout
-            </button>
-          </nav>
+            </nav>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-ivory to-transparent lg:hidden"
+            />
+          </div>
         </aside>
 
         {/* Content */}
-        <div className="lg:col-span-9">
+        <div className="lg:col-span-9 min-w-0">
           {/* Profile */}
           {tab === 'profile' && (
             <div className="space-y-6">

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { useAuth } from '@/store/AuthContext';
+import { mobileError, normaliseMobile } from '@/lib/mobile';
 
 const HERO_IMG = 'https://images.pexels.com/photos/19259008/pexels-photo-19259008.jpeg?auto=compress&cs=tinysrgb&w=900';
 
@@ -30,11 +31,13 @@ export default function LoginPage() {
     setError(null);
     clearOauthError();
 
-    const mobile = identifier.replace(/\D/g, '').slice(-10);
-    if (!/^[6-9]\d{9}$/.test(mobile)) {
-      setError('Enter a valid 10-digit mobile number');
+    const problem = mobileError(identifier);
+    if (problem) {
+      setError(problem);
       return;
     }
+
+    const mobile = normaliseMobile(identifier);
     if (!password) {
       setError('Password is required');
       return;
@@ -87,8 +90,8 @@ export default function LoginPage() {
                   onChange={e => { setIdentifier(e.target.value); setError(null); }}
                   placeholder="9876543210"
                   inputMode="numeric"
-                  autoComplete="username"
-                  maxLength={10}
+                  autoComplete="tel-national"
+                  maxLength={20}
                   className="flex-1 px-3 py-3 text-sm bg-transparent outline-none"
                   aria-required="true"
                 />

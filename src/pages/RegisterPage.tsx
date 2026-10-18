@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, Loader2, Check, X } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { useAuth } from '@/store/AuthContext';
+import { mobileError, normaliseMobile } from '@/lib/mobile';
 
 const HERO_IMG = 'https://images.pexels.com/photos/1959036/pexels-photo-1959036.jpeg?auto=compress&cs=tinysrgb&w=900';
 
@@ -43,7 +44,7 @@ export default function RegisterPage() {
 
   const validate = (): string | null => {
     if (!fullName.trim()) return 'Full name is required';
-    if (!/^[6-9]\d{9}$/.test(mobile.replace(/\D/g, '').slice(-10))) return 'Enter a valid 10-digit mobile number';
+    if (mobileError(mobile)) return mobileError(mobile)!;
     if (password.length < 8) return 'Password must be at least 8 characters';
     if (!/[A-Za-z]/.test(password)) return 'Password must contain at least one letter';
     if (!/\d/.test(password)) return 'Password must contain at least one number';
@@ -59,7 +60,7 @@ export default function RegisterPage() {
     setLoading(true);
     const { error: err } = await signUp({
       full_name: fullName.trim(),
-      mobile: mobile.replace(/\D/g, '').slice(-10),
+      mobile: normaliseMobile(mobile),
       password,
       gender: gender || undefined,
     });
@@ -133,10 +134,11 @@ export default function RegisterPage() {
                   id="regMobile"
                   type="tel"
                   value={mobile}
-                  onChange={e => { setMobile(e.target.value.replace(/\D/g, '').slice(0, 10)); setError(null); }}
+                  onChange={e => { setMobile(e.target.value); setError(null); }}
                   placeholder="9876543210"
                   inputMode="numeric"
-                  autoComplete="tel"
+                  autoComplete="tel-national"
+                  maxLength={20}
                   aria-required="true"
                   className="flex-1 px-3 py-3 text-sm bg-transparent outline-none"
                 />

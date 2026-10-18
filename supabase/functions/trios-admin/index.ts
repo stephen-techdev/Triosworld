@@ -667,59 +667,66 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, id, slug });
     }
 
-    // ==================== PRODUCT DELETE ====================
-    // Retires a card. Catalog products are soft-deleted via product_overrides so
-    // their price/stock edits survive a restore; runtime products are hard
-    // removed because nothing else references them.
+    /**
+ * Storage key from a public image URL.
+ *   .../object/public/product-images/2026-10-18/x.png  ->  2026-10-18/x.png
+ * Returns null for anything not in our own bucket, so a malformed URL can never
+ * make us delete outside `product-images`.
+ */
+function storageKeyFromUrl(url: string): string | null {
+  try {
+    const pathname = new URL(url).pathname;
+    const match = pathname.match(/^\/storage\/v1\/object\/public\/product-images\/(.+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+// ==================== PRODUCT DELETE ====================
+    // Permanent removal. Only dashboard-created products can be deleted: the
+    // catalog products are code in src/data/catalog.ts, so deleting the row
+    // would silently do nothing and leave the card selling. Refusing is honest;
+    // pretending to soft-delete and offering "restore" is not what was asked for.
     if (path === "/product-delete" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
-      const productId = String(body.productId ?? "");
+      const productId = String(body.productId ?? "").trim();
       if (!productId) return json({ error: "productId is required" }, 400);
 
-      // A product that appears in a paid order must not vanish from history.
-      const { data: ordered } = await supabase
-        .from("orders")
-        .select("id")
-        .contains("items", [{ productId }])
-        .limit(1);
-
-      const inOrders = (ordered ?? []).length > 0;
-
       if (PRICES[productId]) {
-        const { error } = await supabase.from("product_overrides").upsert({
-          product_id: productId,
-          deleted_at: new Date().toISOString(),
-          is_active: false,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "product_id" });
-
-        if (error) return json({ error: error.message }, 500);
-        await audit(session.email, "product.delete", "product", productId, { soft: true, inOrders });
-        return json({ ok: true, mode: "retired", inOrders });
+        return json({
+          error: "This is a catalog product and cannot be deleted. Only products added from this dashboard can be removed.",
+          catalog: true,
+        }, 409);
       }
 
       const { data: row } = await supabase
         .from("products")
-        .select("name, slug")
+        .select("id, name, slug, images")
         .eq("id", productId)
         .maybeSingle();
 
-      if (!row) return json({ error: "Unknown product" }, 404);
+      if (!row) return json({ error: "Product not found — it may already have been deleted" }, 404);
 
-      if (inOrders) {
-        const { error } = await supabase
-          .from("products")
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq("id", productId);
-        if (error) return json({ error: error.message }, 500);
-        await audit(session.email, "product.delete", "product", productId, { soft: true, inOrders: true });
-        return json({ ok: true, mode: "hidden", inOrders: true });
-      }
-
+      // Orders snapshot name, colour, size and price into `items`, so removing a
+      // product never damages order history or past invoices.
       const { error } = await supabase.from("products").delete().eq("id", productId);
       if (error) return json({ error: error.message }, 500);
-      await audit(session.email, "product.delete", "product", productId, { soft: false, slug: row.slug });
-      return json({ ok: true, mode: "deleted", inOrders: false });
+
+      // Tidy up its uploads. Storage refuses direct SQL deletes, so best-effort.
+      const images = Array.isArray(row.images) ? (row.images as unknown[]).map(String) : [];
+      const keys = Array.from(new Set(images.map(storageKeyFromUrl).filter((k): k is string => !!k)));
+      if (keys.length) {
+        await supabase.storage.from("product-images").remove(keys).catch(() => undefined);
+      }
+
+      await audit(session.email, "product.delete", "product", productId, {
+        name: row.name,
+        slug: row.slug,
+        images_removed: keys.length,
+      });
+
+      return json({ ok: true, mode: "deleted", id: productId, slug: row.slug });
     }
 
     // ==================== PRODUCT RESTORE ====================

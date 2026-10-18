@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft, ShieldCheck, BadgeCheck, Truck, Headphones } from 'lucide-react';
 import SEO, { organizationJsonLd } from '@/components/SEO';
-import { CATEGORIES, productsForCollection } from '@/data/catalog';
+import { CATEGORIES } from '@/data/catalog';
+import { liveCollection, useLiveCatalog } from '@/lib/storefrontCatalog';
 import ProductCard, { ProductCardMotion } from '@/components/ProductCard';
 import { fadeUp, staggerParent, Reveal, Stagger, StaggerItem } from '@/components/Motion';
 
@@ -23,9 +24,11 @@ const ticker = [
 ];
 
 export default function HomePage() {
-  const bestsellers = productsForCollection('bestsellers').slice(0, 8);
+  // Dashboard-created products are appended to the coded catalog.
+  useLiveCatalog();
+  const bestsellers = liveCollection('bestsellers').slice(0, 8);
   const orgJsonLd = organizationJsonLd();
-  const newArrivals = productsForCollection('new-arrivals');
+  const newArrivals = liveCollection('new-arrivals');
   const railRef = useRef<HTMLDivElement>(null);
 
   const scrollRail = (dir: number) => {

@@ -13,7 +13,7 @@ import { CATEGORIES, PRODUCTS, SIZES, formatINR } from '@/data/catalog';
 import {
   AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
-  getProducts, muteCustomer, readSession, restoreProduct, setFeedbackStatus, updateOrder, updateProduct,
+  getProducts, muteCustomer, readSession, setFeedbackStatus, updateOrder, updateProduct,
   uploadProductImage,
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview,
@@ -1006,20 +1006,6 @@ function ProductCard({ product, onSaved, onAuthFail }: {
     }
   };
 
-  const restore = async () => {
-    setRemoving(true); setErr(null); setNote(null);
-    try {
-      await restoreProduct(product.id);
-      setNote('Restored to the store.');
-      onSaved();
-      setTimeout(() => setNote(null), 3000);
-    } catch (e) {
-      if (e instanceof AdminAuthError) { onAuthFail(); return; }
-      setErr(e instanceof Error ? e.message : 'Could not restore this product');
-    } finally {
-      setRemoving(false);
-    }
-  };
 
   const dirty =
     price !== String(product.price) ||
@@ -1140,40 +1126,42 @@ function ProductCard({ product, onSaved, onAuthFail }: {
           {saving ? <Loader2 size={15} className="animate-spin" /> : saved ? <><Check size={15} /> Saved</> : <><Save size={15} /> Save changes</>}
         </button>
 
-        {/* Remove / restore */}
+        {/* Delete — permanent. Catalog products cannot be deleted because they are
+            code, so the control is hidden rather than faked with a restore. */}
         <div className="pt-3 border-t border-ink/10">
-          {confirmRemove ? (
-            <div className="space-y-2">
-              <p className="text-[11px] text-red-700">
-                Remove <strong>{product.name}</strong> from the storefront? If it appears in a past order it
-                will be hidden rather than deleted, so invoices keep working.
-              </p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setConfirmRemove(false)}
-                  className="px-3 py-1.5 text-[11px] rounded-lg border border-ink/15 hover:bg-stone/50">
-                  Cancel
-                </button>
-                <button type="button" onClick={remove} disabled={removing}
-                  className="px-3 py-1.5 text-[11px] rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
-                  {removing ? 'Removing…' : 'Yes, remove'}
-                </button>
+          {product.source === 'runtime' ? (
+            confirmRemove ? (
+              <div className="space-y-2">
+                <p className="text-[11px] text-red-700">
+                  Permanently delete <strong>{product.name}</strong>? This cannot be undone. Its images are
+                  removed too. Past orders keep their own copy of the name, size and price, so invoices and
+                  revenue reporting are unaffected.
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setConfirmRemove(false)}
+                    className="px-3 py-1.5 text-[11px] rounded-lg border border-ink/15 hover:bg-stone/50">
+                    Cancel
+                  </button>
+                  <button type="button" onClick={remove} disabled={removing}
+                    className="px-3 py-1.5 text-[11px] rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
+                    {removing ? 'Deleting…' : 'Delete permanently'}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRemove(true)}
+                disabled={removing}
+                className="w-full py-2 rounded-full text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              >
+                {removing ? <Loader2 size={13} className="animate-spin" /> : <><Trash2 size={13} /> Delete permanently</>}
+              </button>
+            )
           ) : (
-            <button
-              type="button"
-              onClick={() => (product.deleted ? restore() : setConfirmRemove(true))}
-              disabled={removing}
-              className={`w-full py-2 rounded-full text-xs font-medium border transition disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ${
-                product.deleted
-                  ? 'border-ink/20 text-ink/70 hover:bg-stone/50'
-                  : 'border-red-200 text-red-600 hover:bg-red-50'
-              }`}
-            >
-              {removing ? <Loader2 size={13} className="animate-spin" />
-                : product.deleted ? <><RefreshCw size={13} /> Restore to store</>
-                : <><Trash2 size={13} /> Remove from store</>}
-            </button>
+            <p className="text-[10px] text-ink/40 text-center">
+              Catalog product — price, stock and visibility only.
+            </p>
           )}
         </div>
       </div>

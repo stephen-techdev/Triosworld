@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronRight, Check } from 'lucide-react';
 import SEO, { breadcrumbJsonLd } from '@/components/SEO';
-import { COLLECTIONS, SIZES, COLORS, productsForCollection, type Fit, type Fabric } from '@/data/catalog';
+import { COLLECTIONS, SIZES, COLORS, type Fit, type Fabric } from '@/data/catalog';
+import { useLiveCatalog } from '@/lib/storefrontCatalog';
 import { ProductCardMotion } from '@/components/ProductCard';
 
 const FITS: Fit[] = ['Regular', 'Oversized', 'Relaxed', 'Slim'];
@@ -25,7 +26,17 @@ const emptyFilters: Filters = { sizes: [], colors: [], fits: [], fabrics: [], ma
 export default function ShopPage() {
   const { slug = 'shop-all' } = useParams();
   const collection = COLLECTIONS.find(c => c.slug === slug) ?? COLLECTIONS[0];
-  const baseProducts = useMemo(() => productsForCollection(slug), [slug]);
+  // Merges the coded catalog with anything created in the admin dashboard.
+  const { products: liveAll } = useLiveCatalog();
+  const baseProducts = useMemo(
+    () => liveAll.filter((p) => {
+      if (slug === 'shop-all') return true;
+      if (slug === 'bestsellers') return p.bestseller;
+      if (slug === 'new-arrivals') return p.newArrival;
+      return p.categories.includes(slug);
+    }),
+    [liveAll, slug],
+  );
 
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [sort, setSort] = useState<Sort>('Featured');

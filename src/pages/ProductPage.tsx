@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star } from 'lucide-react';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
-import { getProduct, relatedProducts, formatINR, discountPercent, SIZES } from '@/data/catalog';
+import { formatINR, discountPercent, SIZES } from '@/data/catalog';
+import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { useStore } from '@/store/StoreContext';
 import { ProductCardMotion } from '@/components/ProductCard';
 import SEO, { productJsonLd, breadcrumbJsonLd } from '@/components/SEO';
@@ -21,7 +22,9 @@ const sizeGuide = [
 export default function ProductPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const product = slug ? getProduct(slug) : undefined;
+  // Includes products created from the admin dashboard, not just the coded catalog.
+  useLiveCatalog();
+  const product = slug ? liveProduct(slug) : undefined;
   const { addToCart, toggleWishlist, isWishlisted } = useStore();
 
   const [colorIdx, setColorIdx] = useState(0);
@@ -51,7 +54,7 @@ export default function ProductPage() {
   const variant = product.variants[colorIdx];
   const wished = isWishlisted(product.id);
   const hasDiscount = product.mrp > product.price;
-  const related = relatedProducts(product);
+  const related = liveRelated(product);
   const totalStock = variant.sizes.reduce((s, x) => s + x.stock, 0);
   const inStock = totalStock > 0;
 

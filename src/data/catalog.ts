@@ -27,6 +27,8 @@ export interface Product {
   createdAt: string;
   bestseller: boolean;
   newArrival: boolean;
+  /** Set on cards created from the admin dashboard rather than this file. */
+  runtime?: boolean;
 }
 
 export const COLORS = [

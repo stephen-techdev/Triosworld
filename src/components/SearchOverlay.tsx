@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { searchProducts, formatINR } from '@/data/catalog';
+import { formatINR } from '@/data/catalog';
+import { useLiveCatalog } from '@/lib/storefrontCatalog';
 
 interface Props {
   open: boolean;
@@ -27,7 +28,19 @@ export default function SearchOverlay({ open, onClose }: Props) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  const results = q.trim() ? searchProducts(q).slice(0, 6) : [];
+  // Searches the coded catalog plus anything created in the admin dashboard.
+  const { products: liveAll } = useLiveCatalog();
+  const results = (() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return [];
+    return liveAll.filter((p) =>
+      p.name.toLowerCase().includes(t) ||
+      p.categories.some((c) => c.includes(t)) ||
+      p.fit.toLowerCase().includes(t) ||
+      p.fabric.toLowerCase().includes(t) ||
+      p.description.toLowerCase().includes(t),
+    ).slice(0, 6);
+  })();
 
   return (
     <AnimatePresence>

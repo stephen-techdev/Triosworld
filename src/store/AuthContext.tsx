@@ -276,7 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!(await isProviderEnabled('google'))) {
         return {
           error:
-            "Google sign-in isn't enabled for this store yet. Please sign in with your mobile number and password.",
+            "Google sign-in isn't enabled for this store yet. Please check back soon or contact us on WhatsApp.",
         };
       }
       setRememberMe(remember);

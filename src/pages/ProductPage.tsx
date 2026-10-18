@@ -5,6 +5,7 @@ import { ChevronRight, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck,
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import { formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
+import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useStore } from '@/store/StoreContext';
 import { ProductCardMotion } from '@/components/ProductCard';
 import SEO, { productJsonLd, breadcrumbJsonLd } from '@/components/SEO';
@@ -22,9 +23,12 @@ const sizeGuide = [
 export default function ProductPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  // Includes products created from the admin dashboard, not just the coded catalog.
-  useLiveCatalog();
+  // Products come from the admin dashboard, so the slug cannot be resolved
+  // until the catalog fetch lands. `ready` keeps the not-found screen from
+  // flashing for a product that does exist.
+  const { ready } = useLiveCatalog();
   const product = slug ? liveProduct(slug) : undefined;
+  const { settings } = useStoreSettings();
   const { addToCart, toggleWishlist, isWishlisted } = useStore();
 
   const [colorIdx, setColorIdx] = useState(0);
@@ -42,6 +46,22 @@ export default function ProductPage() {
   }, [slug]);
 
   if (!product) {
+    // Hold a skeleton until the catalog answers; only then is "not found" true.
+    if (!ready) {
+      return (
+        <div className="page-container py-16 md:py-24">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-14">
+            <div className="aspect-[4/5] rounded-2xl bg-stone/40 animate-pulse" />
+            <div className="space-y-4">
+              <div className="h-8 w-2/3 rounded bg-stone/40 animate-pulse" />
+              <div className="h-4 w-1/3 rounded bg-stone/30 animate-pulse" />
+              <div className="h-24 w-full rounded bg-stone/30 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="page-container py-32 text-center">
         <SEO title="Product not found" noindex />
@@ -146,7 +166,7 @@ export default function ProductPage() {
           {/* Delivery estimate */}
           <div className="mt-3 flex items-center gap-2 text-xs text-ink/60">
             <Truck size={16} className="text-ink/40" />
-            <span>Estimated delivery by <span className="font-medium text-ink">{deliveryStr}</span> — Free shipping over ₹1499</span>
+            <span>Estimated delivery by <span className="font-medium text-ink">{deliveryStr}</span> — {freeShippingLabel(settings, formatINR)}</span>
           </div>
 
           {/* Colour */}
@@ -234,7 +254,7 @@ export default function ProductPage() {
             <div className="text-sm text-ink/70 leading-relaxed space-y-2">
               {activeTab === 'description' && <div><p>{product.description}</p><p className="mt-2"><span className="font-medium text-ink">Fit:</span> {product.fit}</p><p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p></div>}
               {activeTab === 'care' && <div><p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p><p><span className="font-medium text-ink">Care:</span> {product.care}</p></div>}
-              {activeTab === 'shipping' && <div><p>Free shipping on orders over ₹1499. Standard delivery in 3–5 business days across India.</p><p>7-day easy returns. Items must be unworn with tags intact.</p></div>}
+              {activeTab === 'shipping' && <div><p>{freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India. A flat fee of {formatINR(settings.shippingFee)} applies below the free-shipping threshold.</p><p>7-day easy returns. Items must be unworn with tags intact.</p></div>}
             </div>
           </div>
         </div>

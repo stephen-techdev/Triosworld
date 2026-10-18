@@ -1,20 +1,22 @@
 /**
  * Storefront product source.
  *
- * The 12 coded catalog products in src/data/catalog.ts still render
- * immediately — they are the first paint and keep the store working if the
- * database is unreachable. Products created from the admin dashboard live in
- * the public `products` table and are merged in on top once that fetch resolves,
- * so the storefront shows them without a loading flash.
+ * The storefront serves ONLY products created in the admin dashboard. A card
+ * exists if it was created there and has not been deleted.
  *
- * A dashboard-deleted product simply never arrives, so it disappears from the
- * storefront on the next load. Catalog products are deliberately NOT affected:
- * they are code, and the dashboard refuses to delete them.
+ * The 12 products that live in src/data/catalog.ts are retired. They are code,
+ * not database rows, so they are excluded from the shop and from the admin
+ * product list. Only their constants — sizes, colours, categories, the currency
+ * formatter — are still used, which is why PRODUCTS itself is no longer read.
+ *
+ * Because this list arrives from the database, the first paint is empty and the
+ * real cards follow. Anything that must not flash a wrong state (the cart
+ * total, the product page) reads `ready` from useLiveCatalog() instead.
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import {
-  PRODUCTS, SIZES, type Product, type Badge, type Fit, type Fabric, type Gender,
+  SIZES, type Product, type Badge, type Fit, type Fabric, type Gender,
 } from '@/data/catalog';
 
 interface RuntimeRow {
@@ -138,7 +140,8 @@ async function fetchRuntime(): Promise<void> {
         runtimeProducts = (data as RuntimeRow[]).map(toProduct);
       }
     } catch {
-      // Leave the coded catalog as the storefront; never blank the shop on error.
+      // Leave the list empty rather than blanking the shop mid-error; the
+      // storefront shows its own empty state and `ready` still flips to true.
     } finally {
       fetched = true;
       inFlight = null;
@@ -152,19 +155,30 @@ async function fetchRuntime(): Promise<void> {
 /**
  * The storefront serves ONLY products created in the admin dashboard.
  *
- * The 12 products that live in src/data/catalog.ts are retired: they are code, not
- * database rows, so they are excluded from both the shop and the admin product list.
- * A card exists only if it was created in the dashboard and has not been deleted.
+ * The 12 products that live in src/data/catalog.ts are retired: they are code,
+ * not database rows, so they are excluded from both the shop and the admin
+ * product list. A card exists only if it was created in the dashboard and has
+ * not been deleted.
  *
- * To bring the coded catalog back, change the return below to:
- *   return runtimeProducts.length
- *     ? [...(PRODUCTS as Product[]), ...runtimeProducts]
- *     : (PRODUCTS as Product[]);
+ * To bring the coded catalog back, import PRODUCTS from '@/data/catalog' and
+ * return runtimeProducts.length
+ *   ? [...PRODUCTS, ...runtimeProducts]
+ *   : PRODUCTS;
  */
 export function allProducts(): Product[] {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const CATALOG = PRODUCTS;
   return runtimeProducts;
+}
+
+/**
+ * Look a product up by its row id.
+ *
+ * The cart, wishlist and checkout all store a bare product id, so they need
+ * this. It reads the same module cache the storefront renders from, which means
+ * a dashboard product resolves correctly — reading the coded catalog here is
+ * what previously made every cart line vanish and the total come out at zero.
+ */
+export function liveProductById(id: string): Product | undefined {
+  return runtimeProducts.find((p) => p.id === id);
 }
 
 export function liveProduct(slug: string): Product | undefined {

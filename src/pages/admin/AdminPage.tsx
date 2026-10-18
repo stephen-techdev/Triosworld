@@ -4,20 +4,21 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
-  ArrowLeft, TrendingUp, UserRound, X, Trash2,
+  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
-import { CATEGORIES, PRODUCTS, SIZES, formatINR } from '@/data/catalog';
+import { CATEGORIES, SIZES, formatINR } from '@/data/catalog';
 import {
   AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
-  getProducts, muteCustomer, readSession, setFeedbackStatus, updateOrder, updateProduct,
+  getProducts, getSettings, muteCustomer, readSession, saveSettings, setFeedbackStatus, updateOrder, updateProduct,
   uploadProductImage,
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview,
 } from '@/lib/admin';
+import { setStoreSettings } from '@/lib/storeSettings';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'feedback' | 'settings';
 
@@ -146,7 +147,7 @@ export default function AdminPage() {
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
               {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
-              {tab === 'settings' && <SettingsSection />}
+              {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -981,7 +982,9 @@ function ProductCard({ product, onSaved, onAuthFail }: {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const image = product.image_url ?? PRODUCTS.find(c => c.id === product.id)?.variants?.[0]?.images?.[0];
+  // Dashboard products always carry their own image; fall back to the first
+  // entry of the gallery so a product uploaded without a primary still renders.
+  const image = product.image_url ?? product.images?.[0] ?? null;
   const [removing, setRemoving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -1278,12 +1281,81 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
 // Settings
 // ════════════════════════════════════════════════════════════════════════════
 
-function SettingsSection() {
+function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [state, setState] = useState<'idle' | 'saving' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  // Store settings: shipping figures the storefront reads from the database.
+  const [fee, setFee] = useState('');
+  const [threshold, setThreshold] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [shopState, setShopState] = useState<'idle' | 'loading' | 'saving' | 'done'>('idle');
+  const [shopError, setShopError] = useState<string | null>(null);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  const loadSettings = useCallback(async () => {
+    setShopState('loading');
+    try {
+      const { settings } = await getSettings();
+      setFee(String(settings.shipping_fee));
+      setThreshold(String(settings.free_shipping_threshold));
+      setAnnouncement(settings.announcement ?? '');
+      setLastSaved(settings.updated_at ?? null);
+      setShopError(null);
+    } catch (err) {
+      // An expired session should drop straight back to the login screen rather
+      // than leaving a form that silently fails to save.
+      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      setShopError(err instanceof Error ? err.message : 'Could not load store settings.');
+    } finally {
+      setShopState('idle');
+    }
+  }, [onAuthFail]);
+
+  useEffect(() => { void loadSettings(); }, [loadSettings]);
+
+  const submitSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setShopError(null);
+
+    const feeNum = Number(fee);
+    const thresholdNum = Number(threshold);
+
+    if (!Number.isInteger(feeNum) || feeNum < 0) {
+      setShopError('Shipping fee must be a whole number of rupees, zero or more.'); return;
+    }
+    if (!Number.isInteger(thresholdNum) || thresholdNum < 0) {
+      setShopError('Free-shipping threshold must be a whole number of rupees, zero or more.'); return;
+    }
+    if (!announcement.trim()) {
+      setShopError('The announcement line cannot be blank.'); return;
+    }
+
+    setShopState('saving');
+    try {
+      const { settings } = await saveSettings({
+        shipping_fee: feeNum,
+        free_shipping_threshold: thresholdNum,
+        announcement: announcement.trim(),
+      });
+      // Keep the running storefront in step so the admin preview is honest.
+      setStoreSettings({
+        shippingFee: settings.shipping_fee,
+        freeShippingThreshold: settings.free_shipping_threshold,
+        announcement: settings.announcement ?? '',
+      });
+      setLastSaved(settings.updated_at ?? new Date().toISOString());
+      setShopState('done');
+      setTimeout(() => setShopState('idle'), 2400);
+    } catch (err) {
+      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      setShopError(err instanceof Error ? err.message : 'Could not save store settings.');
+      setShopState('idle');
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1306,8 +1378,68 @@ function SettingsSection() {
 
   return (
     <div>
-      <SectionHead title="Settings" subtitle="Your operator account" />
-      <div className="max-w-md">
+      <SectionHead title="Settings" subtitle="Shipping, announcements and your operator account" />
+
+      <div className="max-w-2xl space-y-6">
+        {/* ── Store settings ─────────────────────────────────────────── */}
+        <form onSubmit={submitSettings}
+          className="rounded-xl border border-ink/10 bg-ivory p-5 md:p-6 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Truck size={16} /> Shipping &amp; announcements
+          </div>
+          <p className="text-xs text-ink/50">
+            These drive the announcement bar, cart, checkout, product page and shipping policy.
+            Nothing about shipping is hardcoded, so the storefront cannot quote a
+            different figure from the one you set here.
+          </p>
+
+          {shopError && <p className="text-xs text-red-600" role="alert">{shopError}</p>}
+          {shopState === 'done' && (
+            <p className="text-xs text-ink bg-lime px-3 py-2 rounded-lg">Store settings saved.</p>
+          )}
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="text-xs text-ink/60">Flat shipping fee (₹)</span>
+              <input type="number" min={0} step={1} inputMode="numeric" value={fee}
+                onChange={e => setFee(e.target.value)} disabled={shopState === 'loading'}
+                className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink disabled:opacity-50" />
+              <span className="text-[11px] text-ink/40">Charged when the order is below the threshold.</span>
+            </label>
+            <label className="block">
+              <span className="text-xs text-ink/60">Free shipping over (₹)</span>
+              <input type="number" min={0} step={1} inputMode="numeric" value={threshold}
+                onChange={e => setThreshold(e.target.value)} disabled={shopState === 'loading'}
+                className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink disabled:opacity-50" />
+              <span className="text-[11px] text-ink/40">Set 0 for free shipping on every order.</span>
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-xs text-ink/60">Announcement line</span>
+            <input type="text" maxLength={200} value={announcement}
+              onChange={e => setAnnouncement(e.target.value)} placeholder="Free shipping over ₹1499 — across India."
+              className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
+            <span className="text-[11px] text-ink/40">
+              Rotates in the top bar. Leave the shipping wording to the fields above —
+              this line is shown as written.
+            </span>
+          </label>
+
+          <button type="submit" disabled={shopState === 'saving' || shopState === 'loading'}
+            className="w-full py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2">
+            {shopState === 'saving' && <Loader2 size={16} className="animate-spin" />}
+            Save store settings
+          </button>
+
+          {lastSaved && (
+            <p className="text-[11px] text-ink/40 text-center">
+              Last saved {new Date(lastSaved).toLocaleString('en-IN')}
+            </p>
+          )}
+        </form>
+
+        {/* ── Account ────────────────────────────────────────────────── */}
         <form onSubmit={submit} className="rounded-xl border border-ink/10 bg-ivory p-5 md:p-6 space-y-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Lock size={16} /> Change password

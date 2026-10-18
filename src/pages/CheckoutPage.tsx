@@ -7,6 +7,7 @@ import {
 import { useStore, resolveProduct } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
 import { formatINR } from '@/data/catalog';
+import { freeShippingLabel, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 import SEO from '@/components/SEO';
 import { whatsappLink } from '@/components/WhatsApp';
 import {
@@ -47,6 +48,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, subtotal } = useStore();
   const { user } = useAuth();
+  const { settings } = useStoreSettings();
 
   const [coupon, setCoupon] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
@@ -69,7 +71,7 @@ export default function CheckoutPage() {
     }));
   }, [user]);
 
-  const shipping = subtotal > 1499 || subtotal === 0 ? 0 : 79;
+  const shipping = shippingFor(settings, subtotal);
   const discount = couponApplied ? Math.round(subtotal * 0.1) : 0;
   const total = subtotal + shipping - discount;
 
@@ -181,7 +183,7 @@ export default function CheckoutPage() {
           {/* Trust badges */}
           <div className="flex flex-wrap gap-4 text-xs text-ink/50">
             <span className="flex items-center gap-1.5"><ShieldCheck size={16} /> Secure checkout</span>
-            <span className="flex items-center gap-1.5"><Truck size={16} /> Free shipping over ₹1499</span>
+            <span className="flex items-center gap-1.5"><Truck size={16} /> {freeShippingLabel(settings, formatINR)}</span>
             <span className="flex items-center gap-1.5"><Lock size={16} /> Your data is encrypted</span>
           </div>
 

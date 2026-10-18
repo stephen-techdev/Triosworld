@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import { PRODUCTS, type Product } from '@/data/catalog';
+import type { Product } from '@/data/catalog';
+import { liveProductById, useLiveCatalog } from '@/lib/storefrontCatalog';
 
 export interface CartItem {
   productId: string;
@@ -89,6 +90,11 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { cart: [], wishlist: [] });
 
+  // Prices live in the database, so the subtotal has to wait for the catalog.
+  // Without this the total read zero for every dashboard product and a customer
+  // could reach the payment screen quoting nothing.
+  const { ready } = useLiveCatalog();
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -112,7 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreContextValue>(() => {
     const cartCount = state.cart.reduce((s, i) => s + i.qty, 0);
     const subtotal = state.cart.reduce((s, i) => {
-      const p = PRODUCTS.find(x => x.id === i.productId);
+      const p = liveProductById(i.productId);
       return s + (p ? p.price * i.qty : 0);
     }, 0);
     return {
@@ -127,7 +133,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleWishlist: productId => dispatch({ type: 'TOGGLE_WISHLIST', productId }),
       isWishlisted: productId => state.wishlist.includes(productId),
     };
-  }, [state]);
+    // `ready` flips when the catalog arrives, which re-runs this and replaces the
+    // provisional zero subtotal with the real prices.
+  }, [state, ready]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
@@ -138,6 +146,13 @@ export function useStore() {
   return ctx;
 }
 
+/**
+ * Resolve a stored product id to a live product.
+ *
+ * Reads the dashboard catalog, which is the same list the shop renders. A cart
+ * line whose product has since been deleted resolves to undefined, and callers
+ * drop it rather than showing a ghost row.
+ */
 export function resolveProduct(id: string): Product | undefined {
-  return PRODUCTS.find(p => p.id === id);
+  return liveProductById(id);
 }

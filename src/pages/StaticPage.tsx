@@ -1,8 +1,18 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import SEO from '@/components/SEO';
+import { formatINR } from '@/data/catalog';
+import { freeShippingLabel, useStoreSettings, type StoreSettings } from '@/lib/storeSettings';
 
-const content: Record<string, { title: string; body: { h?: string; p: string }[] }> = {
+/**
+ * `p` may be a plain string, or a function of the operator's store settings for
+ * the few paragraphs that quote a number (shipping fee, free-shipping
+ * threshold). Hardcoding those left the shipping policy contradicting the
+ * checkout whenever either value was changed.
+ */
+type Paragraph = { h?: string; p: string | ((s: StoreSettings) => string) };
+
+const content: Record<string, { title: string; body: Paragraph[] }> = {
   about: {
     title: 'Our Story',
     body: [
@@ -15,7 +25,7 @@ const content: Record<string, { title: string; body: { h?: string; p: string }[]
     title: 'Shipping Policy',
     body: [
       { p: 'Orders are dispatched within 24 hours of placement, excluding weekends and public holidays.' },
-      { h: 'Domestic shipping (India)', p: 'Standard delivery takes 3–5 business days. Free shipping on orders above ₹1499. A flat fee of ₹79 applies below that threshold.' },
+      { h: 'Domestic shipping (India)', p: s => `Standard delivery takes 3–5 business days. ${freeShippingLabel(s, formatINR)}. A flat fee of ${formatINR(s.shippingFee)} applies below that threshold.` },
       { h: 'Tracking', p: 'Every order ships with a tracking number. You will receive an email and SMS with tracking details once your order is dispatched.' },
     ],
   },
@@ -64,6 +74,7 @@ const content: Record<string, { title: string; body: { h?: string; p: string }[]
 };
 
 export default function StaticPage({ page }: { page: string }) {
+  const { settings } = useStoreSettings();
   const c = content[page];
   if (!c) {
     return (
@@ -84,7 +95,7 @@ export default function StaticPage({ page }: { page: string }) {
         {c.body.map((b, i) => (
           <div key={i}>
             {b.h && <h2 className="font-display text-lg font-semibold text-ink mb-2">{b.h}</h2>}
-            <p>{b.p}</p>
+            <p>{typeof b.p === 'function' ? b.p(settings) : b.p}</p>
           </div>
         ))}
       </div>

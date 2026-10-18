@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft, ShieldCheck, BadgeCheck, Truck, Headphones } from 'lucide-react';
 import SEO, { organizationJsonLd } from '@/components/SEO';
-import { CATEGORIES } from '@/data/catalog';
+import { CATEGORIES, formatINR } from '@/data/catalog';
 import { liveCollection, useLiveCatalog } from '@/lib/storefrontCatalog';
+import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import ProductCard, { ProductCardMotion } from '@/components/ProductCard';
 import { fadeUp, staggerParent, Reveal, Stagger, StaggerItem } from '@/components/Motion';
 
@@ -15,17 +16,18 @@ const benefits = [
   { icon: Headphones, title: 'Customer Support', text: 'Real humans, here to help.' },
 ];
 
-const ticker = [
-  'Free shipping over ₹1499',
-  'New drops weekly',
-  'Designed in India',
-  '7-day easy returns',
-  'Premium heavyweight cotton',
-];
-
 export default function HomePage() {
-  // Dashboard-created products are appended to the coded catalog.
+  // The storefront serves only products created in the admin dashboard.
   useLiveCatalog();
+  const { settings } = useStoreSettings();
+  // The ticker's first line quotes the operator's own free-shipping threshold.
+  const ticker = [
+    freeShippingLabel(settings, formatINR),
+    'New drops weekly',
+    'Designed in India',
+    '7-day easy returns',
+    'Premium heavyweight cotton',
+  ];
   const bestsellers = liveCollection('bestsellers').slice(0, 8);
   const orgJsonLd = organizationJsonLd();
   // A product flagged as both would otherwise show the same card twice on the

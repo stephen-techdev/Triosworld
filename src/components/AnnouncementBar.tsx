@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EASE } from '@/components/Motion';
+import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
+import { formatINR } from '@/data/catalog';
 
-const messages = [
-  'Free shipping on orders over ₹1499 — across India.',
+// The first message is built from the operator's own shipping numbers, so the
+// bar cannot advertise a threshold the checkout does not apply.
+const fixedMessages = [
   'New drops every week. Three vibes, one world.',
   'Use code TRIO10 for 10% off your first order.',
 ];
 
 export default function AnnouncementBar() {
   const [i, setI] = useState(0);
+  const { settings } = useStoreSettings();
+
+  const messages = [freeShippingLabel(settings, formatINR), ...fixedMessages];
 
   useEffect(() => {
     const id = setInterval(() => setI(p => (p + 1) % messages.length), 5200);
     return () => clearInterval(id);
-  }, []);
+  }, [messages.length]);
 
   return (
     <div className="bg-ink text-ivory border-b border-ivory/5">

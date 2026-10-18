@@ -3,6 +3,7 @@ import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, resolveProduct } from '@/store/StoreContext';
 import { formatINR } from '@/data/catalog';
+import { amountToFreeShipping, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 
 interface Props {
   open: boolean;
@@ -11,7 +12,9 @@ interface Props {
 
 export default function CartDrawer({ open, onClose }: Props) {
   const { cart, subtotal, updateQty, removeFromCart, cartCount } = useStore();
-  const shipping = subtotal > 1499 || subtotal === 0 ? 0 : 79;
+  const { settings } = useStoreSettings();
+  const shipping = shippingFor(settings, subtotal);
+  const toFree = amountToFreeShipping(settings, subtotal);
 
   return (
     <AnimatePresence>
@@ -71,8 +74,8 @@ export default function CartDrawer({ open, onClose }: Props) {
                   <div className="flex justify-between text-sm text-ink/60">
                     <span>Shipping</span><span>{shipping === 0 ? 'Free' : formatINR(shipping)}</span>
                   </div>
-                  {subtotal > 0 && subtotal < 1499 && (
-                    <p className="text-xs text-ink/50">Add {formatINR(1499 - subtotal)} more for free shipping.</p>
+                  {toFree > 0 && (
+                    <p className="text-xs text-ink/50">Add {formatINR(toFree)} more for free shipping.</p>
                   )}
                   <div className="flex justify-between text-base font-semibold pt-2 border-t border-ink/10"><span>Total</span><span>{formatINR(subtotal + shipping)}</span></div>
                   <Link to="/checkout" onClick={onClose}

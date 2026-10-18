@@ -995,6 +995,74 @@ function storageKeyFromUrl(url: string): string | null {
       return json({ ok: true });
     }
 
+    // ==================== STORE SETTINGS ====================
+    // Shipping fee and free-shipping threshold used to be literals in the
+    // frontend bundle. The operator sets them here and the storefront reads
+    // them, so the cart, checkout, banner and policy page cannot disagree.
+    if (path === "/settings" && req.method === "GET") {
+      const { data, error: settingsErr } = await supabase
+        .from("store_settings")
+        .select("shipping_fee, free_shipping_threshold, announcement, updated_at, updated_by")
+        .maybeSingle();
+
+      if (settingsErr) return json({ error: settingsErr.message }, 500);
+
+      // A database with no seeded row still answers with the defaults the
+      // storefront falls back to, rather than an empty form.
+      return json({
+        settings: {
+          shipping_fee: data?.shipping_fee ?? 79,
+          free_shipping_threshold: data?.free_shipping_threshold ?? 1499,
+          announcement: data?.announcement ?? "",
+          updated_at: data?.updated_at ?? null,
+          updated_by: data?.updated_by ?? null,
+        },
+      });
+    }
+
+    if (path === "/settings" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+
+      const fee = Number(body.shipping_fee);
+      const threshold = Number(body.free_shipping_threshold);
+
+      if (!Number.isFinite(fee) || fee < 0 || !Number.isInteger(fee)) {
+        return json({ error: "Shipping fee must be a whole number of rupees, zero or more" }, 400);
+      }
+      if (!Number.isFinite(threshold) || threshold < 0 || !Number.isInteger(threshold)) {
+        return json({ error: "Free-shipping threshold must be a whole number of rupees, zero or more" }, 400);
+      }
+
+      const announcement = body.announcement == null ? null : String(body.announcement).trim().slice(0, 200);
+      if (announcement === "") {
+        return json({ error: "Announcement cannot be blank. Leave the field as it was, or write a message." }, 400);
+      }
+
+      // Upsert against the single-row key so a fresh database works too.
+      const { error: saveErr } = await supabase
+        .from("store_settings")
+        .upsert(
+          {
+            id: true,
+            shipping_fee: fee,
+            free_shipping_threshold: threshold,
+            announcement,
+            updated_by: session.email,
+          },
+          { onConflict: "id" },
+        );
+
+      if (saveErr) return json({ error: saveErr.message }, 500);
+
+      await audit(session.email, "settings_update", "store_settings", "singleton", {
+        shipping_fee: fee,
+        free_shipping_threshold: threshold,
+        announcement,
+      });
+
+      return json({ ok: true, settings: { shipping_fee: fee, free_shipping_threshold: threshold, announcement } });
+    }
+
     return json({ error: "Not found" }, 404);
   } catch (error) {
     console.error("trios-admin error", error);

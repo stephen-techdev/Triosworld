@@ -111,6 +111,20 @@ export interface AdminProduct {
   created_at?: string | null;
 }
 
+/**
+ * Store-wide values the operator owns. These used to be literals in the
+ * frontend bundle, repeated across six components, which is why the shipping
+ * policy could contradict the checkout.
+ */
+export interface AdminSettings {
+  shipping_fee: number;
+  free_shipping_threshold: number;
+  /** The rotating announcement line. Empty means "leave as it is". */
+  announcement: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+
 export interface AdminCustomerDetail {
   mobile: string;
   full_name: string;
@@ -357,3 +371,16 @@ export const setFeedbackStatus = (id: string, status: 'new' | 'read' | 'resolved
 
 export const changeAdminPassword = (current: string, next: string) =>
   adminRequest<{ ok: boolean }>('/password', { method: 'POST', body: JSON.stringify({ current, next }) });
+
+export const getSettings = () =>
+  adminRequest<{ settings: AdminSettings }>('/settings');
+
+export const saveSettings = (settings: {
+  shipping_fee: number;
+  free_shipping_threshold: number;
+  announcement: string | null;
+}) =>
+  adminRequest<{ ok: boolean; settings: AdminSettings }>('/settings', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  });

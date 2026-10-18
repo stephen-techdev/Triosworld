@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Mail, Phone, MapPin } from 'lucide-react';
+import { Instagram, Mail, Phone, MapPin, LockKeyhole } from 'lucide-react';
 import { Wordmark, TriosMark } from '@/components/Brand';
 import WhatsAppIcon, { WHATSAPP_DISPLAY, whatsappLink } from '@/components/WhatsApp';
 import Newsletter from '@/components/Newsletter';
@@ -97,7 +97,19 @@ export default function Footer() {
         </Reveal>
         <div className="border-t border-ivory/10 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-ivory/50">
           <p>© {new Date().getFullYear()} TriosWorld. All rights reserved.</p>
-          <p>Designed in India. Made for the world.</p>
+          <div className="flex items-center gap-4">
+            <p>Designed in India. Made for the world.</p>
+            {/* Operator entry point. Leads to /admin/login, where the
+                credentials are checked server-side by the trios-admin
+                function — this link grants nothing on its own. */}
+            <Link
+              to="/admin/login"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ivory/15 px-3 py-1.5 text-ivory/50 transition-colors hover:border-lime/40 hover:text-lime"
+            >
+              <LockKeyhole size={12} aria-hidden="true" />
+              Admin access
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

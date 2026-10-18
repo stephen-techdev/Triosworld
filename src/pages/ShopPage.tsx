@@ -193,9 +193,18 @@ export default function ShopPage() {
 
           {filtered.length === 0 ? (
             <div className="py-24 text-center">
-              <p className="font-display text-2xl mb-2">No products match those filters.</p>
-              <p className="text-ink/50 text-sm mb-6">Try removing a filter or widening your price range.</p>
-              <button onClick={() => setFilters(emptyFilters)} className="bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80">Clear filters</button>
+              {baseProducts.length === 0 ? (
+                <>
+                  <p className="font-display text-2xl mb-2">New arrivals coming soon.</p>
+                  <p className="text-ink/50 text-sm">Fresh pieces are added regularly — check back shortly.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-2xl mb-2">No products match those filters.</p>
+                  <p className="text-ink/50 text-sm mb-6">Try removing a filter or widening your price range.</p>
+                  <button onClick={() => setFilters(emptyFilters)} className="bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80">Clear filters</button>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">

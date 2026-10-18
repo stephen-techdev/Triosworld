@@ -134,9 +134,20 @@ async function fetchRuntime(): Promise<void> {
   return inFlight;
 }
 
-/** Coded catalog first, dashboard products appended. Safe to call pre-fetch. */
+/**
+ * The storefront serves ONLY products loaded from the database.
+ *
+ * The 12 products still sitting in src/data/catalog.ts are deliberately not
+ * shown: the store is now managed entirely from the admin dashboard, so a card
+ * only exists if you created it there and it has not been deleted.
+ *
+ * To bring the coded catalog back, change the return below to:
+ *   return runtimeProducts.length ? [...PRODUCTS, ...runtimeProducts] : PRODUCTS;
+ */
 export function allProducts(): Product[] {
-  return runtimeProducts.length ? [...PRODUCTS, ...runtimeProducts] : PRODUCTS;
+    // PRODUCTS is intentionally imported for the revert noted above.
+  void PRODUCTS;
+  return runtimeProducts;
 }
 
 export function liveProduct(slug: string): Product | undefined {

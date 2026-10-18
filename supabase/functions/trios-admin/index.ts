@@ -409,39 +409,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // ==================== PRODUCTS ====================
+    // Only products created in this dashboard. The 12 coded catalog products
+    // are excluded: they live in src/data/catalog.ts, cannot be represented by a
+    // database row, and are no longer shown in the shop either.
     if (path === "/products" && req.method === "GET") {
-      const { data: overrides } = await supabase.from("product_overrides").select("*");
-      const byId = new Map((overrides ?? []).map((o) => [o.product_id, o]));
-
-      const catalogProducts = Object.entries(PRICES).map(([id, entry]) => {
-        const o = byId.get(id);
-        const stock = (o?.stock as Record<string, number> | undefined) ?? entry.sizes;
-        return {
-          id,
-          name: entry.name,
-          slug: entry.slug,
-          mrp: o?.mrp ?? entry.mrp,
-          catalog_price: entry.price,
-          price: o?.price ?? entry.price,
-          colors: entry.colors,
-          stock,
-          stock_total: Object.values(stock).reduce((s, n) => s + (Number(n) || 0), 0),
-          is_active: o?.is_active ?? true,
-          updated_at: o?.updated_at ?? null,
-          overridden: Boolean(o),
-          // `runtime` products were created in the dashboard and have no entry in
-          // the static catalog; `duplicate` flags two cards sharing a slug.
-          source: "catalog" as const,
-          deleted: Boolean((o as { deleted_at?: string | null } | undefined)?.deleted_at),
-          deleted_at: (o as { deleted_at?: string | null } | undefined)?.deleted_at ?? null,
-          category: null as string | null,
-          image_url: null as string | null,
-          images: [] as string[],
-          created_at: null as string | null,
-        };
-      });
-
-      // Products created from the dashboard. These only exist in the database.
       const { data: runtimeRows, error: runtimeErr } = await supabase
         .from("products")
         .select("*")
@@ -486,15 +457,14 @@ Deno.serve(async (req: Request) => {
         };
       });
 
-      // Surface duplicate slugs across both sources so the dashboard can offer
-      // a one-click "remove the duplicate" action.
+      // The coded catalog is retired. Only products created in this dashboard are
+      // listed here, and only those are deletable: the 12 products in
+      // src/data/catalog.ts are code and cannot be removed from a database row.
       const slugCounts = new Map<string, number>();
-      for (const p of [...catalogProducts, ...runtimeProducts]) {
-        if (!p.deleted) slugCounts.set(p.slug, (slugCounts.get(p.slug) ?? 0) + 1);
-      }
-      const withFlags = [...catalogProducts, ...runtimeProducts].map((p) => ({
+      for (const p of runtimeProducts) slugCounts.set(p.slug, (slugCounts.get(p.slug) ?? 0) + 1);
+      const withFlags = runtimeProducts.map((p) => ({
         ...p,
-        duplicate: !p.deleted && (slugCounts.get(p.slug) ?? 0) > 1,
+        duplicate: (slugCounts.get(p.slug) ?? 0) > 1,
       }));
 
       return json({ products: withFlags });

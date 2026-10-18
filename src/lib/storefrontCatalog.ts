@@ -150,22 +150,21 @@ async function fetchRuntime(): Promise<void> {
 }
 
 /**
- * The storefront serves the coded catalog PLUS anything added from the admin
- * dashboard.
+ * The storefront serves ONLY products created in the admin dashboard.
  *
- * The 12 products in src/data/catalog.ts render immediately as the first paint,
- * so the shop still works if the database is unreachable. Dashboard products
- * append once the fetch resolves, and one deleted from the admin panel simply
- * never arrives.
+ * The 12 products that live in src/data/catalog.ts are retired: they are code, not
+ * database rows, so they are excluded from both the shop and the admin product list.
+ * A card exists only if it was created in the dashboard and has not been deleted.
  *
- * Catalog products cannot be deleted from the dashboard - they are code - so the
- * admin API refuses with an explanation rather than pretending.
- *
- * To show only database products, change the return below to:
- *   return runtimeProducts;
+ * To bring the coded catalog back, change the return below to:
+ *   return runtimeProducts.length
+ *     ? [...(PRODUCTS as Product[]), ...runtimeProducts]
+ *     : (PRODUCTS as Product[]);
  */
 export function allProducts(): Product[] {
-  return runtimeProducts.length ? [...PRODUCTS, ...runtimeProducts] : PRODUCTS;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const CATALOG = PRODUCTS;
+  return runtimeProducts;
 }
 
 export function liveProduct(slug: string): Product | undefined {

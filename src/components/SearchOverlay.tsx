@@ -36,8 +36,8 @@ export default function SearchOverlay({ open, onClose }: Props) {
     return liveAll.filter((p) =>
       p.name.toLowerCase().includes(t) ||
       p.categories.some((c) => c.includes(t)) ||
-      p.fit.toLowerCase().includes(t) ||
-      p.fabric.toLowerCase().includes(t) ||
+      (p.fit?.toLowerCase().includes(t) ?? false) ||
+      (p.fabric?.toLowerCase().includes(t) ?? false) ||
       p.description.toLowerCase().includes(t),
     ).slice(0, 6);
   })();

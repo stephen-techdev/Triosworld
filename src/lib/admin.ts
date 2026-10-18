@@ -100,6 +100,14 @@ export interface AdminProduct {
   duplicate?: boolean;
   category?: string | null;
   image_url?: string | null;
+  images?: string[];
+  description?: string | null;
+  care?: string | null;
+  fit?: string | null;
+  fabric?: string | null;
+  badge?: string | null;
+  bestseller?: boolean;
+  new_arrival?: boolean;
   created_at?: string | null;
 }
 
@@ -266,6 +274,14 @@ export const updateProduct = (payload: {
   mrp?: number;
   stock?: Record<string, number>;
   is_active?: boolean;
+  images?: string[];
+  description?: string;
+  care?: string;
+  fit?: string;
+  fabric?: string;
+  badge?: string;
+  bestseller?: boolean;
+  new_arrival?: boolean;
 }) => adminRequest<{ ok: boolean }>('/product', { method: 'POST', body: JSON.stringify(payload) });
 
 // ─────────────────────── customer moderation ───────────────────────
@@ -308,6 +324,12 @@ export const createProduct = (payload: {
   images?: string[];
   image_url?: string;
   description?: string;
+  care?: string;
+  fit?: string;
+  fabric?: string;
+  badge?: string;
+  bestseller?: boolean;
+  new_arrival?: boolean;
   is_active?: boolean;
 }) => adminRequest<{ ok: true; id: string; slug: string }>('/product-create', {
   method: 'POST',

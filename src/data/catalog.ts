@@ -18,12 +18,14 @@ export interface Product {
   categories: string[];
   price: number;
   mrp: number;
-  fit: Fit;
-  fabric: Fabric;
+  /** Optional: a dashboard product may leave these blank, and the card then
+   *  shows nothing rather than an invented placeholder. */
+  fit?: Fit;
+  fabric?: Fabric;
   description: string;
   care: string;
   variants: Variant[];
-  badge: Badge;
+  badge?: Badge;
   createdAt: string;
   bestseller: boolean;
   newArrival: boolean;
@@ -338,7 +340,7 @@ export function searchProducts(q: string): Product[] {
     p.name.toLowerCase().includes(t) ||
     p.categories.some(c => c.includes(t)) ||
     p.gender.includes(t) ||
-    p.fit.toLowerCase().includes(t) ||
+    (p.fit?.toLowerCase().includes(t) ?? false) ||
     p.variants.some(v => v.color.toLowerCase().includes(t))
   );
 }

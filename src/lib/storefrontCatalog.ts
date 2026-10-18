@@ -29,6 +29,12 @@ interface RuntimeRow {
   stock: unknown;
   images: unknown;
   is_active: boolean;
+  care: string | null;
+  fit: string | null;
+  fabric: string | null;
+  badge: string | null;
+  bestseller: boolean;
+  new_arrival: boolean;
   created_at: string | null;
 }
 
@@ -50,9 +56,20 @@ function asStock(v: unknown): Record<string, number> {
  * Flatten a runtime row into the same shape as a coded product so every card,
  * size picker and cart line works unchanged.
  *
- * Images are dealt out across the colourways: with two images and two colours
- * each colour gets one; with fewer images than colours they share the first.
+ * Images are distributed across the colourways:
+ *   - one colour             -> it gets the whole gallery, so hover works
+ *   - one image per colour   -> each colour gets its own
+ *   - fewer images than colours -> every colour gets the whole gallery, because
+ *     front/back shots uploaded once apply to all of them, and dropping the
+ *     extras is what previously left a product showing a single image.
  */
+function imagesForColor(index: number, colors: number, images: string[]): string[] {
+  if (!images.length) return [];
+  if (colors === 1) return images;
+  if (images.length >= colors) return [images[index]];
+  return images;
+}
+
 function toProduct(row: RuntimeRow): Product {
   const images = asStringArray(row.images);
   const colors = asStringArray(row.colors);
@@ -67,11 +84,7 @@ function toProduct(row: RuntimeRow): Product {
   const variants = colorNames.map((color, i) => ({
     color,
     hex: '#171717',
-    images: images.length
-      ? (colorNames.length > 1 && images.length >= colorNames.length
-        ? [images[i]]
-        : [images[0]])
-      : [],
+    images: imagesForColor(i, colorNames.length, images),
     sizes,
   }));
 
@@ -83,15 +96,17 @@ function toProduct(row: RuntimeRow): Product {
     categories: Array.from(new Set([row.category ?? 'new-arrivals', 'men'])),
     price: Number(row.price) || 0,
     mrp: Number(row.mrp) || Number(row.price) || 0,
-    fit: 'Regular' as Fit,
-    fabric: 'Cotton' as Fabric,
+    // Operator-supplied. Left undefined rather than invented, so a card never
+    // shows a fit or fabric the operator did not set.
+    fit: (row.fit ?? undefined) as Fit | undefined,
+    fabric: (row.fabric ?? undefined) as Fabric | undefined,
     description: row.description ?? '',
-    care: 'Machine wash cold. Do not bleach.',
+    care: row.care ?? '',
     variants,
-    badge: 'New' as Badge,
+    badge: (row.badge ?? undefined) as Badge | undefined,
     createdAt: (row.created_at ?? new Date().toISOString()).slice(0, 10),
-    bestseller: false,
-    newArrival: true,
+    bestseller: row.bestseller ?? false,
+    newArrival: row.new_arrival ?? false,
     /** Marks a card that came from the dashboard rather than the code catalog. */
     runtime: true,
   } as Product;
@@ -115,7 +130,7 @@ async function fetchRuntime(): Promise<void> {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, slug, name, description, price, mrp, category, colors, stock, images, is_active, created_at')
+        .select('id, slug, name, description, care, fit, fabric, badge, price, mrp, category, colors, stock, images, is_active, bestseller, new_arrival, created_at')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -174,8 +189,8 @@ export function liveSearch(q: string): Product[] {
   return allProducts().filter((p) =>
     p.name.toLowerCase().includes(t) ||
     p.categories.some((c) => c.includes(t)) ||
-    p.fit.toLowerCase().includes(t) ||
-    p.fabric.toLowerCase().includes(t) ||
+    (p.fit?.toLowerCase().includes(t) ?? false) ||
+    (p.fabric?.toLowerCase().includes(t) ?? false) ||
     p.description.toLowerCase().includes(t));
 }
 

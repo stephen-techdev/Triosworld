@@ -1358,6 +1358,13 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
   const [mrp, setMrp] = useState('');
   const [category, setCategory] = useState('new-arrivals');
   const [colors, setColors] = useState('');
+  const [fit, setFit] = useState('');
+  const [fabric, setFabric] = useState('');
+  const [badge, setBadge] = useState('');
+  const [description, setDescription] = useState('');
+  const [care, setCare] = useState('');
+  const [bestseller, setBestseller] = useState(false);
+  const [newArrival, setNewArrival] = useState(true);
   const [stock, setStock] = useState<Record<string, string>>(
     () => Object.fromEntries(SIZES.map(s => [s, '10'])),
   );
@@ -1408,9 +1415,18 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         colors: colors.split(',').map(c => c.trim()).filter(Boolean),
         images: images.map(i => i.url),
         stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
+        description: description.trim() || undefined,
+        care: care.trim() || undefined,
+        fit: fit || undefined,
+        fabric: fabric || undefined,
+        badge: badge || undefined,
+        bestseller,
+        new_arrival: newArrival,
       });
       setOk(`Created "${name.trim()}" as /product/${res.slug}`);
       setName(''); setPrice(''); setMrp(''); setColors(''); setImages([]);
+      setDescription(''); setCare(''); setFit(''); setFabric(''); setBadge('');
+      setBestseller(false); setNewArrival(true);
       onCreated();
       setTimeout(() => setOk(null), 5000);
     } catch (e) {
@@ -1430,8 +1446,8 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
       </div>
 
       <p className="text-xs text-ink/50">
-        New products live in the database and appear on the storefront alongside the catalog.
-        The URL slug is generated from the name and is de-duplicated automatically.
+        Everything on the card is set here. Leave a field blank and it stays blank on the
+        storefront — nothing is filled in for you.
       </p>
 
       {err && <p className="text-xs text-red-600">{err}</p>}
@@ -1466,6 +1482,55 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         <label className="block">
           <span className="text-[11px] text-ink/50">Colours (comma separated)</span>
           <input value={colors} onChange={e => setColors(e.target.value)} placeholder="Black, White"
+            className={`mt-1 ${input}`} />
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Fit</span>
+          <select value={fit} onChange={e => setFit(e.target.value)} className={`mt-1 ${input}`}>
+            <option value="">Not set</option>
+            {(['Regular', 'Oversized', 'Relaxed', 'Slim'] as const).map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Fabric</span>
+          <select value={fabric} onChange={e => setFabric(e.target.value)} className={`mt-1 ${input}`}>
+            <option value="">Not set</option>
+            {(['Cotton', 'Cotton Blend', 'Heavyweight Cotton', 'French Terry'] as const).map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-[11px] text-ink/50">Badge (corner pill)</span>
+          <select value={badge} onChange={e => setBadge(e.target.value)} className={`mt-1 ${input}`}>
+            <option value="">None</option>
+            {(['Bestseller', 'New', 'Limited', 'Essential', 'Street', 'Graphic'] as const).map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </label>
+
+        <div className="flex gap-4 sm:col-span-2 pt-1">
+          <label className="flex items-center gap-2 text-xs text-ink/70">
+            <input type="checkbox" checked={bestseller} onChange={e => setBestseller(e.target.checked)} className="w-4 h-4 accent-ink" />
+            Show in Bestsellers
+          </label>
+          <label className="flex items-center gap-2 text-xs text-ink/70">
+            <input type="checkbox" checked={newArrival} onChange={e => setNewArrival(e.target.checked)} className="w-4 h-4 accent-ink" />
+            Show in New Drops
+          </label>
+        </div>
+
+        <label className="block sm:col-span-2">
+          <span className="text-[11px] text-ink/50">Description</span>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+            placeholder="What makes this piece worth buying?"
+            className={`mt-1 ${input} resize-y`} />
+        </label>
+
+        <label className="block sm:col-span-2">
+          <span className="text-[11px] text-ink/50">Care instructions</span>
+          <input value={care} onChange={e => setCare(e.target.value)}
+            placeholder="Machine wash cold, inside out. Do not bleach."
             className={`mt-1 ${input}`} />
         </label>
       </div>

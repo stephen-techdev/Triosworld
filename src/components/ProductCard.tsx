@@ -63,12 +63,15 @@ export default function ProductCard({ product }: Props) {
             />
           )}
 
-          {/* Badge — top left, clean pill */}
-          <span
-            className={`absolute top-2.5 left-2.5 z-[5] rounded-full px-[11px] py-[5px] text-[9px] font-bold uppercase leading-none tracking-[0.09em] ${badgeStyles[product.badge] ?? 'bg-ivory text-ink'}`}
-          >
-            {product.badge}
-          </span>
+          {/* Badge — top left, clean pill. Only rendered when set, so a
+              dashboard product without a badge shows no empty pill. */}
+          {product.badge && (
+            <span
+              className={`absolute top-2.5 left-2.5 z-[5] rounded-full px-[11px] py-[5px] text-[9px] font-bold uppercase leading-none tracking-[0.09em] ${badgeStyles[product.badge] ?? 'bg-ivory text-ink'}`}
+            >
+              {product.badge}
+            </span>
+          )}
         </Link>
 
         {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card.
@@ -173,9 +176,11 @@ export default function ProductCard({ product }: Props) {
         >
           {product.name}
         </Link>
-        <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.04em] text-ink/50">
-          {product.fit} fit · {product.fabric}
-        </p>
+        {(product.fit || product.fabric) && (
+          <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.04em] text-ink/50">
+            {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <div className="mt-1 flex items-baseline gap-1.5">
           <span className="text-[13px] font-bold text-ink">{formatINR(product.price)}</span>
           {hasDiscount && <span className="text-xs text-ink/40 line-through">{formatINR(product.mrp)}</span>}

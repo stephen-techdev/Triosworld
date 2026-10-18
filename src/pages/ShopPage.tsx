@@ -48,8 +48,8 @@ export default function ShopPage() {
     let list = baseProducts.filter(p => {
       if (filters.sizes.length && !p.variants.some(v => v.sizes.some(s => filters.sizes.includes(s.size) && s.stock > 0))) return false;
       if (filters.colors.length && !p.variants.some(v => filters.colors.includes(v.color))) return false;
-      if (filters.fits.length && !filters.fits.includes(p.fit)) return false;
-      if (filters.fabrics.length && !filters.fabrics.includes(p.fabric)) return false;
+      if (filters.fits.length && !(p.fit && filters.fits.includes(p.fit))) return false;
+      if (filters.fabrics.length && !(p.fabric && filters.fabrics.includes(p.fabric))) return false;
       if (p.price > filters.maxPrice) return false;
       if (filters.inStockOnly && !p.variants.some(v => v.sizes.some(s => s.stock > 0))) return false;
       return true;

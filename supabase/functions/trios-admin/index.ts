@@ -475,6 +475,13 @@ Deno.serve(async (req: Request) => {
           category: r.category,
           image_url: r.image_url,
           images: (r.images as string[] | null) ?? (r.image_url ? [r.image_url] : []),
+          description: r.description ?? null,
+          care: r.care ?? null,
+          fit: r.fit ?? null,
+          fabric: r.fabric ?? null,
+          badge: r.badge ?? null,
+          bestseller: r.bestseller ?? false,
+          new_arrival: r.new_arrival ?? false,
           created_at: r.created_at,
         };
       });
@@ -496,8 +503,63 @@ Deno.serve(async (req: Request) => {
     if (path === "/product" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const productId = String(body.productId ?? "");
-      if (!PRICES[productId]) return json({ error: "Unknown product" }, 404);
+      if (!productId) return json({ error: "productId is required" }, 400);
 
+      // Dashboard-created products store every card field in the products table.
+      if (!PRICES[productId]) {
+        const { data: row } = await supabase
+          .from("products")
+          .select("id")
+          .eq("id", productId)
+          .maybeSingle();
+        if (!row) return json({ error: "Unknown product" }, 404);
+
+        const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+        if (body.price !== undefined && body.price !== null && body.price !== "") {
+          const v = Number(body.price);
+          if (!Number.isFinite(v) || v < 0) return json({ error: "Price must be a positive number" }, 400);
+          patch.price = Math.round(v);
+        }
+        if (body.mrp !== undefined && body.mrp !== null && body.mrp !== "") {
+          const v = Number(body.mrp);
+          if (!Number.isFinite(v) || v < 0) return json({ error: "MRP must be a positive number" }, 400);
+          patch.mrp = Math.round(v);
+        }
+        if (body.stock && typeof body.stock === "object") {
+          const clean: Record<string, number> = {};
+          for (const [size, n] of Object.entries(body.stock as Record<string, unknown>)) {
+            const v = Number(n);
+            if (!Number.isFinite(v) || v < 0) return json({ error: `Invalid stock for ${size}` }, 400);
+            clean[size] = Math.floor(v);
+          }
+          patch.stock = clean;
+        }
+        if (typeof body.is_active === "boolean") patch.is_active = body.is_active;
+        if (Array.isArray(body.images)) {
+          const imgs = (body.images as unknown[]).map(String).filter(Boolean).slice(0, 8);
+          patch.images = imgs;
+          patch.image_url = imgs[0] ?? null;
+        }
+        for (const key of ["description", "care"] as const) {
+          if (body[key] !== undefined) patch[key] = body[key] ? String(body[key]) : null;
+        }
+        for (const key of ["fit", "fabric", "badge"] as const) {
+          if (body[key] !== undefined) patch[key] = body[key] ? String(body[key]) : null;
+        }
+        if (body.bestseller !== undefined) patch.bestseller = body.bestseller === true;
+        if (body.new_arrival !== undefined) patch.new_arrival = body.new_arrival === true;
+
+        const { error: upErr } = await supabase.from("products").update(patch).eq("id", productId);
+        if (upErr) return json({ error: upErr.message }, 500);
+
+        await audit(session.email, "product.update", "product", productId, {
+          fields: Object.keys(patch).filter(k => k !== "updated_at"),
+        });
+        return json({ ok: true });
+      }
+
+      // Catalog products keep their edits in product_overrides.
       const patch: Record<string, unknown> = {
         product_id: productId,
         updated_at: new Date().toISOString(),
@@ -651,6 +713,12 @@ Deno.serve(async (req: Request) => {
         slug,
         name,
         description: body.description ? String(body.description) : null,
+        care: body.care ? String(body.care) : null,
+        fit: body.fit ? String(body.fit) : null,
+        fabric: body.fabric ? String(body.fabric) : null,
+        badge: body.badge ? String(body.badge) : null,
+        bestseller: body.bestseller === true,
+        new_arrival: body.new_arrival === true,
         price: Math.round(price),
         mrp,
         category: String(body.category ?? "new-arrivals"),

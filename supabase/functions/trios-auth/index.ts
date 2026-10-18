@@ -167,14 +167,15 @@ Deno.serve(async (req: Request) => {
       const { full_name, mobile, password, gender } = body as RegisterBody;
 
       if (!full_name?.trim()) return json({ error: "Full name is required" }, 400);
-      if (!validateMobile(mobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+      // Normalise BEFORE validating. Validating the raw value rejected every
+      // formatted number, including the "+91…" the storefront itself sends.
+      const cleanMobile = sanitizeMobile(mobile);
+      if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
       const pwdError = validatePassword(password);
       if (pwdError) return json({ error: pwdError }, 400);
       if (gender && !["male", "female", "other", "prefer_not_to_say"].includes(gender)) {
         return json({ error: "Invalid gender value" }, 400);
       }
-
-      const cleanMobile = sanitizeMobile(mobile);
 
       // Registration is rate limited too, to stop bulk account creation spam.
       if (await checkRateLimit(cleanMobile)) {
@@ -263,10 +264,11 @@ Deno.serve(async (req: Request) => {
     if (path === "/login" && req.method === "POST") {
       const { mobile, password } = body as LoginBody;
 
-      if (!validateMobile(mobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
-      if (!password) return json({ error: "Password is required" }, 400);
-
+      // Normalise BEFORE validating — the storefront sends "+91…" prefixed numbers,
+      // and validating the raw value rejected every one of them.
       const cleanMobile = sanitizeMobile(mobile);
+      if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+      if (!password) return json({ error: "Password is required" }, 400);
 
       // Rate limiting — 5 attempts per 15 minutes per mobile number.
       const blocked = await checkRateLimit(cleanMobile);
@@ -327,8 +329,8 @@ Deno.serve(async (req: Request) => {
     if (path === "/reset-request" && req.method === "POST") {
       const { mobile } = body as ResetRequestBody;
 
-      if (!validateMobile(mobile)) return json({ error: "Enter a valid mobile number" }, 400);
       const cleanMobile = sanitizeMobile(mobile);
+      if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid mobile number" }, 400);
 
       if (await checkRateLimit(cleanMobile)) {
         return json({ error: "Too many attempts. Please try again in 15 minutes." }, 429);
@@ -379,12 +381,11 @@ Deno.serve(async (req: Request) => {
     if (path === "/reset-confirm" && req.method === "POST") {
       const { mobile, token, new_password } = body as ResetConfirmBody;
 
-      if (!validateMobile(mobile)) return json({ error: "Invalid mobile number" }, 400);
+      const cleanMobile = sanitizeMobile(mobile);
+      if (!validateMobile(cleanMobile)) return json({ error: "Invalid mobile number" }, 400);
       if (!token) return json({ error: "Reset code is required" }, 400);
       const pwdError = validatePassword(new_password);
       if (pwdError) return json({ error: pwdError }, 400);
-
-      const cleanMobile = sanitizeMobile(mobile);
 
       // Brute-force protection for 6-digit codes.
       if (await checkRateLimit(cleanMobile)) {
@@ -452,12 +453,11 @@ Deno.serve(async (req: Request) => {
       const { mobile, full_name, gender } = body;
 
       if (!full_name?.trim()) return json({ error: "Full name is required" }, 400);
-      if (!validateMobile(mobile)) return json({ error: "Enter a valid mobile number" }, 400);
+      const cleanMobile = sanitizeMobile(mobile);
+      if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid mobile number" }, 400);
       if (gender && !["male", "female", "other", "prefer_not_to_say"].includes(gender)) {
         return json({ error: "Invalid gender value" }, 400);
       }
-
-      const cleanMobile = sanitizeMobile(mobile);
 
       // Mobile numbers stay unique even after Google sign-in.
       const { data: existingMobile } = await supabase

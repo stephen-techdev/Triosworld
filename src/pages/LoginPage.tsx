@@ -44,7 +44,9 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const { error: err } = await signInWithMobile(`+91${mobile}`, password, remember);
+    const { error: err } = // Send the bare ten digits. The "+91" prefix is added by the server, which
+// needs the national number to look up the profile.
+await signInWithMobile(mobile, password, remember);
     setLoading(false);
     if (err) setError(err);
     else navigate('/account');

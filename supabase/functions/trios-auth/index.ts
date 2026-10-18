@@ -75,6 +75,23 @@ function fullMobile(clean: string): string {
   return `+91${clean}`;
 }
 
+/**
+ * Internal, non-routable address derived from the mobile number.
+ *
+ * Supabase will only mint a password session through its EMAIL grant on a
+ * project with no SMS provider: the phone grant answers "Unsupported phone
+ * provider". This function already verifies the password itself against
+ * profiles.password_hash, so all that is needed from Auth is a session, and the
+ * email grant gives one without any SMS dependency.
+ *
+ * The address is never shown to the customer, never emailed, and the domain is
+ * reserved (RFC 2606 `.invalid`) so it can never resolve or collide with a real
+ * inbox. mobile stays the customer-facing identifier everywhere.
+ */
+function syntheticEmail(clean: string): string {
+  return `${clean}@auth.triosworld.invalid`;
+}
+
 function validateMobile(m: string): boolean {
   return /^[6-9]\d{9}$/.test(m);
 }
@@ -181,6 +198,11 @@ Deno.serve(async (req: Request) => {
       // the customer their number has been "verified" because no OTP was sent.
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         phone: fullMobile(cleanMobile),
+        // See syntheticEmail(): Auth will not issue a password session via the
+        // phone grant without an SMS provider. email_confirm is set because the
+        // address is synthetic and is never delivered to anyone.
+        email: syntheticEmail(cleanMobile),
+        email_confirm: true,
         password: password,
         phone_confirm: true,
         user_metadata: { full_name, mobile: cleanMobile, gender },
@@ -269,12 +291,17 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Invalid mobile number or password" }, 401);
       }
 
-      // Issue a real Supabase Auth session (phone + password grant, no OTP).
+      // Issue a real Supabase Auth session.
+      // The phone grant is unavailable on a project with no SMS provider
+      // ("Unsupported phone provider"), which made every successful password
+      // check end in a 500. The password is already verified above against
+      // profiles.password_hash, so all Auth has to do is mint a session — and the
+      // email grant does that with no SMS dependency. See syntheticEmail().
       const anonClient = createClient(supabaseUrl, anonKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
       const { data: signInData } = await anonClient.auth.signInWithPassword({
-        phone: fullMobile(cleanMobile),
+        email: syntheticEmail(cleanMobile),
         password: password,
       });
 

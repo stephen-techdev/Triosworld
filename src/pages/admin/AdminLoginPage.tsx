@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={e => { setEmail(e.target.value); setError(null); }}
-              placeholder="admin@triosworld.in"
+              placeholder="admin@triosworld.com"
               autoComplete="username"
               required
               autoFocus

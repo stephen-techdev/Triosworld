@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://triosworld.in/sitemap.xml
+Sitemap: https://triosworld.com/sitemap.xml

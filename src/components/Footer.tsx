@@ -30,7 +30,7 @@ const cols = [
 const socials = [
   { href: 'https://instagram.com', label: 'Instagram', Icon: Instagram },
   { href: whatsappLink('Hi TriosWorld 👋'), label: 'WhatsApp', Icon: WhatsAppIcon },
-  { href: 'mailto:hello@triosworld.in', label: 'Email', Icon: Mail },
+  { href: 'mailto:hello@triosworld.com', label: 'Email', Icon: Mail },
 ];
 
 export default function Footer() {
@@ -76,7 +76,7 @@ export default function Footer() {
             <h4 className="text-xs font-semibold tracking-widest uppercase text-ivory/40 mb-4">Contact</h4>
             <p className="text-sm text-ivory/80 flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0" /> Mumbai, India</p>
             <p className="text-sm text-ivory/80 flex items-center gap-2"><Phone size={16} /> {WHATSAPP_DISPLAY}</p>
-            <p className="text-sm text-ivory/80 flex items-center gap-2"><Mail size={16} /> hello@triosworld.in</p>
+            <p className="text-sm text-ivory/80 flex items-center gap-2"><Mail size={16} /> hello@triosworld.com</p>
 
             {/* WhatsApp CTA — right side of the footer */}
             <a

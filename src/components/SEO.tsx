@@ -14,7 +14,7 @@ const BASE_DESC = 'Premium Indian men\'s streetwear, graphic tees and everyday e
 // Override with VITE_SITE_URL (e.g. a staging domain) — see .env.
 const SITE_URL =
   (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/+$/, '') ||
-  'https://triosworld.in';
+  'https://triosworld.com';
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
   let el = document.head.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
@@ -129,7 +129,7 @@ export function organizationJsonLd() {
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer service',
-      email: 'hello@triosworld.in',
+      email: 'hello@triosworld.com',
       areaServed: 'IN',
     },
   };

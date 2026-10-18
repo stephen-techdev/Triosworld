@@ -142,12 +142,12 @@ BEGIN
 END $$;
 
 -- Default administrator.
---   email:    admin@triosworld.in
+--   email:    admin@triosworld.com
 --   password: Trios@Admin2026   ← change it in the dashboard after first login
 -- Hash generated with `node scripts/hash-password.mjs 'Trios@Admin2026'`.
 INSERT INTO admins (email, password_hash, full_name, role)
 VALUES (
-  'admin@triosworld.in',
+  'admin@triosworld.com',
   '$2b$10$HI41p1SFe.W/PpfPksANXuCBUX/BJFYPBwSH.r8ey4gC0ANx64n8u',
   'Store Owner',
   'owner'

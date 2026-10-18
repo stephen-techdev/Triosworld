@@ -32,13 +32,13 @@ const content: Record<string, { title: string; body: { h?: string; p: string }[]
     body: [
       { p: 'TriosWorld respects your privacy. We collect only the information needed to process orders and improve your experience — name, contact details and address.' },
       { h: 'How we use it', p: 'To fulfil orders, communicate updates, and — only if you opt in — send marketing emails. We never sell your data.' },
-      { h: 'Your rights', p: 'You can request access to or deletion of your data at any time by writing to hello@triosworld.in.' },
+      { h: 'Your rights', p: 'You can request access to or deletion of your data at any time by writing to hello@triosworld.com.' },
     ],
   },
   terms: {
     title: 'Terms & Conditions',
     body: [
-      { p: 'By using triosworld.in you agree to these terms. Prices are listed in INR and inclusive of all taxes.' },
+      { p: 'By using triosworld.com you agree to these terms. Prices are listed in INR and inclusive of all taxes.' },
       { h: 'Orders', p: 'All orders are subject to availability and confirmation. We reserve the right to cancel orders that appear fraudulent.' },
       { h: 'Content', p: 'All product imagery, designs and copy are the property of TriosWorld and may not be reproduced without permission.' },
     ],
@@ -47,7 +47,7 @@ const content: Record<string, { title: string; body: { h?: string; p: string }[]
     title: 'Contact Us',
     body: [
       { p: 'We are here to help. Reach us any of the ways below — typical response time is under 24 hours on business days.' },
-      { h: 'Email', p: 'hello@triosworld.in' },
+      { h: 'Email', p: 'hello@triosworld.com' },
       { h: 'Phone', p: '+91 88836 26787 (Mon–Sat, 10am–7pm IST)' },
       { h: 'Address', p: 'TriosWorld, Mumbai, India' },
     ],

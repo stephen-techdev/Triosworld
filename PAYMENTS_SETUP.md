@@ -61,7 +61,7 @@ Everything in this document is already implemented in the code. The steps under
 Created by the migration:
 
 ```
-Email:    admin@triosworld.in
+Email:    admin@triosworld.com
 Password: Trios@Admin2026
 ```
 
@@ -200,7 +200,7 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
 
 **Admin**
 
-1. `/login` → enter `admin@triosworld.in` → **OPEN DASHBOARD**.
+1. `/login` → enter `admin@triosworld.com` → **OPEN DASHBOARD**.
 2. Overview shows revenue/orders/feedback counts.
 3. Orders & Payments: filter, search, open an order, change fulfilment status,
    inspect the payment trail.

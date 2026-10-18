@@ -1,7 +1,7 @@
 # TriosWorld
 
 Premium Indian men's streetwear, graphic tees and everyday essentials.
-Shop men's t-shirts online in India — <https://triosworld.in>
+Shop men's t-shirts online in India — <https://triosworld.com>
 
 ## Development
 

@@ -137,8 +137,16 @@ export default function ProductPage() {
         {/* Info */}
         <div className="md:py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[10px] font-semibold tracking-wider uppercase bg-ink text-ivory px-2 py-1 rounded">{product.badge}</span>
-            <span className="text-xs text-ink/50 capitalize">{product.fit} fit · {product.fabric}</span>
+            {product.badge && (
+              <span className="text-[10px] font-semibold tracking-wider uppercase bg-ink text-ivory px-2 py-1 rounded">{product.badge}</span>
+            )}
+            {/* Fit and fabric are operator-supplied, so an unset field is hidden
+                rather than rendering an empty "Fit ·" line. */}
+            {(product.fit || product.fabric) && (
+              <span className="text-xs text-ink/50 capitalize">
+                {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
+              </span>
+            )}
           </div>
           <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold leading-tight">{product.name}</h1>
           <div className="mt-4 flex items-center gap-3">
@@ -252,8 +260,22 @@ export default function ProductPage() {
               ))}
             </div>
             <div className="text-sm text-ink/70 leading-relaxed space-y-2">
-              {activeTab === 'description' && <div><p>{product.description}</p><p className="mt-2"><span className="font-medium text-ink">Fit:</span> {product.fit}</p><p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p></div>}
-              {activeTab === 'care' && <div><p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p><p><span className="font-medium text-ink">Care:</span> {product.care}</p></div>}
+              {activeTab === 'description' && (
+                <div>
+                  {product.description && <p>{product.description}</p>}
+                  {/* Operator fields: an unset one is omitted, not shown blank. */}
+                  {product.fit && <p className="mt-2"><span className="font-medium text-ink">Fit:</span> {product.fit}</p>}
+                  {product.fabric && <p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p>}
+                </div>
+              )}
+              {activeTab === 'care' && (
+                <div>
+                  {product.fabric && <p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p>}
+                  {product.care
+                    ? <p><span className="font-medium text-ink">Care:</span> {product.care}</p>
+                    : <p className="text-ink/50">Care instructions have not been added for this piece yet.</p>}
+                </div>
+              )}
               {activeTab === 'shipping' && <div><p>{freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India. A flat fee of {formatINR(settings.shippingFee)} applies below the free-shipping threshold.</p><p>7-day easy returns. Items must be unworn with tags intact.</p></div>}
             </div>
           </div>

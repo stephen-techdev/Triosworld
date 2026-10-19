@@ -18,6 +18,7 @@ import { supabase } from '@/store/AuthContext';
 import {
   SIZES, COLORS, type Product, type Badge, type Fit, type Fabric, type Gender,
 } from '@/data/catalog';
+import { hexForColorName } from '@/lib/colors';
 
 interface RuntimeRow {
   id: string;
@@ -47,7 +48,11 @@ function asStringArray(v: unknown): string[] {
 /** Case-insensitive lookup for the brand's known colour names. */
 function knownHex(name: string): string {
   const k = name.trim().toLowerCase();
-  return COLORS.find((c) => c.name.toLowerCase() === k)?.hex ?? '#171717';
+  return (
+    hexForColorName(k) ??
+    COLORS.find((c) => c.name.toLowerCase() === k)?.hex ??
+    '#171717'
+  );
 }
 
 /**
@@ -65,8 +70,9 @@ function asColors(v: unknown): { name: string; hex: string }[] {
     if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
       const name = String((entry as { name?: unknown }).name ?? '').trim();
       if (!name) continue;
-      const hex = String((entry as { hex?: unknown }).hex ?? '').trim().toLowerCase();
-      out.push({ name, hex: /^#[0-9a-f]{6}$/.test(hex) ? hex : knownHex(name) });
+      const raw = String((entry as { hex?: unknown }).hex ?? '').trim().toLowerCase();
+      const hex = /^#[0-9a-f]{6}$/.test(raw) ? raw : knownHex(name);
+      out.push({ name, hex });
     } else if (typeof entry === 'string' && entry.trim()) {
       const name = entry.trim();
       out.push({ name, hex: knownHex(name) });
@@ -89,17 +95,14 @@ function asStock(v: unknown): Record<string, number> {
  * Flatten a runtime row into the same shape as a coded product so every card,
  * size picker and cart line works unchanged.
  *
- * Images are distributed across the colourways:
- *   - one colour             -> it gets the whole gallery, so hover works
- *   - one image per colour   -> each colour gets its own
- *   - fewer images than colours -> every colour gets the whole gallery, because
- *     front/back shots uploaded once apply to all of them, and dropping the
- *     extras is what previously left a product showing a single image.
+ * Every uploaded photo belongs to the gallery of every colour. The older rule
+ * — "as many photos as colours means one photo each" — silently swallowed the
+ * rest, so a tee with 2 colours and 2 photos showed one image per colour and
+ * the second photo could never be reached, on the card or the product page.
+ * There is no per-colour mapping in the dashboard, so guessing is wrong: the
+ * operator uploads a gallery, the customer sees the gallery.
  */
-function imagesForColor(index: number, colors: number, images: string[]): string[] {
-  if (!images.length) return [];
-  if (colors === 1) return images;
-  if (images.length >= colors) return [images[index]];
+function imagesForColor(_index: number, _colors: number, images: string[]): string[] {
   return images;
 }
 

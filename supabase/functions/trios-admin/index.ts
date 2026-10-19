@@ -600,6 +600,11 @@ Deno.serve(async (req: Request) => {
         for (const key of ["description", "care"] as const) {
           if (body[key] !== undefined) patch[key] = body[key] ? String(body[key]) : null;
         }
+        if (body.name !== undefined) {
+          const t = String(body.name ?? "").trim();
+          if (!t) return json({ error: "Product name is required" }, 400);
+          patch.name = t;
+        }
         // Free-text card fields: trimmed and length-capped to match the
         // database constraints, so a long paste is trimmed rather than rejected.
         const caps = { fit: 40, fabric: 40, badge: 24 } as const;

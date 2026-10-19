@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star, X, Maximize2 } from 'lucide-react';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import { formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
@@ -32,14 +32,42 @@ export default function ProductPage() {
   const [size, setSize] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [viewerIdx, setViewerIdx] = useState<number | null>(null);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'description' | 'care' | 'shipping'>('description');
 
   useEffect(() => {
     setColorIdx(0); setImageIdx(0); setSize(null); setQty(1);
-    setAdded(false); setError(null); setActiveTab('description');
+    setAdded(false); setError(null); setActiveTab('description'); setViewerIdx(null);
   }, [slug]);
+
+  /**
+   * Full-screen photo viewer.
+   *
+   * The operator's photos are the product, so tapping the main image has to
+   * give the customer a proper look: swipe (or arrow keys) between shots, Esc
+   * to close, and a locked body scroll so the page behind cannot drift. It
+   * renders the same URLs already on screen, so it opens without a new fetch.
+   */
+  const viewerImages = product?.variants[colorIdx]?.images ?? [];
+  const viewerCount = viewerImages.length;
+
+  useEffect(() => {
+    if (viewerIdx === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewerIdx(null);
+      if (e.key === 'ArrowRight') setViewerIdx(i => (i === null ? i : (i + 1) % viewerCount));
+      if (e.key === 'ArrowLeft') setViewerIdx(i => (i === null ? i : (i - 1 + viewerCount) % viewerCount));
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [viewerIdx, viewerCount]);
 
   if (!product) {
     // Hold a skeleton until the catalog answers; only then is "not found" true.
@@ -131,10 +159,30 @@ export default function ProductPage() {
           </div>
           <div className="flex-1 relative overflow-hidden rounded-xl bg-stone/30 aspect-[3/4]">
             <AnimatePresence mode="wait">
-              <motion.img key={`${colorIdx}-${imageIdx}`} src={variant.images[imageIdx]} alt={product.name}
+              <motion.img
+                key={`${colorIdx}-${imageIdx}`}
+                src={variant.images[imageIdx]}
+                alt={product.name}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-                className="absolute inset-0 w-full h-full object-cover" />
+                className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
+                onClick={() => setViewerIdx(imageIdx)}
+                role="button"
+                tabIndex={0}
+                title="Tap to view full screen"
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewerIdx(imageIdx); } }}
+              />
             </AnimatePresence>
+            {/* Affordance so a tap-to-zoom is discoverable rather than secret. */}
+            {variant.images.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setViewerIdx(imageIdx)}
+                aria-label="View photo full screen"
+                className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-ivory/90 backdrop-blur px-3 py-2 text-[11px] font-medium text-ink shadow-sm hover:bg-ivory transition"
+              >
+                <Maximize2 size={13} /> Full screen
+              </button>
+            )}
           </div>
         </div>
 
@@ -357,6 +405,78 @@ export default function ProductPage() {
                 </tbody>
               </table>              <button onClick={() => setShowSizeGuide(false)} className="mt-5 w-full py-3 rounded-full bg-ink text-ivory text-sm font-medium">Got it</button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Full-screen photo viewer — opened by tapping the main image */}
+      <AnimatePresence>
+        {viewerIdx !== null && viewerCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] bg-ink flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${product.name} photos`}
+          >
+            <div className="flex items-center justify-between px-4 py-3 text-ivory shrink-0">
+              <span className="text-xs text-ivory/70">
+                {viewerIdx + 1} / {viewerCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewerIdx(null)}
+                aria-label="Close full screen"
+                className="w-10 h-10 rounded-full bg-ivory/10 hover:bg-ivory/20 grid place-items-center transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <motion.div
+              key={viewerIdx}
+              className="flex-1 relative overflow-hidden"
+              drag={viewerCount > 1 ? 'x' : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.18}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -60) setViewerIdx(i => (i === null ? i : (i + 1) % viewerCount));
+                if (info.offset.x > 60) setViewerIdx(i => (i === null ? i : (i - 1 + viewerCount) % viewerCount));
+              }}
+            >
+              <img
+                src={viewerImages[viewerIdx]}
+                alt={`${product.name} photo ${viewerIdx + 1}`}
+                // Full-size, top priority: this is the image the customer asked
+                // to study, so it must not wait behind anything else.
+                fetchPriority="high"
+                className="w-full h-full object-contain select-none"
+                draggable={false}
+              />
+            </motion.div>
+
+            {viewerCount > 1 && (
+              <div className="shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar justify-start sm:justify-center">
+                  {viewerImages.map((img, i) => (
+                    <button
+                      key={`${img}-${i}`}
+                      type="button"
+                      onClick={() => setViewerIdx(i)}
+                      aria-label={`Show photo ${i + 1}`}
+                      className={`shrink-0 w-12 h-14 rounded overflow-hidden border-2 transition ${i === viewerIdx ? 'border-lime' : 'border-ivory/20'}`}
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+                <div className="hidden sm:flex items-center justify-center gap-6 mt-3 text-ivory/50 text-[11px]">
+                  <span className="inline-flex items-center gap-1"><ChevronLeft size={13} /> Swipe or press ← →</span>
+                  <span>Esc to close</span>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

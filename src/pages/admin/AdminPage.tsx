@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
-  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck, FileText,
+  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck, FileText, Pencil, ImagePlus,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { Wordmark } from '@/components/Brand';
@@ -13,6 +14,8 @@ import { SIZES, SUGGESTED_BADGES, SUGGESTED_FABRICS, SUGGESTED_FITS, formatINR }
 import ComboField from '@/components/ComboField';
 import { setStoreSettings } from '@/lib/storeSettings';
 import { useSiteContent } from '@/lib/siteContent';
+import { hexForColorName } from '@/lib/colors';
+import { prepareImage } from '@/lib/imagePrep';
 import ContentSection from '@/pages/admin/ContentSection';
 
 /**
@@ -937,8 +940,13 @@ function ProductsSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getProducts(), []);
   const { data, error, loading, reload } = useAdminData<AdminProduct[]>(loader, onAuthFail);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<AdminProduct | null>(null);
 
   const duplicates = (data ?? []).filter(p => p.duplicate && !p.deleted);
+
+  // The editor is keyed by product id so switching cards remounts the form and
+  // its fields always start from the product being edited.
+  const onSaved = useCallback(() => { reload(); setEditing(null); }, [reload]);
 
   return (
     <div>
@@ -976,14 +984,34 @@ function ProductsSection({ onAuthFail }: { onAuthFail: () => void }) {
       )}
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {data?.map(p => <ProductCard key={p.id} product={p} onSaved={reload} onAuthFail={onAuthFail} />)}
+        {data?.map(p => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            onSaved={reload}
+            onAuthFail={onAuthFail}
+            onEdit={() => setEditing(p)}
+          />
+        ))}
       </div>
+
+      <AnimatePresence>
+        {editing && (
+          <ProductEditor
+            key={editing.id}
+            product={editing}
+            onClose={() => setEditing(null)}
+            onSaved={onSaved}
+            onAuthFail={onAuthFail}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function ProductCard({ product, onSaved, onAuthFail }: {
-  product: AdminProduct; onSaved: () => void; onAuthFail: () => void;
+function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
+  product: AdminProduct; onSaved: () => void; onAuthFail: () => void; onEdit: () => void;
 }) {
   const [price, setPrice] = useState(String(product.price));
   const [mrp, setMrp] = useState(String(product.mrp));
@@ -999,6 +1027,7 @@ function ProductCard({ product, onSaved, onAuthFail }: {
   // Dashboard products always carry their own image; fall back to the first
   // entry of the gallery so a product uploaded without a primary still renders.
   const image = product.image_url ?? product.images?.[0] ?? null;
+  const gallery = (product.images?.length ? product.images : image ? [image] : []).filter(Boolean);
   const [removing, setRemoving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -1063,12 +1092,28 @@ function ProductCard({ product, onSaved, onAuthFail }: {
           <Trash2 size={12} /> Removed from the storefront
         </div>
       )}
+      {/* Every uploaded photo is previewed here, not just the thumbnail, so the
+          operator can see at a glance that the gallery actually saved. */}
       <div className="flex gap-3 p-3 border-b border-ink/10">
-        <div className="w-16 h-20 rounded-lg bg-stone/40 overflow-hidden shrink-0">
+        <div className="relative w-16 h-20 rounded-lg bg-stone/40 overflow-hidden shrink-0">
           {image && <img src={image} alt={product.name} className="w-full h-full object-cover object-top" loading="lazy" />}
+          {gallery.length > 1 && (
+            <span className="absolute bottom-1 right-1 text-[9px] font-medium bg-ink/85 text-ivory rounded-full px-1.5 py-0.5 leading-none">
+              {gallery.length}
+            </span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-tight">{product.name}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold leading-tight min-w-0">{product.name}</p>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-ink/15 hover:bg-ink hover:text-ivory transition"
+            >
+              <Pencil size={12} /> Edit
+            </button>
+          </div>
           <p className="text-[11px] text-ink/45 mt-1 font-mono truncate">{product.id}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
@@ -1095,6 +1140,26 @@ function ProductCard({ product, onSaved, onAuthFail }: {
           </div>
         </div>
       </div>
+
+      {gallery.length > 1 && (
+        <div className="px-3 pt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+          {gallery.map((src, i) => (
+            <span key={`${src}-${i}`} className="relative shrink-0">
+              <img
+                src={src}
+                alt={`${product.name} photo ${i + 1}`}
+                loading="lazy"
+                className={`w-10 h-12 rounded object-cover object-top border ${i === 0 ? 'border-ink' : 'border-ink/10'}`}
+              />
+              {i === 0 && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-wide bg-ink text-ivory rounded-full px-1 leading-tight">
+                  main
+                </span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="p-3 space-y-3 flex-1">
         {/*
@@ -1561,6 +1626,18 @@ function ColorRows({ rows, onChange, compact = false }: {
   const set = (i: number, patch: Partial<ProductColor>) =>
     onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
 
+  /**
+   * Typing a colour name is enough. The moment the name matches a colour in the
+   * shared table, the swatch snaps to that colour — so "Red" paints red on the
+   * card, in the shop filter and on the product page without anyone opening the
+   * picker. A name the table does not know (a colour the operator invented)
+   * keeps whatever they pick, so nothing is silently repainted.
+   */
+  const onName = (i: number, name: string) => {
+    const auto = hexForColorName(name);
+    set(i, auto ? { name, hex: auto } : { name });
+  };
+
   return (
     <div className="space-y-2">
       {rows.map((row, i) => (
@@ -1574,7 +1651,7 @@ function ColorRows({ rows, onChange, compact = false }: {
           />
           <input
             value={row.name}
-            onChange={e => set(i, { name: e.target.value })}
+            onChange={e => onName(i, e.target.value)}
             placeholder="Black"
             maxLength={40}
             aria-label={`Colour ${i + 1} name`}
@@ -1603,6 +1680,408 @@ function ColorRows({ rows, onChange, compact = false }: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// Image gallery (shared by the add form and the product editor)
+// ════════════════════════════════════════════════════════════════════════════
+
+interface GalleryImage { url: string; name: string }
+
+/**
+ * Upload + arrange product photos.
+ *
+ * Photos are compressed in the browser first (imagePrep), so a phone snapshot
+ * uploads in about a second and the storefront serves a card-sized file rather
+ * than the original. The first thumb is the card image, the second is the hover
+ * image — both are labelled, and the order can be changed without re-uploading.
+ */
+function GalleryField({ images, onChange, max = 8 }: {
+  images: GalleryImage[];
+  onChange: (next: GalleryImage[]) => void;
+  max?: number;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const move = (from: number, delta: number) => {
+    const to = from + delta;
+    if (to < 0 || to >= images.length) return;
+    const next = [...images];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+  };
+
+  const onPick = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setErr(null);
+    setSaved(null);
+    const room = Math.max(0, max - images.length);
+    const picked = Array.from(files).slice(0, room);
+    if (files.length > room) {
+      setErr(`Only ${max} photos per product — the first ${room} were taken.`);
+    }
+    setUploading(true);
+    let totalBefore = 0;
+    let totalAfter = 0;
+    try {
+      for (let i = 0; i < picked.length; i++) {
+        setProgress({ done: i, total: picked.length });
+        const file = picked[i];
+        const prepared = await prepareImage(file);
+        const res = await uploadProductImage(prepared.filename, prepared.contentType, prepared.data);
+        totalBefore += prepared.originalBytes;
+        totalAfter += prepared.bytes;
+        onChange([...images, { url: res.url, name: prepared.filename }].slice(0, max));
+      }
+      if (totalAfter > 0 && totalBefore > totalAfter) {
+        const pct = Math.max(1, Math.round(((totalBefore - totalAfter) / totalBefore) * 100));
+        setSaved(`Compressed ${Math.round(totalBefore / 1024)} KB → ${Math.round(totalAfter / 1024)} KB (${pct}% smaller). The card now loads much faster.`);
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-ink/50">
+          Photos — up to {max}. Compressed in your browser before upload, so pages stay fast.
+        </span>
+        <span className="text-[11px] text-ink/40 shrink-0">{images.length}/{max}</span>
+      </div>
+
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {images.map((img, i) => (
+            <div key={`${img.url}-${i}`} className="relative group">
+              <img src={img.url} alt={img.name}
+                className={`w-20 h-24 object-cover object-top rounded-lg border bg-stone/40 ${i === 0 ? 'border-ink' : 'border-ink/10'}`} />
+              <span className="absolute bottom-1 left-1 text-[8px] uppercase tracking-wide bg-ink/85 text-ivory rounded-full px-1.5 py-0.5 leading-none">
+                {i === 0 ? 'main' : i === 1 ? 'hover' : `#${i + 1}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(images.filter((_, idx) => idx !== i))}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white grid place-items-center"
+                aria-label={`Remove ${img.name}`}
+              >
+                <X size={12} />
+              </button>
+              <div className="absolute bottom-1 right-1 flex gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                  aria-label="Move earlier"
+                  className="w-4.5 h-5 px-1 rounded bg-ivory/90 text-ink/70 border border-ink/10 disabled:opacity-30 grid place-items-center"
+                >
+                  <ArrowUp size={9} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  disabled={i === images.length - 1}
+                  aria-label="Move later"
+                  className="w-4.5 h-5 px-1 rounded bg-ivory/90 text-ink/70 border border-ink/10 disabled:opacity-30 grid place-items-center"
+                >
+                  <ArrowDown size={9} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <label className={`mt-2 flex items-center justify-center gap-2 py-6 px-4 rounded-xl border border-dashed cursor-pointer transition ${
+        uploading ? 'border-ink/30 bg-stone/30' : 'border-ink/20 hover:border-ink/40'
+      }`}>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/avif"
+          multiple
+          disabled={uploading || images.length >= max}
+          className="sr-only"
+          onChange={e => { void onPick(e.target.files); e.target.value = ''; }}
+        />
+        {uploading ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            Uploading {progress ? `${progress.done + 1} of ${progress.total}` : ''}…
+          </>
+        ) : images.length >= max ? (
+          <><Check size={16} /> {max} photos added</>
+        ) : (
+          <><ImagePlus size={16} /> Add photos — pick several at once, or drag them here</>
+        )}
+      </label>
+
+      {saved && <p className="text-[11px] text-green-700 mt-1.5">{saved}</p>}
+      {err && <p className="text-[11px] text-red-600 mt-1.5">{err}</p>}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Product editor — opened by the Edit button on any product card
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The full card, editable.
+ *
+ * The quick fields on the card itself stay for the everyday price/stock tweak;
+ * this panel is where the rest of the product actually lives — name, photos,
+ * collection, description, care, colours and the storefront flags. Nothing here
+ * invents a default: an emptied field is saved empty.
+ */
+function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
+  product: AdminProduct;
+  onClose: () => void;
+  onSaved: () => void;
+  onAuthFail: () => void;
+}) {
+  const { content } = useSiteContent();
+  const [name, setName] = useState(product.name);
+  const [price, setPrice] = useState(String(product.price));
+  const [mrp, setMrp] = useState(String(product.mrp));
+  const [category, setCategory] = useState(product.category ?? 'new-arrivals');
+  const [colors, setColors] = useState<ProductColor[]>(() => normalizeProductColors(product.colors));
+  const [images, setImages] = useState<GalleryImage[]>(() =>
+    (product.images ?? []).map((url, i) => ({ url, name: `photo-${i + 1}` })),
+  );
+  const [fit, setFit] = useState(product.fit ?? '');
+  const [fabric, setFabric] = useState(product.fabric ?? '');
+  const [badge, setBadge] = useState(product.badge ?? '');
+  const [description, setDescription] = useState(product.description ?? '');
+  const [care, setCare] = useState(product.care ?? '');
+  const [bestseller, setBestseller] = useState(Boolean(product.bestseller));
+  const [newArrival, setNewArrival] = useState(Boolean(product.new_arrival));
+  const [active, setActive] = useState(product.is_active);
+  const [stock, setStock] = useState<Record<string, string>>(
+    () => Object.fromEntries(Object.entries(product.stock).map(([k, v]) => [k, String(v)])),
+  );
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const input = 'w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink';
+
+  // Escape closes the panel — expected of any full-screen editor.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const save = async () => {
+    setErr(null);
+    if (!name.trim()) { setErr('A product needs a name.'); return; }
+    setSaving(true);
+    try {
+      await updateProduct({
+        productId: product.id,
+        name: name.trim(),
+        price: Number(price) || 0,
+        mrp: Number(mrp) || Number(price) || 0,
+        category: category.trim() || 'new-arrivals',
+        colors: colors.filter(c => c.name.trim()),
+        images: images.map(i => i.url),
+        fit: fit.trim(),
+        fabric: fabric.trim(),
+        badge: badge.trim(),
+        description: description.trim(),
+        care: care.trim(),
+        bestseller,
+        new_arrival: newArrival,
+        is_active: active,
+        stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
+      });
+      onSaved();
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not save this product');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 24, opacity: 0.6 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
+        transition={{ duration: 0.25, ease: EASE }}
+        onClick={e => e.stopPropagation()}
+        className="bg-ivory w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[88vh] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col"
+      >
+        <div className="sticky top-0 z-10 bg-ivory/95 backdrop-blur border-b border-ink/10 px-5 py-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">Edit “{product.name}”</p>
+            <p className="text-[11px] text-ink/45 font-mono truncate">{product.id}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close editor"
+            className="shrink-0 w-9 h-9 rounded-full border border-ink/15 grid place-items-center hover:bg-stone/50 transition"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-5 space-y-4">
+          {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] text-ink/50">Product name</span>
+              <input value={name} onChange={e => setName(e.target.value)} maxLength={120}
+                className={`mt-1 ${input}`} />
+            </label>
+
+            <label className="block">
+              <span className="text-[11px] text-ink/50">Selling price (₹)</span>
+              <input type="number" min={0} value={price} onChange={e => setPrice(e.target.value)}
+                className={`mt-1 ${input}`} />
+            </label>
+
+            <label className="block">
+              <span className="text-[11px] text-ink/50">MRP (₹)</span>
+              <input type="number" min={0} value={mrp} onChange={e => setMrp(e.target.value)}
+                className={`mt-1 ${input}`} />
+            </label>
+
+            <div className="sm:col-span-2">
+              <ComboField
+                label="Collection"
+                value={category}
+                onChange={setCategory}
+                suggestions={[
+                  ...content.categories.map(c => c.slug),
+                  ...BUILTIN_COLLECTIONS.filter(s => !content.categories.some(c => c.slug === s)),
+                ]}
+                placeholder="oversized"
+                maxLength={40}
+                hint="The shop page this product appears under. Changing it moves the card."
+              />
+            </div>
+
+            <ComboField
+              label="Fit"
+              value={fit}
+              onChange={setFit}
+              suggestions={SUGGESTED_FITS}
+              placeholder="Oversized"
+              maxLength={40}
+              hint="Leave blank and the card shows nothing."
+            />
+
+            <ComboField
+              label="Fabric"
+              value={fabric}
+              onChange={setFabric}
+              suggestions={SUGGESTED_FABRICS}
+              placeholder="Heavyweight Cotton"
+              maxLength={40}
+              hint="Leave blank and the card shows nothing."
+            />
+
+            <ComboField
+              label="Badge (corner pill)"
+              value={badge}
+              onChange={setBadge}
+              suggestions={SUGGESTED_BADGES}
+              placeholder="Bestseller"
+              maxLength={24}
+              hint="Leave blank for no pill."
+            />
+
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] text-ink/50">Description</span>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+                className={`mt-1 ${input} resize-y`} />
+            </label>
+
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] text-ink/50">Care instructions</span>
+              <input value={care} onChange={e => setCare(e.target.value)}
+                className={`mt-1 ${input}`} />
+            </label>
+          </div>
+
+          <div className="block">
+            <span className="text-[11px] text-ink/50">Colours — name + swatch</span>
+            <div className="mt-1.5">
+              <ColorRows rows={colors} onChange={setColors} />
+            </div>
+            <span className="mt-1.5 block text-[10px] text-ink/40 leading-relaxed">
+              Type a colour name and its swatch fills in automatically — “Red” turns red on the
+              card, the shop filter and the product page.
+            </span>
+          </div>
+
+          <GalleryField images={images} onChange={setImages} />
+
+          <div>
+            <span className="text-[11px] text-ink/50">Stock per size</span>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mt-1">
+              {Object.entries(stock).map(([size, value]) => (
+                <label key={size} className="block">
+                  <span className="text-[10px] text-ink/40">{size}</span>
+                  <input type="number" min={0} value={value}
+                    onChange={e => setStock(s => ({ ...s, [size]: e.target.value }))}
+                    className="mt-0.5 w-full rounded-lg border border-ink/15 px-2 py-1.5 text-sm focus:outline-none focus:border-ink" />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4 pt-1">
+            <label className="flex items-center gap-2 text-xs text-ink/70">
+              <input type="checkbox" checked={bestseller} onChange={e => setBestseller(e.target.checked)} className="w-4 h-4 accent-ink" />
+              Show in Bestsellers
+            </label>
+            <label className="flex items-center gap-2 text-xs text-ink/70">
+              <input type="checkbox" checked={newArrival} onChange={e => setNewArrival(e.target.checked)} className="w-4 h-4 accent-ink" />
+              Show in New Drops
+            </label>
+            <label className="flex items-center gap-2 text-xs text-ink/70">
+              <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="w-4 h-4 accent-ink" />
+              Available for purchase
+            </label>
+          </div>
+        </div>
+
+        <div className="border-t border-ink/10 px-5 py-4 flex items-center gap-3 bg-ivory">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-full text-sm font-medium border border-ink/15 hover:bg-stone/50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save changes
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // Add product
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1624,39 +2103,9 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
     () => Object.fromEntries(SIZES.map(s => [s, '10'])),
   );
   const [images, setImages] = useState<{ url: string; name: string }[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-
-  // Upload through the admin function so the storage bucket never needs a
-  // public write policy.
-  const onPick = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploadErr(null);
-    setUploading(true);
-    try {
-      for (const file of Array.from(files).slice(0, 8 - images.length)) {
-        if (file.size > 4 * 1024 * 1024) {
-          setUploadErr(`${file.name} is over 4MB — please compress it`);
-          continue;
-        }
-        const data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-          reader.onerror = () => reject(new Error('Could not read that file'));
-          reader.readAsDataURL(file);
-        });
-        const res = await uploadProductImage(file.name, file.type, data);
-        setImages(prev => [...prev, { url: res.url, name: file.name }].slice(0, 8));
-      }
-    } catch (e) {
-      setUploadErr(e instanceof Error ? e.message : 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1837,52 +2286,7 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
       </div>
 
       {/* Images */}
-      <div>
-        <span className="text-[11px] text-ink/50">
-          Images — up to 8. The first is the thumbnail; the second becomes the hover image.
-        </span>
-
-        {images.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {images.map((img, i) => (
-              <div key={img.url} className="relative">
-                <img src={img.url} alt={img.name}
-                  className="w-16 h-20 object-cover object-top rounded-lg border border-ink/10 bg-stone/40" />
-                {i === 0 && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] uppercase bg-ink text-ivory rounded-full px-1.5 py-0.5">
-                    Main
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white grid place-items-center"
-                  aria-label={`Remove ${img.name}`}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <label className="mt-2 flex items-center justify-center gap-2 py-6 px-4 rounded-xl border border-dashed border-ink/20 hover:border-ink/40 cursor-pointer transition">
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/avif"
-            multiple
-            className="sr-only"
-            onChange={e => { void onPick(e.target.files); e.target.value = ''; }}
-          />
-          {uploading ? (
-            <><Loader2 size={16} className="animate-spin" /> Uploading…</>
-          ) : (
-            <><Package size={16} /> Choose images (PNG, JPEG, WebP · max 4MB each)</>
-          )}
-        </label>
-
-        {uploadErr && <p className="text-[11px] text-red-600 mt-1.5">{uploadErr}</p>}
-      </div>
+      <GalleryField images={images} onChange={setImages} />
 
       <div>
         <span className="text-[11px] text-ink/50">Stock per size</span>

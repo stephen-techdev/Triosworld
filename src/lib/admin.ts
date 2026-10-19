@@ -7,6 +7,7 @@
  * RLS enabled with no policies and is therefore unreachable from the browser.
  */
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+import { hexForColorName } from '@/lib/colors';
 const STORAGE_KEY = 'triosworld-admin-session';
 
 export interface AdminAccount {
@@ -193,10 +194,12 @@ export function normalizeProductColors(v: unknown): ProductColor[] {
   for (const entry of v) {
     if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
       const name = String((entry as ProductColor).name ?? '').trim();
-      const hex = String((entry as ProductColor).hex ?? '').trim().toLowerCase();
-      if (name) out.push({ name, hex: /^#[0-9a-f]{6}$/.test(hex) ? hex : '#171717' });
+      const raw = String((entry as ProductColor).hex ?? '').trim().toLowerCase();
+      const resolved = /^#[0-9a-f]{6}$/.test(raw) ? raw : hexForColorName(name);
+      if (name) out.push({ name, hex: resolved ?? '#171717' });
     } else if (typeof entry === 'string' && entry.trim()) {
-      out.push({ name: entry.trim(), hex: '#171717' });
+      const name = entry.trim();
+      out.push({ name, hex: hexForColorName(name) ?? '#171717' });
     }
   }
   return out;
@@ -313,8 +316,10 @@ export const getProducts = () =>
 
 export const updateProduct = (payload: {
   productId: string;
+  name?: string;
   price?: number;
   mrp?: number;
+  category?: string;
   stock?: Record<string, number>;
   is_active?: boolean;
   colors?: ProductColor[];

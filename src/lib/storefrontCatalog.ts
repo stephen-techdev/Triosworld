@@ -45,8 +45,7 @@ function asStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.map((x) => String(x)) : [];
 }
 
-/** Case-insensitive lookup for the brand's known colour names. */
-function knownHex(name: string): string {
+/** Case-insensitive lookup for the brand's known colour names. */function knownHex(name: string): string {
   const k = name.trim().toLowerCase();
   return (
     hexForColorName(k) ??
@@ -95,14 +94,22 @@ function asStock(v: unknown): Record<string, number> {
  * Flatten a runtime row into the same shape as a coded product so every card,
  * size picker and cart line works unchanged.
  *
- * Every uploaded photo belongs to the gallery of every colour. The older rule
- * — "as many photos as colours means one photo each" — silently swallowed the
- * rest, so a tee with 2 colours and 2 photos showed one image per colour and
- * the second photo could never be reached, on the card or the product page.
- * There is no per-colour mapping in the dashboard, so guessing is wrong: the
- * operator uploads a gallery, the customer sees the gallery.
+ * Colour → photo
+ *   When the operator uploads exactly one photo per colour, those photos are
+ *   that colour's photo: tapping the "Blue" icon shows the blue shirt, tapping
+ *   "Olive" shows the olive one. This is the behaviour customers expect from a
+ *   colour swatch.
+ *
+ *   With any other photo count — one photo for several colours, or a gallery —
+ *   every colour still gets the whole gallery, so hovering the card and the
+ *   full-screen viewer keep working. Nothing is ever dropped.
  */
-function imagesForColor(_index: number, _colors: number, images: string[]): string[] {
+function imagesForColor(index: number, colors: number, images: string[]): string[] {
+  // Only pair photo→colour when the counts line up exactly and there is more
+  // than one colour; a single photo for a single colour is just the gallery.
+  if (colors > 1 && images.length === colors) {
+    return [images[index]];
+  }
   return images;
 }
 

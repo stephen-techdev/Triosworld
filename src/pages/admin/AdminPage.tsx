@@ -15,6 +15,7 @@ import ComboField from '@/components/ComboField';
 import { setStoreSettings } from '@/lib/storeSettings';
 import { useSiteContent } from '@/lib/siteContent';
 import { hexForColorName } from '@/lib/colors';
+import { detectColorFromImage } from '@/lib/colorDetect';
 import { prepareImage } from '@/lib/imagePrep';
 import ContentSection from '@/pages/admin/ContentSection';
 
@@ -1692,16 +1693,22 @@ interface GalleryImage { url: string; name: string }
  * uploads in about a second and the storefront serves a card-sized file rather
  * than the original. The first thumb is the card image, the second is the hover
  * image — both are labelled, and the order can be changed without re-uploading.
+ *
+ * When a photo is added the garment's colour is read straight off it and handed
+ * to `onDetectedColor`, so the colour box names the colour the operator just
+ * photographed — no typing, no picker.
  */
-function GalleryField({ images, onChange, max = 8 }: {
+function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
   images: GalleryImage[];
   onChange: (next: GalleryImage[]) => void;
   max?: number;
+  onDetectedColor?: (name: string, hex: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [detected, setDetected] = useState<string | null>(null);
 
   const move = (from: number, delta: number) => {
     const to = from + delta;
@@ -1716,6 +1723,7 @@ function GalleryField({ images, onChange, max = 8 }: {
     if (!files?.length) return;
     setErr(null);
     setSaved(null);
+    setDetected(null);
     const room = Math.max(0, max - images.length);
     const picked = Array.from(files).slice(0, room);
     if (files.length > room) {
@@ -1733,6 +1741,18 @@ function GalleryField({ images, onChange, max = 8 }: {
         totalBefore += prepared.originalBytes;
         totalAfter += prepared.bytes;
         onChange([...images, { url: res.url, name: prepared.filename }].slice(0, max));
+
+        // Read the garment's colour off the photo that just went up. The first
+        // photo wins, because it is the one the operator picked as the main
+        // shot; later photos only fill in when the box is still empty.
+        if (onDetectedColor && (i === 0 || !detected)) {
+          const hit = await detectColorFromImage(res.url);
+          if (hit && hit.confidence >= 0.4) {
+            const label = hit.name.charAt(0).toUpperCase() + hit.name.slice(1);
+            onDetectedColor(label, hit.hex);
+            setDetected(`${label} detected from the photo — adjust it if that is not right.`);
+          }
+        }
       }
       if (totalAfter > 0 && totalBefore > totalAfter) {
         const pct = Math.max(1, Math.round(((totalBefore - totalAfter) / totalBefore) * 100));
@@ -1821,6 +1841,7 @@ function GalleryField({ images, onChange, max = 8 }: {
       </label>
 
       {saved && <p className="text-[11px] text-green-700 mt-1.5">{saved}</p>}
+      {detected && <p className="text-[11px] text-ink/60 mt-1.5">{detected}</p>}
       {err && <p className="text-[11px] text-red-600 mt-1.5">{err}</p>}
     </div>
   );
@@ -2027,7 +2048,11 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
             </span>
           </div>
 
-          <GalleryField images={images} onChange={setImages} />
+          <GalleryField
+            images={images}
+            onChange={setImages}
+            onDetectedColor={(name, hex) => setColors(prev => (prev.some(c => c.name.trim()) ? prev : [{ name, hex }]))}
+          />
 
           <div>
             <span className="text-[11px] text-ink/50">Stock per size</span>
@@ -2285,8 +2310,12 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         </label>
       </div>
 
-      {/* Images */}
-      <GalleryField images={images} onChange={setImages} />
+      {/* Images — the first photo also names the colour */}
+      <GalleryField
+        images={images}
+        onChange={setImages}
+        onDetectedColor={(name, hex) => setColors(prev => (prev.some(c => c.name.trim()) ? prev : [{ name, hex }]))}
+      />
 
       <div>
         <span className="text-[11px] text-ink/50">Stock per size</span>

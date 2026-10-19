@@ -139,7 +139,7 @@ export default function ProductPage() {
     <div className="page-container py-6 md:py-10 pb-24 md:pb-10">
       <SEO title={product.name} description={product.description} jsonLd={[jsonLd, bcJsonLd]} />
       <nav className="flex items-center gap-1.5 text-xs text-ink/50 mb-6 flex-wrap">
-        <Link to="/" className="hover:text-ink">Home</Link>
+        <Link to="/home" className="hover:text-ink">Home</Link>
         <ChevronRight size={12} />
         <Link to={`/shop/${product.categories[0]}`} className="hover:text-ink capitalize">{product.categories[0].replace('-', ' ')}</Link>
         <ChevronRight size={12} />

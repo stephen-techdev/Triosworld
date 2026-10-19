@@ -85,7 +85,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               <button className="xl:hidden p-1 -ml-1 rounded-full hover:bg-ink/5 transition-colors" onClick={() => setMobileOpen(true)} aria-label="Open menu">
                 <Menu size={22} />
               </button>
-              <Link to="/" className="text-xl md:text-2xl text-ink transition-opacity hover:opacity-70"><Wordmark variant="ink" /></Link>
+              <Link to="/home" className="text-xl md:text-2xl text-ink transition-opacity hover:opacity-70"><Wordmark variant="ink" /></Link>
             </div>
 
             <nav className="hidden xl:flex items-center gap-6 xl:gap-8 flex-1 justify-center" onMouseLeave={leaveMega}>

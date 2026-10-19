@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { StoreProvider } from '@/store/StoreContext';
@@ -44,7 +44,11 @@ export default function App() {
                     renders full-bleed with no header, footer or floating buttons. */}
                 <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route element={<Layout />}>
-                  <Route path="/" element={<HomePage />} />
+                  {/* The shop is the front door: a visitor landing on the bare
+                      domain is taken straight to Shop All, and reaches the
+                      homepage by tapping the logo or "Home" in the nav. */}
+                  <Route path="/" element={<Navigate to="/shop/shop-all" replace />} />
+                  <Route path="/home" element={<HomePage />} />
                   <Route path="/shop/:slug" element={<ShopPage />} />
                   <Route path="/product/:slug" element={<ProductPage />} />
                   <Route path="/collections" element={<CollectionsPage />} />

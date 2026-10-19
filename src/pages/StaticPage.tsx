@@ -34,7 +34,7 @@ export default function StaticPage({ page }: { page: string }) {
     return (
       <div className="page-container py-32 text-center">
         <h1 className="font-display text-3xl mb-3">Page not found</h1>
-        <Link to="/" className="text-ink/60 underline">Back home</Link>
+        <Link to="/home" className="text-ink/60 underline">Back home</Link>
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function StaticPage({ page }: { page: string }) {
     <div className="mx-auto max-w-3xl px-4 py-12 md:py-20">
       <SEO title={c.title} description={`TriosWorld ${c.title} — learn about our policies and practices.`} />
       <nav className="flex items-center gap-1.5 text-xs text-ink/50 mb-6">
-        <Link to="/" className="hover:text-ink">Home</Link><ChevronRight size={12} /><span className="text-ink">{c.title}</span>
+        <Link to="/home" className="hover:text-ink">Home</Link><ChevronRight size={12} /><span className="text-ink">{c.title}</span>
       </nav>
       <h1 className="font-display text-3xl md:text-5xl font-semibold mb-8">{c.title}</h1>
       <div className="space-y-6 leading-relaxed text-ink/70">

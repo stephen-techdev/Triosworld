@@ -234,7 +234,7 @@ export default function ShopPage() {
       ])} />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-ink/50 mb-6">
-        <Link to="/" className="hover:text-ink">Home</Link>
+        <Link to="/home" className="hover:text-ink">Home</Link>
         <ChevronRight size={12} />
         <Link to="/collections" className="hover:text-ink">Collections</Link>
         <ChevronRight size={12} />

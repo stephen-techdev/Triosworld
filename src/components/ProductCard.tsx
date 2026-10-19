@@ -168,29 +168,42 @@ export default function ProductCard({ product }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* Product info — clean editorial block */}
-      <div className="pt-2.5">
-        <Link
-          to={`/product/${product.slug}`}
-          className="block text-[13px] font-bold uppercase leading-[1.3] tracking-[0.02em] text-ink transition-colors line-clamp-2 hover:text-ink/60"
-        >
-          {product.name}
+      {/* Product info — the anatomy a luxury catalogue uses: a collection
+          micro-line, the name in small tracked caps, the price with the offer
+          stated plainly, then the swatches the dashboard actually painted. */}
+      <div className="pt-3">
+        <Link to={`/product/${product.slug}`} className="block group/text">
+          {product.categories[0] && (
+            <span className="mb-1 block text-[9px] font-semibold uppercase leading-none tracking-[0.18em] text-ink/45 transition-colors group-hover/text:text-ink/75">
+              {product.categories[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+            </span>
+          )}
+          <span className="line-clamp-2 block text-[12.5px] font-medium uppercase leading-[1.35] tracking-[0.1em] text-ink transition-colors hover:text-ink/60">
+            {product.name}
+          </span>
         </Link>
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className="text-[13px] font-bold text-ink">{formatINR(product.price)}</span>
+          {hasDiscount && (
+            <>
+              <span className="text-xs text-ink/40 line-through">{formatINR(product.mrp)}</span>
+              <span className="text-[10px] font-bold tracking-wide text-ink/55">
+                {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+              </span>
+            </>
+          )}
+        </div>
         {(product.fit || product.fabric) && (
-          <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.04em] text-ink/50">
+          <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.08em] text-ink/45">
             {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
           </p>
         )}
-        <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="text-[13px] font-bold text-ink">{formatINR(product.price)}</span>
-          {hasDiscount && <span className="text-xs text-ink/40 line-through">{formatINR(product.mrp)}</span>}
-        </div>
         <div className="mt-1.5 flex items-center gap-1.5">
           {product.variants.slice(0, 4).map(variant => (
             <span
               key={variant.color}
               title={variant.color}
-              className="h-[9px] w-[9px] rounded-full ring-1 ring-inset ring-ink/25"
+              className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-ink/25"
               style={{ backgroundColor: variant.hex }}
             />
           ))}

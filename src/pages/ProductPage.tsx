@@ -7,18 +7,9 @@ import { formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useStore } from '@/store/StoreContext';
+import { useSiteContent } from '@/lib/siteContent';
 import { ProductCardMotion } from '@/components/ProductCard';
 import SEO, { productJsonLd, breadcrumbJsonLd } from '@/components/SEO';
-
-const sizeGuide = [
-  ['Size', 'Chest (in)', 'Length (in)'],
-  ['XS', '36', '26'],
-  ['S', '38', '27'],
-  ['M', '40', '28'],
-  ['L', '42', '29'],
-  ['XL', '44', '30'],
-  ['XXL', '46', '31'],
-];
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -29,6 +20,11 @@ export default function ProductPage() {
   const { ready } = useLiveCatalog();
   const product = slug ? liveProduct(slug) : undefined;
   const { settings } = useStoreSettings();
+  // Size guide, reviews, promises and the returns line are operator-owned
+  // (Admin → Content). The three reviews this page used to hardcode are gone:
+  // a rating is now only shown when the operator has actually published
+  // reviews, so no number on this page is invented.
+  const { content } = useSiteContent();
   const { addToCart, toggleWishlist, isWishlisted } = useStore();
 
   const [colorIdx, setColorIdx] = useState(0);
@@ -77,6 +73,14 @@ export default function ProductPage() {
   const related = liveRelated(product);
   const totalStock = variant.sizes.reduce((s, x) => s + x.stock, 0);
   const inStock = totalStock > 0;
+
+  // Reviews come from the dashboard. With none published, the rating line is
+  // hidden entirely rather than showing a number nothing backs it.
+  const reviews = content.pdp.reviews;
+  const reviewScore = reviews.length
+    ? reviews.reduce((s, r) => s + Math.min(5, Math.max(0, Number(r.rating) || 0)), 0) / reviews.length
+    : 0;
+  const sizeGuide = content.pdp.sizeGuide;
 
   const deliveryDate = new Date();
   deliveryDate.setDate(deliveryDate.getDate() + 4);
@@ -155,15 +159,21 @@ export default function ProductPage() {
           </div>
           <p className="text-xs text-ink/50 mt-1">MRP inclusive of all taxes</p>
 
-          {/* Rating + stock */}
+          {/* Rating + stock — the score is the average of the operator's own
+              published reviews; with none, only stock state shows. */}
           <div className="mt-3 flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <div className="flex items-center gap-0.5" aria-label="4.3 out of 5 stars">
-                {[1,2,3,4].map(i => <Star key={i} size={14} className="fill-ink text-ink" />)}
-                <Star size={14} className="fill-ink/30 text-ink/30" />
+            {reviews.length > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5" aria-label={`${reviewScore.toFixed(1)} out of 5 stars`}>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Star key={i} size={14} className={i <= Math.round(reviewScore) ? 'fill-ink text-ink' : 'fill-ink/20 text-ink/20'} />
+                  ))}
+                </div>
+                <span className="text-xs text-ink/60">
+                  {reviewScore.toFixed(1)} ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                </span>
               </div>
-              <span className="text-xs text-ink/60">4.3 (28 reviews)</span>
-            </div>
+            )}
             {inStock ? (
               <span className="text-xs font-medium text-green-700 flex items-center gap-1"><Check size={14} /> In stock</span>
             ) : (
@@ -193,7 +203,9 @@ export default function ProductPage() {
           <div className="mt-7">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Select size</span>
-              <button onClick={() => setShowSizeGuide(true)} className="text-xs text-ink/60 hover:text-ink inline-flex items-center gap-1"><Ruler size={14} /> Size guide</button>
+              {sizeGuide.length > 1 && (
+                <button onClick={() => setShowSizeGuide(true)} className="text-xs text-ink/60 hover:text-ink inline-flex items-center gap-1"><Ruler size={14} /> Size guide</button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               {SIZES.map(s => {
@@ -235,11 +247,17 @@ export default function ProductPage() {
             </button>
           </div>
 
-          {/* Promises */}
+          {/* Promises — copy typed in Admin → Content; the glyph set is code */}
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-            <div className="p-3 rounded-lg border border-ink/8"><Truck size={18} className="mx-auto mb-1" /><p className="text-[11px] text-ink/60">Ships in 24h</p></div>
-            <div className="p-3 rounded-lg border border-ink/8"><RefreshCw size={18} className="mx-auto mb-1" /><p className="text-[11px] text-ink/60">7-day returns</p></div>
-            <div className="p-3 rounded-lg border border-ink/8"><ShieldCheck size={18} className="mx-auto mb-1" /><p className="text-[11px] text-ink/60">Secure pay</p></div>
+            {content.pdp.promises.slice(0, 3).map((promise, i) => {
+              const Icon = [Truck, RefreshCw, ShieldCheck][i % 3];
+              return (
+                <div key={`${promise}-${i}`} className="p-3 rounded-lg border border-ink/8">
+                  <Icon size={18} className="mx-auto mb-1" />
+                  <p className="text-[11px] text-ink/60">{promise}</p>
+                </div>
+              );
+            })}
           </div>
 
           {/* WhatsApp enquiry */}
@@ -276,39 +294,46 @@ export default function ProductPage() {
                     : <p className="text-ink/50">Care instructions have not been added for this piece yet.</p>}
                 </div>
               )}
-              {activeTab === 'shipping' && <div><p>{freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India. A flat fee of {formatINR(settings.shippingFee)} applies below the free-shipping threshold.</p><p>7-day easy returns. Items must be unworn with tags intact.</p></div>}
+              {activeTab === 'shipping' && (
+                <div>
+                  <p>{freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India. A flat fee of {formatINR(settings.shippingFee)} applies below the free-shipping threshold.</p>
+                  <p>{content.pdp.returnsLine}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Customer reviews */}
-      <section className="mt-16 border-t border-ink/10 pt-10">
-        <h2 className="font-display text-xl md:text-2xl font-semibold mb-6">Customer Reviews</h2>
-        <div className="grid md:grid-cols-3 gap-5">
-          {[
-            { name: 'Arjun K.', rating: 5, text: 'Fabric quality is legit for this price. Fit is exactly as described — oversized but not baggy. Will buy again.' },
-            { name: 'Rohan M.', rating: 4, text: 'Good tee, print is clean and has not cracked after 3 washes. Delivery took 4 days to Bangalore.' },
-            { name: 'Karthik S.', rating: 5, text: 'Heavyweight cotton feels premium. The black hasn\'t faded. Best tee I\'ve bought online this year.' },
-          ].map((r, i) => (
-            <div key={i} className="p-5 rounded-xl border border-ink/8">
-              <div className="flex items-center gap-1 mb-2">
-                {Array.from({ length: 5 }).map((_, j) => (
-                  <Star key={j} size={14} className={j < r.rating ? 'fill-ink text-ink' : 'fill-ink/15 text-ink/15'} />
-                ))}
+      {/* Customer reviews — the operator's own; the section is hidden until
+          at least one has been published from the dashboard. */}
+      {reviews.length > 0 && (
+        <section className="mt-16 border-t border-ink/10 pt-10">
+          <div className="flex items-baseline gap-3 mb-6">
+            <h2 className="font-display text-xl md:text-2xl font-semibold">Customer Reviews</h2>
+            <span className="text-sm text-ink/50">{reviewScore.toFixed(1)} / 5 · {reviews.length}</span>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {reviews.map((r, i) => (
+              <div key={`${r.name}-${i}`} className="p-5 rounded-xl border border-ink/8">
+                <div className="flex items-center gap-1 mb-2">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <Star key={j} size={14} className={j < Math.min(5, Math.max(0, Number(r.rating) || 0)) ? 'fill-ink text-ink' : 'fill-ink/15 text-ink/15'} />
+                  ))}
+                </div>
+                <p className="text-sm text-ink/70 leading-relaxed">{r.text}</p>
+                <p className="text-xs text-ink/40 mt-3">{r.name} · Verified purchase</p>
               </div>
-              <p className="text-sm text-ink/70 leading-relaxed">{r.text}</p>
-              <p className="text-xs text-ink/40 mt-3">{r.name} · Verified purchase</p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Related */}
       {related.length > 0 && (
         <section className="mt-20">
           <h2 className="font-display text-xl md:text-2xl md:text-3xl font-semibold mb-8">You may also like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
             {related.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
           </div>
         </section>
@@ -330,8 +355,7 @@ export default function ProductPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-              <button onClick={() => setShowSizeGuide(false)} className="mt-5 w-full py-3 rounded-full bg-ink text-ivory text-sm font-medium">Got it</button>
+              </table>              <button onClick={() => setShowSizeGuide(false)} className="mt-5 w-full py-3 rounded-full bg-ink text-ivory text-sm font-medium">Got it</button>
             </motion.div>
           </motion.div>
         )}

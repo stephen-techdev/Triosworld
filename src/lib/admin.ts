@@ -85,7 +85,8 @@ export interface AdminProduct {
   mrp: number;
   catalog_price: number;
   price: number;
-  colors: string[];
+  /** Picker rows: the colour name plus the hex the operator chose. */
+  colors: ProductColor[];
   stock: Record<string, number>;
   stock_total: number;
   is_active: boolean;
@@ -121,6 +122,8 @@ export interface AdminSettings {
   free_shipping_threshold: number;
   /** Rotating top-bar line. Null/blank derives it from the threshold. */
   announcement: string | null;
+  /** Operator-owned storefront copy (Admin → Content). Null = never edited. */
+  content?: unknown;
   updated_at?: string | null;
   updated_by?: string | null;
 }
@@ -171,6 +174,32 @@ export interface AdminFeedback {
   page: string | null;
   status: 'new' | 'read' | 'resolved';
   created_at: string;
+}
+
+/** A colour row from the admin picker: display name + the exact swatch hex. */
+export interface ProductColor {
+  name: string;
+  hex: string;
+}
+
+/**
+ * Colours arrive as { name, hex } pairs, but rows written before the picker
+ * existed are bare names. Older saved sessions may also hold either shape, so
+ * every surface reads them through here rather than assuming.
+ */
+export function normalizeProductColors(v: unknown): ProductColor[] {
+  if (!Array.isArray(v)) return [];
+  const out: ProductColor[] = [];
+  for (const entry of v) {
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const name = String((entry as ProductColor).name ?? '').trim();
+      const hex = String((entry as ProductColor).hex ?? '').trim().toLowerCase();
+      if (name) out.push({ name, hex: /^#[0-9a-f]{6}$/.test(hex) ? hex : '#171717' });
+    } else if (typeof entry === 'string' && entry.trim()) {
+      out.push({ name: entry.trim(), hex: '#171717' });
+    }
+  }
+  return out;
 }
 
 export class AdminAuthError extends Error {}
@@ -288,6 +317,7 @@ export const updateProduct = (payload: {
   mrp?: number;
   stock?: Record<string, number>;
   is_active?: boolean;
+  colors?: ProductColor[];
   images?: string[];
   description?: string;
   care?: string;
@@ -333,7 +363,7 @@ export const createProduct = (payload: {
   price: number;
   mrp?: number;
   category?: string;
-  colors?: string[];
+  colors?: ProductColor[];
   stock?: Record<string, number>;
   images?: string[];
   image_url?: string;
@@ -375,10 +405,16 @@ export const changeAdminPassword = (current: string, next: string) =>
 export const getSettings = () =>
   adminRequest<{ settings: AdminSettings }>('/settings');
 
+/**
+ * Partial save: the Settings form sends the shipping figures, the Content tab
+ * sends the copy document. The server updates only what is present, so saving
+ * one can never overwrite the other with a stale value.
+ */
 export const saveSettings = (settings: {
-  shipping_fee: number;
-  free_shipping_threshold: number;
-  announcement: string | null;
+  shipping_fee?: number;
+  free_shipping_threshold?: number;
+  announcement?: string | null;
+  content?: unknown;
 }) =>
   adminRequest<{ ok: boolean; settings: AdminSettings }>('/settings', {
     method: 'POST',

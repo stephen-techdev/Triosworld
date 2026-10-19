@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Mail, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSiteContent } from '@/lib/siteContent';
 
 export default function Newsletter() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'error' | 'done'>('idle');
+  // Heading, blurb and the fine print are copy the operator owns.
+  const { content } = useSiteContent();
+  const copy = content.newsletter;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,8 +21,8 @@ export default function Newsletter() {
   return (
     <div className="border-b border-ivory/10 py-16">
       <div className="mx-auto max-w-2xl text-center">
-        <h3 className="font-display text-2xl md:text-3xl font-semibold mb-2">GOOD STYLE. STRAIGHT TO YOUR INBOX.</h3>
-        <p className="text-ivory/60 text-sm mb-6">Get early access to new drops, member-only pricing and the occasional good idea. No spam.</p>
+        <h3 className="font-display text-2xl md:text-3xl font-semibold mb-2">{copy.heading}</h3>
+        <p className="text-ivory/60 text-sm mb-6">{copy.sub}</p>
         <AnimatePresence mode="wait">
           {status === 'done' ? (
             <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
@@ -41,7 +45,7 @@ export default function Newsletter() {
           )}
         </AnimatePresence>
         {status === 'error' && <p className="text-xs text-red-300 mt-3">Please enter a valid email address.</p>}
-        <p className="text-[11px] text-ivory/40 mt-3">By subscribing you agree to receive marketing emails from TriosWorld.</p>
+        <p className="text-[11px] text-ivory/40 mt-3">{copy.disclaimer}</p>
       </div>
     </div>
   );

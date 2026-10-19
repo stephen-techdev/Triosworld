@@ -4,37 +4,41 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
-  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck,
+  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck, FileText,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
-import { CATEGORIES, SIZES, SUGGESTED_BADGES, SUGGESTED_FABRICS, SUGGESTED_FITS, formatINR } from '@/data/catalog';
+import { SIZES, SUGGESTED_BADGES, SUGGESTED_FABRICS, SUGGESTED_FITS, formatINR } from '@/data/catalog';
 import ComboField from '@/components/ComboField';
 import { setStoreSettings } from '@/lib/storeSettings';
+import { useSiteContent } from '@/lib/siteContent';
+import ContentSection from '@/pages/admin/ContentSection';
 
 /**
- * Collections the shop already has pages for. Free text is still accepted — a
- * collection with no page of its own still filters correctly under Shop All and
- * appears on the product page breadcrumb.
+ * Collections the shop already has pages for — taken from the operator's own
+ * category cards (Admin → Content), so a new collection appears as a
+ * suggestion the moment it is created there. Free text is still accepted.
  */
-const COLLECTION_SUGGESTIONS = CATEGORIES.map(c => c.slug);
+const BUILTIN_COLLECTIONS = ['shop-all', 'men', 'bestsellers', 'new-arrivals'];
 import {
   AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
-  getProducts, getSettings, muteCustomer, readSession, saveSettings, setFeedbackStatus, updateOrder, updateProduct,
+  getProducts, getSettings, muteCustomer, normalizeProductColors, readSession, saveSettings,
+  setFeedbackStatus, updateOrder, updateProduct,
   uploadProductImage,
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
-  type AdminSession, type Overview,
+  type AdminSession, type Overview, type ProductColor,
 } from '@/lib/admin';
 
-type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'feedback' | 'settings';
+type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders & Payments', icon: ShoppingBag },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
+  { id: 'content', label: 'Content', icon: FileText },
   { id: 'feedback', label: 'Feedback', icon: MessageSquare },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -154,6 +158,7 @@ export default function AdminPage() {
               {tab === 'orders' && <OrdersSection onAuthFail={signOut} />}
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
+              {tab === 'content' && <ContentSection onAuthFail={signOut} />}
               {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
               {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
             </motion.div>
@@ -986,6 +991,7 @@ function ProductCard({ product, onSaved, onAuthFail }: {
     () => Object.fromEntries(Object.entries(product.stock).map(([k, v]) => [k, String(v)])),
   );
   const [active, setActive] = useState(product.is_active);
+  const [colors, setColors] = useState<ProductColor[]>(() => normalizeProductColors(product.colors));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1022,6 +1028,8 @@ function ProductCard({ product, onSaved, onAuthFail }: {
     price !== String(product.price) ||
     mrp !== String(product.mrp) ||
     active !== product.is_active ||
+    colors.map(c => `${c.name.trim()}|${c.hex}`).join(',') !==
+      normalizeProductColors(product.colors).map(c => `${c.name.trim()}|${c.hex}`).join(',') ||
     Object.entries(stock).some(([k, v]) => v !== String(product.stock[k] ?? ''));
 
   const save = async () => {
@@ -1035,6 +1043,7 @@ function ProductCard({ product, onSaved, onAuthFail }: {
         mrp: Number(mrp),
         stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
         is_active: active,
+        colors: colors.filter(c => c.name.trim()),
       });
       setSaved(true);
       onSaved();
@@ -1153,6 +1162,18 @@ function ProductCard({ product, onSaved, onAuthFail }: {
             ))}
           </div>
         </div>
+
+        {product.source === 'runtime' && (
+          <div>
+            <span className="text-[11px] text-ink/50">Colours — name + swatch</span>
+            <div className="mt-1.5">
+              <ColorRows rows={colors} onChange={setColors} compact />
+            </div>
+            <span className="mt-1 block text-[10px] text-ink/40 leading-relaxed">
+              These paint the card swatches and the shop's colour filter.
+            </span>
+          </div>
+        )}
 
         <label className="flex items-center justify-between gap-3 pt-1 cursor-pointer">
           <span className="text-xs text-ink/60">Available for purchase</span>
@@ -1523,15 +1544,75 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// Colour picker rows — shared by Add product and the product editor
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Name + swatch rows. The hex recorded here is what renders on the card, the
+ * product page selector and the shop's colour filter — a comma-separated list
+ * of names could not carry it, which is why every swatch used to come out the
+ * same colour no matter what was typed.
+ */
+function ColorRows({ rows, onChange, compact = false }: {
+  rows: ProductColor[];
+  onChange: (rows: ProductColor[]) => void;
+  compact?: boolean;
+}) {
+  const set = (i: number, patch: Partial<ProductColor>) =>
+    onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(row.hex) ? row.hex : '#171717'}
+            onChange={e => set(i, { hex: e.target.value })}
+            aria-label={`Colour ${i + 1} swatch`}
+            className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} shrink-0 rounded-md border border-ink/15 bg-transparent p-0.5 cursor-pointer`}
+          />
+          <input
+            value={row.name}
+            onChange={e => set(i, { name: e.target.value })}
+            placeholder="Black"
+            maxLength={40}
+            aria-label={`Colour ${i + 1} name`}
+            className="flex-1 min-w-0 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:border-ink"
+          />
+          <span className="font-mono text-[10px] text-ink/40 w-16 shrink-0">{row.hex}</span>
+          <button
+            type="button"
+            onClick={() => onChange(rows.filter((_, k) => k !== i))}
+            aria-label={`Remove colour ${row.name || i + 1}`}
+            className="shrink-0 w-7 h-7 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 hover:border-red-200 transition grid place-items-center"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...rows, { name: '', hex: '#171717' }])}
+        className="text-[11px] font-medium text-ink/60 hover:text-ink border border-dashed border-ink/20 hover:border-ink/40 rounded-lg px-3 py-1.5 transition"
+      >
+        + Add colour
+      </button>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // Add product
 // ════════════════════════════════════════════════════════════════════════════
 
 function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAuthFail: () => void }) {
+  const { content } = useSiteContent();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [mrp, setMrp] = useState('');
   const [category, setCategory] = useState('new-arrivals');
-  const [colors, setColors] = useState('');
+  const [colors, setColors] = useState<ProductColor[]>([]);
   const [fit, setFit] = useState('');
   const [fabric, setFabric] = useState('');
   const [badge, setBadge] = useState('');
@@ -1586,7 +1667,7 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         price: Number(price),
         mrp: mrp ? Number(mrp) : undefined,
         category,
-        colors: colors.split(',').map(c => c.trim()).filter(Boolean),
+        colors: colors.filter(c => c.name.trim()),
         images: images.map(i => i.url),
         stock: Object.fromEntries(Object.entries(stock).map(([k, v]) => [k, Number(v) || 0])),
         description: description.trim() || undefined,
@@ -1598,7 +1679,7 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         new_arrival: newArrival,
       });
       setOk(`Created "${name.trim()}" as /product/${res.slug}`);
-      setName(''); setPrice(''); setMrp(''); setColors(''); setImages([]);
+      setName(''); setPrice(''); setMrp(''); setColors([]); setImages([]);
       setDescription(''); setCare(''); setFit(''); setFabric(''); setBadge('');
       setBestseller(false); setNewArrival(true);
       onCreated();
@@ -1675,18 +1756,29 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
             label="Collection"
             value={category}
             onChange={setCategory}
-            suggestions={COLLECTION_SUGGESTIONS}
+            suggestions={[
+              ...content.categories.map(c => c.slug),
+              ...BUILTIN_COLLECTIONS.filter(s => !content.categories.some(c => c.slug === s)),
+            ]}
             placeholder="oversized"
             maxLength={40}
             hint="A slug, lower case with dashes. This decides which shop page the product appears under."
           />
         </div>
 
-        <label className="block">
-          <span className="text-[11px] text-ink/50">Colours (comma separated)</span>
-          <input value={colors} onChange={e => setColors(e.target.value)} placeholder="Black, White"
-            className={`mt-1 ${input}`} />
-        </label>
+        <div className="block sm:col-span-2">
+          <span className="text-[11px] text-ink/50">
+            Colours — name + swatch
+          </span>
+          <div className="mt-1.5">
+            <ColorRows rows={colors} onChange={setColors} />
+          </div>
+          <span className="mt-1.5 block text-[10px] text-ink/40 leading-relaxed">
+            The name shows on the product page; the swatch paints the card, the shop's colour
+            filter and the selector on the product page. Leave the list empty and the card
+            still renders with a neutral swatch.
+          </span>
+        </div>
 
         <ComboField
           label="Fit"

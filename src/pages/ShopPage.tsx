@@ -3,8 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronRight, Check } from 'lucide-react';
 import SEO, { breadcrumbJsonLd } from '@/components/SEO';
-import { COLLECTIONS, SIZES, COLORS, formatINR } from '@/data/catalog';
+import { COLLECTIONS, SIZES, formatINR } from '@/data/catalog';
 import { useLiveCatalog } from '@/lib/storefrontCatalog';
+import { useSiteContent } from '@/lib/siteContent';
 import { ProductCardMotion } from '@/components/ProductCard';
 
 const SORTS = ['Featured', 'Newest', 'Bestselling', 'Price: Low to High', 'Price: High to Low'] as const;
@@ -25,16 +26,19 @@ const emptyFilters: Filters = { sizes: [], colors: [], fits: [], fabrics: [], ma
 export default function ShopPage() {
   const { slug = 'shop-all' } = useParams();
   const { products: liveAll } = useLiveCatalog();
+  const { content } = useSiteContent();
 
   /**
    * A collection is free text now, so it may not be one of the built-in pages.
    *
-   * Falling back to Shop All for an unknown slug used to be the only option,
-   * which meant a product in a new collection appeared on every collection page
-   * at once. An unknown slug now filters to exactly that collection and titles
-   * itself from the slug.
+   * The operator's own category cards (Admin → Content) are looked up first, so
+   * a collection page shows the name and blurb typed in the dashboard. An
+   * unknown slug then falls back to titling itself from the slug rather than
+   * showing every product at once.
    */
-  const known = COLLECTIONS.find(c => c.slug === slug);
+  const known =
+    content.categories.find(c => c.slug === slug) ??
+    COLLECTIONS.find(c => c.slug === slug);
   const collection = known ?? {
     slug,
     name: slug === 'shop-all' ? 'Shop All' : slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
@@ -83,6 +87,22 @@ export default function ShopPage() {
     [baseProducts],
   );
 
+  /**
+   * The colour filter is built from the colours actually on these cards.
+   *
+   * It used to be a static list from the catalog file, so an operator-entered
+   * colour ("Terracotta") was unreachable here and every chip rendered the same
+   * hardcoded hex. Each entry now carries the name the products record and the
+   * hex the dashboard colour picker chose — first swatch wins for a name.
+   */
+  const SHOP_COLORS = useMemo(() => {
+    const seen = new Map<string, { name: string; hex: string }>();
+    for (const p of baseProducts)
+      for (const v of p.variants)
+        if (!seen.has(v.color)) seen.set(v.color, { name: v.color, hex: v.hex });
+    return [...seen.values()];
+  }, [baseProducts]);
+
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [sort, setSort] = useState<Sort>('Featured');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -125,16 +145,21 @@ export default function ShopPage() {
         </div>
       </FilterGroup>
       <FilterGroup title="Colour">
-        <div className="flex flex-wrap gap-2.5">
-          {COLORS.map(c => (
-            <button key={c.name} onClick={() => setFilters(f => ({ ...f, colors: toggleArr(f.colors, c.name) }))}
-              aria-label={`Filter by ${c.name}`}
-              aria-pressed={filters.colors.includes(c.name)}
-              className={`flex items-center gap-1.5 text-xs min-w-9 min-h-9 p-1 ${filters.colors.includes(c.name) ? 'font-semibold' : ''}`}>
-              <span className={`w-6 h-6 rounded-full border-2 ${filters.colors.includes(c.name) ? 'border-ink' : 'border-ink/15'}`} style={{ backgroundColor: c.hex }} />
-            </button>
-          ))}
-        </div>
+        {SHOP_COLORS.length === 0 ? (
+          <p className="text-xs text-ink/40">No colours recorded on this page yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {SHOP_COLORS.map(c => (
+              <button key={c.name} onClick={() => setFilters(f => ({ ...f, colors: toggleArr(f.colors, c.name) }))}
+                aria-label={`Filter by ${c.name}`}
+                aria-pressed={filters.colors.includes(c.name)}
+                className={`inline-flex items-center gap-2 h-10 pl-1.5 pr-3.5 text-sm rounded-full border transition ${filters.colors.includes(c.name) ? 'bg-ink text-ivory border-ink' : 'border-ink/15 hover:border-ink'}`}>
+                <span className={`w-7 h-7 rounded-full border-2 ${filters.colors.includes(c.name) ? 'border-ivory/30' : 'border-ink/10'}`} style={{ backgroundColor: c.hex }} />
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </FilterGroup>
       <FilterGroup title="Fit">
         <div className="space-y-2">
@@ -221,30 +246,32 @@ export default function ShopPage() {
       </div>
       <p className="text-ink/60 text-sm mb-6">{collection.blurb}</p>
 
-      <div className="flex items-center justify-between mb-8 border-y border-ink/10 py-3">
-        <button onClick={() => setMobileFiltersOpen(true)} className="inline-flex items-center gap-2 text-sm font-medium lg:hidden">
-          <SlidersHorizontal size={16} /> Filters {activeCount > 0 && <span className="bg-ink text-ivory text-[10px] rounded-full px-1.5">{activeCount}</span>}
-        </button>
-        <p className="hidden sm:block text-sm text-ink/50">{filtered.length} {filtered.length === 1 ? 'product' : 'products'}</p>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-ink/50 hidden sm:block">Sort</label>
-          <select value={sort} onChange={e => setSort(e.target.value as Sort)}
-            className="text-sm bg-transparent border border-ink/15 rounded-full px-4 py-2 focus:outline-none focus:border-ink">
-            {SORTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+      {/*
+        One filter control for every breakpoint: an icon button that opens the
+        same sheet. The desktop used to carry a fixed sidebar as well, which
+        duplicated the controls and squeezed the grid — the sheet is now the
+        single filter surface, so mobile and desktop can never disagree.
+      */}
+      <div className="sticky top-16 md:top-20 z-30 bg-ivory/95 backdrop-blur border-y border-ink/10">
+        <div className="flex items-center justify-between gap-3 py-3">
+          <button onClick={() => setMobileFiltersOpen(true)}
+            className="inline-flex items-center gap-2 text-sm font-medium border border-ink/15 hover:border-ink rounded-full px-4 py-2 transition">
+            <SlidersHorizontal size={15} />
+            Filters
+            {activeCount > 0 && <span className="bg-ink text-ivory text-[10px] rounded-full px-1.5 py-0.5">{activeCount}</span>}
+          </button>
+          <p className="hidden sm:block text-sm text-ink/50">{filtered.length} {filtered.length === 1 ? 'product' : 'products'}</p>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-ink/50 hidden sm:block">Sort</label>
+            <select value={sort} onChange={e => setSort(e.target.value as Sort)}
+              className="text-sm bg-transparent border border-ink/15 rounded-full px-3 py-2 max-w-[9.5rem] focus:outline-none focus:border-ink">
+              {SORTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-10">
-        <aside className="hidden lg:block w-60 shrink-0">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-display text-lg font-semibold">Filters</h3>
-            {activeCount > 0 && <button onClick={() => setFilters(emptyFilters)} className="text-xs text-ink/60 hover:text-ink underline">Clear all</button>}
-          </div>
-          <FilterPanel />
-        </aside>
-
-        <div className="flex-1">
+      <div className="mt-6">
           {activeCount > 0 && (
             <div className="flex flex-wrap gap-2 mb-6">
               {filters.sizes.map(s => <Chip key={s} label={s} onRemove={() => setFilters(f => ({ ...f, sizes: f.sizes.filter(x => x !== s) }))} />)}
@@ -272,22 +299,21 @@ export default function ShopPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-2 gap-y-5 md:gap-x-4 md:gap-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
               {filtered.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
             </div>
           )}
-        </div>
       </div>
 
-      {/* Mobile filter drawer */}
+      {/* Filter sheet — the one filter surface at every breakpoint */}
       <AnimatePresence>
         {mobileFiltersOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-ink/40 z-[55] lg:hidden" onClick={() => setMobileFiltersOpen(false)} />
+              className="fixed inset-0 bg-ink/40 z-[55]" onClick={() => setMobileFiltersOpen(false)} />
             <motion.aside initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'tween', duration: 0.3 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-ivory z-[55] lg:hidden rounded-t-2xl flex flex-col">
+              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-ivory z-[55] rounded-t-2xl flex flex-col">
               <div className="flex items-center justify-between p-5 border-b border-ink/10">
                 <h3 className="font-display text-lg font-semibold">Filters</h3>
                 <button onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters"><X size={22} /></button>

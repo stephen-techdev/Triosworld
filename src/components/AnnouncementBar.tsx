@@ -2,22 +2,23 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EASE } from '@/components/Motion';
 import { announcementLine, useStoreSettings } from '@/lib/storeSettings';
+import { announcementExtras, useSiteContent } from '@/lib/siteContent';
 import { formatINR } from '@/data/catalog';
 
-// Messages 2 and 3 are brand copy. The first is the operator's own
-// announcement, falling back to the free-shipping line derived from their
-// threshold — so a saved announcement actually shows, and raising the
-// threshold updates this bar without editing copy.
-const fixedMessages = [
-  'New drops every week. Three vibes, one world.',
-  'Use code TRIO10 for 10% off your first order.',
-];
-
+// Line 1 is the operator's own announcement, falling back to the free-shipping
+// line derived from their threshold — so a saved announcement actually shows,
+// and raising the threshold updates this bar without editing copy. Every line
+// after it is copy the operator keeps in Admin → Content (the two brand lines
+// and the promo code used to be literals here).
 export default function AnnouncementBar() {
   const [i, setI] = useState(0);
   const { settings } = useStoreSettings();
+  const { content } = useSiteContent();
 
-  const messages = [announcementLine(settings, formatINR), ...fixedMessages];
+  const messages = [
+    announcementLine(settings, formatINR),
+    ...announcementExtras(content),
+  ].filter(Boolean);
 
   useEffect(() => {
     const id = setInterval(() => setI(p => (p + 1) % messages.length), 5200);

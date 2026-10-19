@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import {
-  SIZES, type Product, type Badge, type Fit, type Fabric, type Gender,
+  SIZES, COLORS, type Product, type Badge, type Fit, type Fabric, type Gender,
 } from '@/data/catalog';
 
 interface RuntimeRow {
@@ -42,6 +42,37 @@ interface RuntimeRow {
 
 function asStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.map((x) => String(x)) : [];
+}
+
+/** Case-insensitive lookup for the brand's known colour names. */
+function knownHex(name: string): string {
+  const k = name.trim().toLowerCase();
+  return COLORS.find((c) => c.name.toLowerCase() === k)?.hex ?? '#171717';
+}
+
+/**
+ * Colours are { name, hex } pairs chosen in the dashboard colour picker.
+ *
+ * Bare-name rows (written before the picker existed) still resolve through the
+ * brand colour list, and anything unknown falls back to ink rather than
+ * rendering a swatch with no colour at all. This is the fix for swatches that
+ * all showed #171717 regardless of what was entered in admin.
+ */
+function asColors(v: unknown): { name: string; hex: string }[] {
+  if (!Array.isArray(v)) return [];
+  const out: { name: string; hex: string }[] = [];
+  for (const entry of v) {
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const name = String((entry as { name?: unknown }).name ?? '').trim();
+      if (!name) continue;
+      const hex = String((entry as { hex?: unknown }).hex ?? '').trim().toLowerCase();
+      out.push({ name, hex: /^#[0-9a-f]{6}$/.test(hex) ? hex : knownHex(name) });
+    } else if (typeof entry === 'string' && entry.trim()) {
+      const name = entry.trim();
+      out.push({ name, hex: knownHex(name) });
+    }
+  }
+  return out;
 }
 
 function asStock(v: unknown): Record<string, number> {
@@ -74,19 +105,17 @@ function imagesForColor(index: number, colors: number, images: string[]): string
 
 function toProduct(row: RuntimeRow): Product {
   const images = asStringArray(row.images);
-  const colors = asStringArray(row.colors);
+  const colors = asColors(row.colors);
   const stock = asStock(row.stock);
 
   const sizes = Object.keys(stock).length
     ? Object.entries(stock).map(([size, qty]) => ({ size, stock: qty }))
     : SIZES.map((size) => ({ size, stock: 0 }));
 
-  const colorNames = colors.length ? colors : ['Default'];
-
-  const variants = colorNames.map((color, i) => ({
-    color,
-    hex: '#171717',
-    images: imagesForColor(i, colorNames.length, images),
+  const variants = (colors.length ? colors : [{ name: 'Default', hex: '#171717' }]).map((c, i) => ({
+    color: c.name,
+    hex: c.hex,
+    images: imagesForColor(i, colors.length || 1, images),
     sizes,
   }));
 

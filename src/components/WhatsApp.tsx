@@ -1,12 +1,31 @@
 import type { SVGProps } from 'react';
 
-/** Real WhatsApp business number, formatted for display and for wa.me deep links. */
+/**
+ * Default WhatsApp number, formatted for display and for wa.me deep links.
+ *
+ * The operator's own number (Admin → Content → Footer) overrides this once the
+ * content document has loaded — see setWhatsAppNumber() — so every wa.me link
+ * on the site follows the dashboard without a code edit. The constants remain
+ * as the pre-load fallback.
+ */
 export const WHATSAPP_NUMBER = '918883626787';
 export const WHATSAPP_DISPLAY = '+91 88836 26787';
 
+let activeNumber = WHATSAPP_NUMBER;
+
+/** Digits only, country code first; anything unusable keeps the default. */
+export function setWhatsAppNumber(next: string | null | undefined) {
+  const digits = String(next ?? '').replace(/\D/g, '');
+  activeNumber = digits.length >= 10 ? digits : WHATSAPP_NUMBER;
+}
+
+export function whatsappNumber(): string {
+  return activeNumber;
+}
+
 /** Build a wa.me link, optionally pre-filling the message. */
 export function whatsappLink(message?: string) {
-  const base = `https://wa.me/${WHATSAPP_NUMBER}`;
+  const base = `https://wa.me/${activeNumber}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 

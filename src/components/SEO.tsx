@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { siteContent } from '@/lib/siteContent';
 
 interface SEOProps {
   title?: string;
@@ -119,17 +120,22 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
 }
 
 export function organizationJsonLd() {
+  // Contact details follow the dashboard (Admin → Content → Footer); the
+  // compiled defaults answer until that content has loaded.
+  const footer = siteContent().footer;
   return {
     '@context': 'https://schema.org/',
     '@type': 'Organization',
     name: 'TRIOSWORLD',
     url: SITE_URL,
     logo: `${SITE_URL}/og-image.svg`,
-    sameAs: ['https://instagram.com'],
+    sameAs: footer.socials
+      .map(s => s.href.trim())
+      .filter(h => /^https:\/\//i.test(h)),
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer service',
-      email: 'hello@triosworld.com',
+      email: footer.email,
       areaServed: 'IN',
     },
   };

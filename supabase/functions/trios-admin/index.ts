@@ -68,6 +68,89 @@ function slugify(input: string): string {
     .slice(0, 60);
 }
 
+// ─────────────────────────── storefront content ────────────────────────────
+
+const CONTENT_MAX_DEPTH = 6;
+const CONTENT_MAX_STR = 4000;
+const CONTENT_MAX_ARR = 60;
+const CONTENT_MAX_BYTES = 400_000;
+
+/**
+ * Structured scrub of the operator's content document before it is stored.
+ *
+ * The document is rendered by React (which escapes every string), so this is
+ * about shape and size rather than markup: bounded depth/lengths, plain
+ * keys only, no `javascript:` href sneaking through, and no giant payload
+ * hitting the row. Returns null when the input is not a JSON object.
+ */
+function sanitizeContent(raw: unknown): Record<string, unknown> | null {
+  const walk = (v: unknown, depth: number): unknown => {
+    if (depth > CONTENT_MAX_DEPTH) return undefined;
+    if (typeof v === "string") {
+      const s = v.split("\u0000").join("").trimStart();
+      return (/^\s*javascript:/i.test(s) ? s.replace(/^\s*javascript:/i, "") : s).slice(0, CONTENT_MAX_STR);
+    }
+    if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+    if (typeof v === "boolean") return v;
+    if (v === null) return null;
+    if (Array.isArray(v)) {
+      return v.slice(0, CONTENT_MAX_ARR).map((x) => walk(x, depth + 1)).filter((x) => x !== undefined);
+    }
+    if (typeof v === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+        if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+        const w = walk(val, depth + 1);
+        if (w !== undefined) out[k] = w;
+      }
+      return out;
+    }
+    return undefined;
+  };
+
+  const out = walk(raw, 0);
+  if (!out || typeof out !== "object" || Array.isArray(out)) return null;
+  return out as Record<string, unknown>;
+}
+
+// ─────────────────────────── product colours ───────────────────────────────
+
+const KNOWN_COLOR_HEX: Record<string, string> = {
+  black: "#171717", white: "#ffffff", ivory: "#f7f5f0", "off-white": "#f7f5f0",
+  cream: "#efe9dc", olive: "#5b5f3a", stone: "#ddd8ce", navy: "#1f2a44",
+  lime: "#b7ff43", rust: "#9e4a2e", sage: "#9caf88", sand: "#d8c4a0",
+  beige: "#d8c4a0", cobalt: "#2b4cb8", blue: "#2b4cb8", burgundy: "#5e1f2a",
+  maroon: "#5e1f2a", charcoal: "#2d2d2d", grey: "#9a9a9a", gray: "#9a9a9a",
+  red: "#a5281b", green: "#4a6741", yellow: "#e8c33c",
+};
+
+/**
+ * Colours are stored as { name, hex } pairs so the swatch a customer taps is
+ * the colour the operator picked. Accepts the current object shape AND the
+ * legacy bare-name strings, resolving well-known names to their hex and
+ * falling back to ink for anything unknown — the same neutral the card used
+ * before the picker existed.
+ */
+function normalizeColors(raw: unknown): { name: string; hex: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { name: string; hex: string }[] = [];
+  for (const entry of raw.slice(0, 12)) {
+    let name = "";
+    let hex = "";
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      name = String((entry as Record<string, unknown>).name ?? "").trim().slice(0, 40);
+      hex = String((entry as Record<string, unknown>).hex ?? "").trim().toLowerCase();
+    } else if (typeof entry === "string") {
+      name = entry.trim().slice(0, 40);
+    }
+    if (!name) continue;
+    if (!/^#[0-9a-f]{6}$/.test(hex)) hex = KNOWN_COLOR_HEX[name.toLowerCase()] ?? "#171717";
+    out.push({ name, hex });
+  }
+  return out;
+}
+
+
 /**
  * Append to the moderation trail. Never throws: losing an audit row must not
  * fail the operator's action.
@@ -506,6 +589,9 @@ Deno.serve(async (req: Request) => {
           patch.stock = clean;
         }
         if (typeof body.is_active === "boolean") patch.is_active = body.is_active;
+        // Colours are the picker's { name, hex } pairs — saved exactly as the
+        // swatch on the card and the shop's colour filter will render them.
+        if (body.colors !== undefined) patch.colors = normalizeColors(body.colors);
         if (Array.isArray(body.images)) {
           const imgs = (body.images as unknown[]).map(String).filter(Boolean).slice(0, 8);
           patch.images = imgs;
@@ -688,9 +774,9 @@ Deno.serve(async (req: Request) => {
         if (Number.isFinite(v) && v >= 0) stock[size] = Math.floor(v);
       }
 
-      const colors = Array.isArray(body.colors)
-        ? (body.colors as unknown[]).map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
-        : [];
+      // { name, hex } pairs from the colour picker; bare names from older
+      // clients are resolved through the known-name map.
+      const colors = normalizeColors(body.colors);
 
       // Uploaded images come back as public URLs; the first one is also kept in
       // image_url so the single-image surfaces keep working.
@@ -1024,7 +1110,7 @@ function storageKeyFromUrl(url: string): string | null {
     if (path === "/settings" && req.method === "GET") {
       const { data, error: settingsErr } = await supabase
         .from("store_settings")
-        .select("shipping_fee, free_shipping_threshold, announcement, updated_at, updated_by")
+        .select("shipping_fee, free_shipping_threshold, announcement, content, updated_at, updated_by")
         .maybeSingle();
 
       if (settingsErr) return json({ error: settingsErr.message }, 500);
@@ -1036,6 +1122,9 @@ function storageKeyFromUrl(url: string): string | null {
           shipping_fee: data?.shipping_fee ?? 79,
           free_shipping_threshold: data?.free_shipping_threshold ?? 1499,
           announcement: data?.announcement ?? "",
+          // null until the operator saves from Admin → Content; the storefront
+          // then renders the compiled-in defaults, which are the same copy.
+          content: data?.content ?? null,
           updated_at: data?.updated_at ?? null,
           updated_by: data?.updated_by ?? null,
         },
@@ -1044,47 +1133,78 @@ function storageKeyFromUrl(url: string): string | null {
 
     if (path === "/settings" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
+      const patch: Record<string, unknown> = {};
+      const auditDetail: Record<string, unknown> = {};
 
-      const fee = Number(body.shipping_fee);
-      const threshold = Number(body.free_shipping_threshold);
+      // Shipping/announcement block — validated only when sent, so the Content
+      // tab can save without re-submitting figures it does not own.
+      if ("shipping_fee" in body || "free_shipping_threshold" in body || "announcement" in body) {
+        const fee = Number(body.shipping_fee);
+        const threshold = Number(body.free_shipping_threshold);
 
-      if (!Number.isFinite(fee) || fee < 0 || !Number.isInteger(fee)) {
-        return json({ error: "Shipping fee must be a whole number of rupees, zero or more" }, 400);
+        if (!Number.isFinite(fee) || fee < 0 || !Number.isInteger(fee)) {
+          return json({ error: "Shipping fee must be a whole number of rupees, zero or more" }, 400);
+        }
+        if (!Number.isFinite(threshold) || threshold < 0 || !Number.isInteger(threshold)) {
+          return json({ error: "Free-shipping threshold must be a whole number of rupees, zero or more" }, 400);
+        }
+
+        // Blank is allowed and means "derive it": the storefront then builds the
+        // free-shipping line from the threshold, so the two cannot drift apart.
+        const announcement =
+          body.announcement == null || String(body.announcement).trim() === ""
+            ? null
+            : String(body.announcement).trim().slice(0, 200);
+
+        patch.shipping_fee = fee;
+        patch.free_shipping_threshold = threshold;
+        patch.announcement = announcement;
+        auditDetail.shipping_fee = fee;
+        auditDetail.free_shipping_threshold = threshold;
+        auditDetail.announcement = announcement;
       }
-      if (!Number.isFinite(threshold) || threshold < 0 || !Number.isInteger(threshold)) {
-        return json({ error: "Free-shipping threshold must be a whole number of rupees, zero or more" }, 400);
+
+      // Storefront copy — validated as a bounded JSON object.
+      if ("content" in body) {
+        const clean = sanitizeContent(body.content);
+        if (!clean) return json({ error: "Content must be a JSON object" }, 400);
+        if (JSON.stringify(clean).length > CONTENT_MAX_BYTES) {
+          return json({ error: "Content document is too large — trim images/copy or split it" }, 413);
+        }
+        patch.content = clean;
+        auditDetail.content_keys = Object.keys(clean).length;
       }
 
-      // Blank is allowed and means "derive it": the storefront then builds the
-      // free-shipping line from the threshold, so the two cannot drift apart.
-      const announcement =
-        body.announcement == null || String(body.announcement).trim() === ""
-          ? null
-          : String(body.announcement).trim().slice(0, 200);
+      if (Object.keys(patch).length === 0) return json({ error: "Nothing to save" }, 400);
+      patch.updated_by = session.email;
 
       // Upsert against the single-row key so a fresh database works too.
       const { error: saveErr } = await supabase
         .from("store_settings")
-        .upsert(
-          {
-            id: true,
-            shipping_fee: fee,
-            free_shipping_threshold: threshold,
-            announcement,
-            updated_by: session.email,
-          },
-          { onConflict: "id" },
-        );
+        .upsert({ id: true, ...patch }, { onConflict: "id" });
 
       if (saveErr) return json({ error: saveErr.message }, 500);
 
-      await audit(session.email, "settings_update", "store_settings", "singleton", {
-        shipping_fee: fee,
-        free_shipping_threshold: threshold,
-        announcement,
-      });
+      await audit(session.email, "settings_update", "store_settings", "singleton", auditDetail);
 
-      return json({ ok: true, settings: { shipping_fee: fee, free_shipping_threshold: threshold, announcement } });
+      // Read back the whole row so the caller receives the stored document
+      // exactly as the database has it (post-sanitisation).
+      const { data: saved } = await supabase
+        .from("store_settings")
+        .select("shipping_fee, free_shipping_threshold, announcement, content, updated_at, updated_by")
+        .maybeSingle();
+
+      return json({
+        ok: true,
+        settings: {
+          shipping_fee: saved?.shipping_fee ?? patch.shipping_fee ?? 79,
+          free_shipping_threshold: saved?.free_shipping_threshold ?? patch.free_shipping_threshold ?? 1499,
+          announcement: (saved?.announcement ?? patch.announcement ?? null) as string | null,
+          content: saved?.content ?? patch.content ?? null,
+          updated_at: saved?.updated_at ?? new Date().toISOString(),
+          updated_by: saved?.updated_by ?? session.email,
+        },
+      });
     }
 
     return json({ error: "Not found" }, 404);

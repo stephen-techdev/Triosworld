@@ -40,6 +40,41 @@ export interface HeroContent {
   image: string;
 }
 
+/**
+ * One slide of the homepage hero.
+ *
+ * The hero used to be a single headline with a single photo; a menswear
+ * storefront wants a campaign reel. Each slide carries its own eyebrow,
+ * headline, blurb, calls to action and photo, so the operator can run a drop
+ * without a developer. The first slide is the shipped hero verbatim, so an
+ * unedited store renders the same headline it did before the slider existed.
+ */
+export interface HeroSlide {
+  eyebrow: string;
+  titleLines: string[];
+  subtitle: string;
+  ctaPrimaryLabel: string;
+  ctaPrimaryTo: string;
+  ctaSecondaryLabel: string;
+  ctaSecondaryTo: string;
+  image: string;
+  /** Longer on the main campaign shot, shorter on supporting angles. */
+  seconds: number;
+}
+
+export interface NavLink {
+  label: string;
+  to: string;
+}
+
+export interface HeaderContent {
+  /** Words before and after the centred wordmark on mobile, e.g. "TRIOS" / "WORLD". */
+  nav: NavLink[];
+  /** The "Hoodies" entry gets its own flag so the band can key off it. */
+  hoodiesLabel: string;
+  hoodiesTo: string;
+}
+
 export interface CategoryCard {
   slug: string;
   name: string;
@@ -134,11 +169,24 @@ export interface NewsletterContent {
   disclaimer: string;
 }
 
+export interface HoodieContent {
+  /** Homepage band: kicker, headline, blurb, CTA and photo. */
+  kicker: string;
+  titleLines: string[];
+  body: string;
+  ctaLabel: string;
+  ctaTo: string;
+  image: string;
+}
+
 export interface SiteContent {
   /** Extra rotating lines in the announcement bar (line 1 is the operator's). */
   announcement: string[];
   newsletter: NewsletterContent;
+  header: HeaderContent;
   hero: HeroContent;
+  heroSlides: HeroSlide[];
+  hoodies: HoodieContent;
   ticker: { showFreeShipping: boolean; items: string[] };
   categoriesHeading: { title: string; sub: string };
   categories: CategoryCard[];
@@ -180,6 +228,81 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     ctaSecondaryLabel: 'NEW ARRIVALS',
     ctaSecondaryTo: '/shop/new-arrivals',
     image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&w=1920',
+  },
+
+  // The opening slide is the shipped hero verbatim, so an operator who never
+  // opens Admin → Content sees exactly the homepage they saw before. The
+  // remaining slides are the curated luxury campaign set.
+  heroSlides: [
+    {
+      eyebrow: 'Three Vibes. One World.',
+      titleLines: ['YOUR WORLD.', 'YOUR STYLE.'],
+      subtitle: "Discover men's everyday essentials, oversized fits and statement streetwear.",
+      ctaPrimaryLabel: 'SHOP NOW',
+      ctaPrimaryTo: '/shop/shop-all',
+      ctaSecondaryLabel: 'NEW ARRIVALS',
+      ctaSecondaryTo: '/shop/new-arrivals',
+      image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      seconds: 7,
+    },
+    {
+      eyebrow: 'Heavyweight Essentials',
+      titleLines: ['BUILT FOR', 'EVERY DAY.'],
+      subtitle: 'Premium cotton, boxy cuts and a finish that survives the wash. The backbone of the rotation.',
+      ctaPrimaryLabel: 'SHOP ESSENTIALS',
+      ctaPrimaryTo: '/shop/essentials',
+      ctaSecondaryLabel: 'SHOP ALL',
+      ctaSecondaryTo: '/shop/shop-all',
+      image: 'https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      seconds: 6,
+    },
+    {
+      eyebrow: 'Editorial Drop 03',
+      titleLines: ['NOT JUST', 'A TEE.'],
+      subtitle: 'Original graphics, printed in India and made to say something. Wear the statement.',
+      ctaPrimaryLabel: 'SHOP GRAPHICS',
+      ctaPrimaryTo: '/shop/graphics',
+      ctaSecondaryLabel: 'NEW ARRIVALS',
+      ctaSecondaryTo: '/shop/new-arrivals',
+      image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      seconds: 6,
+    },
+    {
+      eyebrow: 'Streetwear',
+      titleLines: ['MOVE', 'DIFFERENT.'],
+      subtitle: 'Relaxed silhouettes and considered detailing for the way you actually dress.',
+      ctaPrimaryLabel: 'SHOP STREETWEAR',
+      ctaPrimaryTo: '/shop/streetwear',
+      ctaSecondaryLabel: 'SHOP ALL',
+      ctaSecondaryTo: '/shop/shop-all',
+      image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      seconds: 6,
+    },
+  ],
+
+  hoodies: {
+    kicker: 'Hoodie Season',
+    titleLines: ['LAYERS', 'THAT LAND.'],
+    body: 'Heavyweight fleece, clean lines and a fit that works over everything. The hoodie the rest of your wardrobe waits for.',
+    ctaLabel: 'Shop Hoodies',
+    ctaTo: '/shop/hoodies',
+    image: 'https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=1200&h=1200',
+  },
+
+  header: {
+    nav: [
+      { label: 'Home', to: '/home' },
+      { label: 'Shop All', to: '/shop/shop-all' },
+      { label: "Men's Tees", to: '/shop/men' },
+      { label: 'Hoodies', to: '/shop/hoodies' },
+      { label: 'New Arrivals', to: '/shop/new-arrivals' },
+      { label: 'Oversized', to: '/shop/oversized' },
+      { label: 'Graphic Tees', to: '/shop/graphics' },
+      { label: 'Streetwear', to: '/shop/streetwear' },
+      { label: 'Collections', to: '/collections' },
+    ],
+    hoodiesLabel: 'Hoodies',
+    hoodiesTo: '/shop/hoodies',
   },
 
   ticker: {

@@ -240,6 +240,19 @@
 .snap-x { scroll-snap-type: x mandatory; }
 .snap-start { scroll-snap-align: start; }
 
+/* ═══ Homepage hero Ken-Burns ═══
+   A slow push on the active slide's photo. CSS-driven (not JS) so it cannot
+   fight the cross-fade, and it is pinned by the global reduced-motion rule
+   below. `will-change` keeps the push on its own compositor layer. */
+.hero-kenburns {
+  animation: hero-kenburns 12s ease-out both;
+  will-change: transform;
+}
+@keyframes hero-kenburns {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.12); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

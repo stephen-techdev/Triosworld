@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Plus, X, Loader2, Check, Save, Upload, type LucideIcon,
   Megaphone, LayoutTemplate, Image as ImageIcon, Rows3, PackageCheck,
-  FileText, PanelBottom, Sparkles,
+  FileText, PanelBottom, Sparkles, GalleryHorizontal, Menu, Shirt,
 } from 'lucide-react';
 import {
   AdminAuthError, getSettings, saveSettings, uploadProductImage,
@@ -372,6 +372,55 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </p>
       </Group>
 
+      {/* ── Hero slides ─────────────────────────────────────────── */}
+      <Group icon={GalleryHorizontal} title="Homepage hero slides"
+        hint={`${c.heroSlides.length} slides — the campaign reel at the top`} defaultOpen>
+        <div className="space-y-3">
+          {c.heroSlides.map((s, i) => (
+            <ListRow key={i} onRemove={() => setC(p => ({ ...p, heroSlides: p.heroSlides.filter((_, k) => k !== i) }))}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-ink/50 uppercase tracking-wider">Slide {i + 1}</span>
+                <span className="text-[10px] text-ink/40">Shows for {s.seconds}s</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Eyebrow" value={s.eyebrow}
+                  onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, eyebrow: v } : x) }))} />
+                <Field label="Seconds on screen" value={String(s.seconds)} type="number"
+                  onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, seconds: Math.min(20, Math.max(3, Number(v) || 6)) } : x) }))} />
+              </div>
+              <ImageField label="Slide photo" value={s.image}
+                onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, image: v } : x) }))} />
+              <LinesField label="Headline — one line each" value={s.titleLines}
+                onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, titleLines: v } : x) }))} />
+              <Area label="Subtitle" value={s.subtitle} rows={2}
+                onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, subtitle: v } : x) }))} />
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Button 1" value={s.ctaPrimaryLabel}
+                    onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, ctaPrimaryLabel: v } : x) }))} />
+                  <Field label="Goes to" value={s.ctaPrimaryTo}
+                    onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, ctaPrimaryTo: v } : x) }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Button 2" value={s.ctaSecondaryLabel}
+                    onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, ctaSecondaryLabel: v } : x) }))} />
+                  <Field label="Goes to" value={s.ctaSecondaryTo}
+                    onChange={v => setC(p => ({ ...p, heroSlides: p.heroSlides.map((x, k) => k === i ? { ...x, ctaSecondaryTo: v } : x) }))} />
+                </div>
+              </div>
+            </ListRow>
+          ))}
+          <AddRow label="Add a slide" onClick={() => setC(p => ({ ...p, heroSlides: [...p.heroSlides, {
+            eyebrow: 'New drop', titleLines: ['YOUR HEADLINE', 'GOES HERE.'], subtitle: 'Say what makes this one worth a look.',
+            ctaPrimaryLabel: 'SHOP NOW', ctaPrimaryTo: '/shop/shop-all', ctaSecondaryLabel: 'SHOP ALL', ctaSecondaryTo: '/shop/shop-all',
+            image: c.hero.image, seconds: 6,
+          }] }))} />
+        </div>
+        <p className="text-[10px] text-ink/40">
+          Slides rotate in order and can be swiped. The first slide is the one most visitors see first.
+        </p>
+      </Group>
+
       {/* ── Ticker ──────────────────────────────────────────────── */}
       <Group icon={Rows3} title="Scrolling ticker" hint="The marquee strip under the hero">
         <label className="flex items-center gap-2.5 text-sm cursor-pointer">
@@ -431,6 +480,57 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           ...p,
           categories: [...p.categories, { slug: '', name: '', blurb: '', image: '' }],
         }))} />
+      </Group>
+
+      {/* ── Navigation ──────────────────────────────────────────── */}
+      <Group icon={Menu} title="Header menu" hint={`${c.header.nav.length} links — the nav on every page`}>
+        <div className="space-y-3">
+          {c.header.nav.map((l, i) => (
+            <ListRow key={i} onRemove={() => setC(p => ({ ...p, header: { ...p.header, nav: p.header.nav.filter((_, k) => k !== i) } }))}>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <Field label="Label" value={l.label}
+                  onChange={v => setC(p => ({ ...p, header: { ...p.header, nav: p.header.nav.map((x, k) => k === i ? { ...x, label: v } : x) } }))} />
+                <Field label="Goes to" value={l.to} placeholder="/shop/hoodies"
+                  onChange={v => setC(p => ({ ...p, header: { ...p.header, nav: p.header.nav.map((x, k) => k === i ? { ...x, to: v } : x) } }))} />
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" disabled={i === 0}
+                    onClick={() => setC(p => { const arr = [...p.header.nav]; [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]; return { ...p, header: { ...p.header, nav: arr } }; })}
+                    className="h-9 rounded-lg border border-ink/15 text-[11px] hover:border-ink disabled:opacity-30">↑ Earlier</button>
+                  <button type="button" disabled={i === c.header.nav.length - 1}
+                    onClick={() => setC(p => { const arr = [...p.header.nav]; [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]]; return { ...p, header: { ...p.header, nav: arr } }; })}
+                    className="h-9 rounded-lg border border-ink/15 text-[11px] hover:border-ink disabled:opacity-30">↓ Later</button>
+                </div>
+              </div>
+            </ListRow>
+          ))}
+          <AddRow label="Add menu link" onClick={() => setC(p => ({ ...p, header: { ...p.header, nav: [...p.header.nav, { label: '', to: '/shop/shop-all' }] } }))} />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-ink/8">
+          <Field label="Hoodies link label" value={c.header.hoodiesLabel}
+            onChange={v => setC(p => ({ ...p, header: { ...p.header, hoodiesLabel: v } }))} />
+          <Field label="Hoodies link goes to" value={c.header.hoodiesTo}
+            onChange={v => setC(p => ({ ...p, header: { ...p.header, hoodiesTo: v } }))} />
+        </div>
+      </Group>
+
+      {/* ── Hoodie band ─────────────────────────────────────────── */}
+      <Group icon={Shirt} title="Hoodie Season band" hint="The hoodie block on the homepage">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Kicker (small line above)" value={c.hoodies.kicker}
+            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, kicker: v } }))} />
+          <ImageField label="Band photo" value={c.hoodies.image}
+            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, image: v } }))} />
+        </div>
+        <LinesField label="Headline — one line each" value={c.hoodies.titleLines}
+          onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, titleLines: v } }))} />
+        <Area label="Body" value={c.hoodies.body} rows={2}
+          onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, body: v } }))} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Button" value={c.hoodies.ctaLabel}
+            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, ctaLabel: v } }))} />
+          <Field label="Goes to" value={c.hoodies.ctaTo}
+            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, ctaTo: v } }))} />
+        </div>
       </Group>
 
       {/* ── Home section headings + editorial/story/benefits ────── */}

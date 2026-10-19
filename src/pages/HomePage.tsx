@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   ArrowRight, ArrowLeft, ShieldCheck, BadgeCheck, Truck, Headphones,
   RefreshCw, Lock, Star, Globe, Heart, Zap, type LucideIcon,
@@ -11,7 +10,8 @@ import { liveCollection, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useSiteContent, type BenefitIconKey } from '@/lib/siteContent';
 import ProductCard, { ProductCardMotion } from '@/components/ProductCard';
-import { fadeUp, staggerParent, Reveal, Stagger, StaggerItem } from '@/components/Motion';
+import HeroSlider from '@/components/HeroSlider';
+import { Reveal, Stagger, StaggerItem } from '@/components/Motion';
 
 /**
  * The benefit tiles carry an icon chosen in Admin → Content. The icon set is
@@ -66,44 +66,8 @@ export default function HomePage() {
   return (
     <div>
       <SEO jsonLd={orgJsonLd} />
-      {/* HERO */}
-      <section className="relative min-h-[100svh] w-full overflow-hidden bg-ink flex items-end">
-        <motion.img
-          key={content.hero.image}
-          src={content.hero.image}
-          alt="TriosWorld men's fashion campaign"
-          initial={{ scale: 1.08 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 8, ease: 'easeOut' }}
-          className="absolute inset-0 w-full h-full object-cover object-center opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-ink/40" />
-        <motion.div
-          variants={staggerParent(0.12, 0.15)}
-          initial="hidden"
-          animate="show"
-          className="relative w-full page-container flex flex-col justify-end pb-14 sm:pb-16 md:pb-24 pt-24"
-        >
-          <motion.p variants={fadeUp} className="text-ivory/70 text-xs sm:text-sm tracking-widest uppercase mb-3 sm:mb-4">{content.hero.eyebrow}</motion.p>
-          <motion.h1 variants={fadeUp} className="text-ivory font-display font-bold fluid-h1 tracking-tightest">
-            {lines(content.hero.titleLines)}
-          </motion.h1>
-          <motion.p variants={fadeUp} className="text-ivory/80 mt-5 sm:mt-6 max-w-md fluid-hero-sub">
-            {content.hero.subtitle}
-          </motion.p>
-          <motion.div variants={fadeUp} className="mt-8 flex flex-wrap gap-3">
-            <Link to={content.hero.ctaPrimaryTo} className="group inline-flex items-center gap-2 bg-ivory text-ink px-6 sm:px-7 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base hover:bg-lime transition-colors duration-300 ease-smooth active:scale-[0.98]">
-              {content.hero.ctaPrimaryLabel} <ArrowRight size={18} className="transition-transform duration-300 ease-smooth group-hover:translate-x-1" />
-            </Link>
-            <Link to={content.hero.ctaSecondaryTo} className="inline-flex items-center gap-2 border border-ivory/40 text-ivory px-6 sm:px-7 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base hover:bg-ivory hover:text-ink transition-colors duration-300 ease-smooth active:scale-[0.98]">
-              {content.hero.ctaSecondaryLabel}
-            </Link>
-          </motion.div>
-          <motion.div variants={fadeUp} className="mt-10 hidden sm:flex items-center gap-3 text-ivory/50 text-[11px] tracking-widest uppercase">
-            <span className="h-8 w-px bg-ivory/30 animate-float" /> Scroll
-          </motion.div>
-        </motion.div>
-      </section>
+      {/* HERO — the operator's campaign reel (Admin → Content). */}
+      <HeroSlider slides={content.heroSlides} />
 
       {/* TICKER — first line can be the live free-shipping rule, rest is copy */}
       {ticker.length > 0 && (
@@ -147,6 +111,22 @@ export default function HomePage() {
             </StaggerItem>
           ))}
         </Stagger>
+      </section>
+
+      {/* HOODIE SEASON — the hoodie category gets its own homepage band, so
+          the range is visible without hunting through the shop filters. */}
+      <section className="page-container pb-16 md:pb-24 -mt-2">
+        <Reveal className="grid md:grid-cols-2 gap-1 md:gap-0 rounded-3xl overflow-hidden bg-ink shadow-lift">
+          <div className="relative min-h-[320px] md:min-h-[520px] overflow-hidden order-last md:order-first">
+            <img src={content.hoodies.image} alt="TriosWorld hoodies" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" loading="lazy" />
+          </div>
+          <div className="flex flex-col justify-center p-6 sm:p-8 md:p-16 text-ivory">
+            <p className="text-xs tracking-widest uppercase text-lime mb-4">{content.hoodies.kicker}</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold leading-[0.95]">{lines(content.hoodies.titleLines)}</h2>
+            <p className="text-ivory/70 mt-6 max-w-md">{content.hoodies.body}</p>
+            <Link to={content.hoodies.ctaTo} className="group mt-8 self-start bg-lime text-ink px-6 py-3 rounded-full font-semibold hover:bg-lime/90 transition-colors duration-300 ease-smooth active:scale-[0.98] inline-flex items-center gap-2">{content.hoodies.ctaLabel} <ArrowRight size={16} className="transition-transform duration-300 ease-smooth group-hover:translate-x-1" /></Link>
+          </div>
+        </Reveal>
       </section>
 
       {/* BESTSELLERS */}

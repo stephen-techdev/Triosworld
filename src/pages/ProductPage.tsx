@@ -49,8 +49,20 @@ export default function ProductPage() {
    * give the customer a proper look: swipe (or arrow keys) between shots, Esc
    * to close, and a locked body scroll so the page behind cannot drift. It
    * renders the same URLs already on screen, so it opens without a new fetch.
+   *
+   * The viewer shows EVERY photo of the product, not just the selected
+   * colour's. With one photo per colour, opening a single colour's photo and
+   * being unable to swipe to the others was the one place the full set was
+   * unreachable — so the colour's photo is shown first, the rest follow, and
+   * the customer can step through the lot without bouncing back to the swatch.
    */
-  const viewerImages = product?.variants[colorIdx]?.images ?? [];
+  const colorImages = product?.variants[colorIdx]?.images ?? [];
+  const allImages = product?.variants.flatMap(v => v.images) ?? [];
+  // Selected colour's photos first, then anything not already listed.
+  const viewerImages = [
+    ...colorImages,
+    ...allImages.filter(src => !colorImages.includes(src)),
+  ];
   const viewerCount = viewerImages.length;
 
   useEffect(() => {
@@ -172,15 +184,24 @@ export default function ProductPage() {
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewerIdx(imageIdx); } }}
               />
             </AnimatePresence>
-            {/* Affordance so a tap-to-zoom is discoverable rather than secret. */}
-            {variant.images.length > 0 && (
+            {/* Affordance so a tap-to-zoom is discoverable rather than secret.
+                When the product has more photos than the selected colour shows,
+                the count is spelled out so the customer knows the rest of the
+                gallery is one tap away. */}
+            {viewerCount > 0 && (
               <button
                 type="button"
                 onClick={() => setViewerIdx(imageIdx)}
-                aria-label="View photo full screen"
+                aria-label="View photos full screen"
                 className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-ivory/90 backdrop-blur px-3 py-2 text-[11px] font-medium text-ink shadow-sm hover:bg-ivory transition"
               >
-                <Maximize2 size={13} /> Full screen
+                <Maximize2 size={13} />
+                Full screen
+                {viewerCount > 1 && (
+                  <span className="text-ink/50">
+                    {viewerCount} photos
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -456,6 +477,29 @@ export default function ProductPage() {
               />
             </motion.div>
 
+            {/* Tappable arrows — swipe works, but an explicit control is what
+                makes "there are more photos" obvious on a phone. */}
+            {viewerCount > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setViewerIdx(i => (i === null ? i : (i - 1 + viewerCount) % viewerCount))}
+                  aria-label="Previous photo"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-ivory/15 hover:bg-ivory/30 backdrop-blur grid place-items-center text-ivory transition"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerIdx(i => (i === null ? i : (i + 1) % viewerCount))}
+                  aria-label="Next photo"
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-ivory/15 hover:bg-ivory/30 backdrop-blur grid place-items-center text-ivory transition"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </>
+            )}
+
             {viewerCount > 1 && (
               <div className="shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
                 <div className="flex gap-2 overflow-x-auto no-scrollbar justify-start sm:justify-center">
@@ -471,6 +515,25 @@ export default function ProductPage() {
                     </button>
                   ))}
                 </div>
+
+                {/* Colour switch inside the viewer, so a customer comparing two
+                    colourways never has to close it and hunt for the swatch. */}
+                {product.variants.length > 1 && (
+                  <div className="flex items-center justify-center gap-2.5 mt-3">
+                    {product.variants.map((v, i) => (
+                      <button
+                        key={v.color}
+                        type="button"
+                        onClick={() => { setColorIdx(i); setViewerIdx(0); }}
+                        aria-label={`Show ${v.color}`}
+                        title={v.color}
+                        className={`w-7 h-7 rounded-full border-2 transition ${colorIdx === i ? 'border-lime' : 'border-ivory/25'}`}
+                        style={{ backgroundColor: v.hex }}
+                      />
+                    ))}
+                  </div>
+                )}
+
                 <div className="hidden sm:flex items-center justify-center gap-6 mt-3 text-ivory/50 text-[11px]">
                   <span className="inline-flex items-center gap-1"><ChevronLeft size={13} /> Swipe or press ← →</span>
                   <span>Esc to close</span>

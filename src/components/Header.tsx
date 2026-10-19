@@ -8,7 +8,7 @@ import { useAuth } from '@/store/AuthContext';
 import { EASE, fadeUp, staggerParent } from '@/components/Motion';
 
 const navLinks = [
-  { label: 'Home', to: '/' },
+  { label: 'Home', to: '/home' },
   { label: 'Shop All', to: '/shop/shop-all' },
   { label: "Men's Tees", to: '/shop/men' },
   { label: 'New Arrivals', to: '/shop/new-arrivals' },

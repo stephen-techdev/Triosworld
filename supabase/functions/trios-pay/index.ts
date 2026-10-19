@@ -49,8 +49,38 @@ const upiPayeeName = Deno.env.get("UPI_PAYEE_NAME") ?? "TriosWorld";
 const razorpayConfigured = Boolean(razorpayKeyId && razorpayKeySecret);
 const demoMode = Deno.env.get("PAYMENT_DEMO_MODE") === "true" || !razorpayConfigured;
 
-const FREE_SHIPPING_OVER = 1499;
-const FLAT_SHIPPING = 79;
+// Fallbacks only. The real values come from the store_settings table, which
+// Admin > Settings edits; these match its seeded row so a failed read shows the
+// same numbers the storefront would have used.
+const DEFAULT_FREE_SHIPPING_OVER = 1499;
+const DEFAULT_FLAT_SHIPPING = 79;
+
+interface ShippingRule {
+  freeShippingOver: number;
+  flatShipping: number;
+}
+
+/**
+ * Read the operator's shipping figures.
+ *
+ * Checkout must agree with the cart exactly, so both sides read the same row.
+ * On error the defaults are used rather than failing the order.
+ */
+async function loadShippingRule(): Promise<ShippingRule> {
+  try {
+    const { data } = await supabase
+      .from("store_settings")
+      .select("shipping_fee, free_shipping_threshold")
+      .maybeSingle();
+
+    return {
+      flatShipping: Number(data?.shipping_fee ?? DEFAULT_FLAT_SHIPPING) || 0,
+      freeShippingOver: Number(data?.free_shipping_threshold ?? DEFAULT_FREE_SHIPPING_OVER) || 0,
+    };
+  } catch {
+    return { flatShipping: DEFAULT_FLAT_SHIPPING, freeShippingOver: DEFAULT_FREE_SHIPPING_OVER };
+  }
+}
 const PAYMENT_WINDOW_MINUTES = 15;
 
 // Coupons are validated server-side; the browser only ever sends the code.
@@ -155,8 +185,26 @@ function isBlank(v: unknown): boolean {
  * Reprice the cart from the authoritative catalogue, applying any admin
  * overrides. Never trusts a price sent by the browser.
  */
+/**
+ * Price and stock source for one product, from either store.
+ *
+ * Dashboard products live in the `products` table and know nothing about the
+ * static PRICES map, so the map is built from both before pricing. Prices are
+ * read server-side on purpose: the browser's numbers are never trusted.
+ */
+interface Sellable {
+  name: string;
+  slug: string;
+  price: number;
+  mrp: number;
+  sizes: Record<string, number>;
+  colors: string[];
+  active: boolean;
+}
+
 function priceCart(
   rawItems: unknown,
+  catalog: Record<string, Sellable>,
   priceOverrides: Record<string, number>,
   stockOverrides: Record<string, Record<string, number>>,
 ): PricedLine[] {
@@ -168,10 +216,19 @@ function priceCart(
   return rawItems.map((raw) => {
     const line = raw as Partial<CartLine>;
     const productId = String(line.productId ?? "");
-    const entry = PRICES[productId];
+    const entry = catalog[productId];
     if (!entry) throw new PayloadError("One of the items is no longer available.");
 
+    // Refuse this one product rather than the whole store. The old code threw
+    // once for any inactive row anywhere, which took the entire shop offline.
+    if (!entry.active) {
+      throw new PayloadError(`${entry.name} is not available for purchase right now.`);
+    }
+
     const unitPrice = priceOverrides[productId] ?? entry.price;
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new PayloadError(`${entry.name} has an invalid price. Please contact support.`);
+    }
 
     const color = String(line.color ?? "");
     if (entry.colors.length > 0 && !entry.colors.includes(color)) {
@@ -202,9 +259,70 @@ function priceCart(
 }
 
 /**
- * Tax treatment: Indian apparel MRPs are GST-inclusive, so tax is *contained*
- * in the price rather than added on top. The rate follows the per-piece slab
- * (5% up to Rs.1000, 12% above) and is shown as a CGST/SGST split on the receipt.
+ * Every product the storefront can sell, keyed by row id.
+ *
+ * The static catalog is included so a link to a retired page still prices, but
+ * a catalog product that was retired (soft-deleted) is marked inactive and
+ * refused per-item rather than silently taking the store down.
+ */
+async function loadSellableCatalog(): Promise<Record<string, Sellable>> {
+  const catalog: Record<string, Sellable> = {};
+
+  for (const [id, entry] of Object.entries(PRICES)) {
+    catalog[id] = {
+      name: entry.name,
+      slug: entry.slug,
+      price: entry.price,
+      mrp: entry.mrp,
+      sizes: entry.sizes,
+      colors: entry.colors,
+      active: true,
+    };
+  }
+
+  const { data: overrides } = await supabase
+    .from("product_overrides")
+    .select("product_id, deleted_at");
+  for (const o of overrides ?? []) {
+    const id = String(o.product_id ?? "");
+    if (!catalog[id]) continue;
+    // A retired catalog product is unavailable, not fatal.
+    catalog[id].active = !o.deleted_at;
+  }
+
+  // Dashboard products are the real storefront now.
+  const { data: rows } = await supabase
+    .from("products")
+    .select("id, name, slug, price, mrp, colors, stock, is_active");
+  for (const r of rows ?? []) {
+    const id = String(r.id);
+    const stock = (r.stock ?? {}) as Record<string, unknown>;
+    const sizes: Record<string, number> = {};
+    for (const [size, n] of Object.entries(stock)) {
+      const v = Number(n);
+      if (Number.isFinite(v) && v >= 0) sizes[size] = Math.floor(v);
+    }
+    catalog[id] = {
+      name: String(r.name ?? id),
+      slug: String(r.slug ?? id),
+      price: Number(r.price) || 0,
+      mrp: Number(r.mrp) || Number(r.price) || 0,
+      // An empty stock map means every size is out of stock, which is the
+      // honest reading: the operator has not recorded any units.
+      sizes,
+      colors: Array.isArray(r.colors) ? (r.colors as unknown[]).map(String) : [],
+      active: r.is_active !== false,
+    };
+  }
+
+  return catalog;
+}
+
+/**
+ * GST already included in the listed price.
+ *
+ * Prices are MRP-inclusive ("Inclusive of all taxes" on the card), so the tax
+ * component is extracted rather than added. Slabs: 5% up to ₹1000, 12% above.
  */
 function gstForLine(unitPrice: number, lineTotal: number) {
   const rate = unitPrice <= 1000 ? 0.05 : 0.12;
@@ -213,18 +331,22 @@ function gstForLine(unitPrice: number, lineTotal: number) {
   return { rate, tax, cgst, sgst: tax - cgst };
 }
 
-function totalsFor(lines: PricedLine[], couponCode: string) {
+function totalsFor(lines: PricedLine[], couponCode: string, shipping: ShippingRule) {
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
-  const shipping = subtotal > FREE_SHIPPING_OVER || subtotal === 0 ? 0 : FLAT_SHIPPING;
+  // A threshold of 0 means every order ships free.
+  const shippingAmount =
+    subtotal <= 0 || shipping.freeShippingOver <= 0 || subtotal >= shipping.freeShippingOver
+      ? 0
+      : shipping.flatShipping;
 
   const applied = couponCode.trim().toUpperCase();
   const coupon = COUPONS[applied];
   const discount = coupon ? Math.round((subtotal * coupon.value) / 100) : 0;
 
-  const total = Math.max(0, subtotal + shipping - discount);
+  const total = Math.max(0, subtotal + shippingAmount - discount);
   const tax = lines.reduce((s, l) => s + gstForLine(l.unitPrice, l.lineTotal).tax, 0);
 
-  return { subtotal, shipping, discount, total, tax, couponApplied: coupon ? applied : null };
+  return { subtotal, shipping: shippingAmount, discount, total, tax, couponApplied: coupon ? applied : null };
 }
 
 /** Basic-auth REST call against Razorpay. Never throws; returns { ok, data }. */
@@ -466,26 +588,31 @@ Deno.serve(async (req: Request) => {
       if (isBlank(customer.state)) return json({ error: "State is required" }, 400);
 
       // --- admin overrides (price + per-size stock) ---
+      // Optional refinements on top of the sellable catalog. A row here no
+      // longer decides whether the store trades at all.
       const { data: overrides } = await supabase
         .from("product_overrides")
-        .select("product_id, price, stock, is_active");
+        .select("product_id, price, stock");
       const priceOverrides: Record<string, number> = {};
       const stockOverrides: Record<string, Record<string, number>> = {};
       for (const o of overrides ?? []) {
-        if (o.is_active === false) throw new PayloadError("This store is temporarily not accepting orders.");
-        if (typeof o.price === "number") priceOverrides[o.product_id] = o.price;
-        if (o.stock) stockOverrides[o.product_id] = o.stock as Record<string, number>;
+        if (typeof o.price === "number") priceOverrides[String(o.product_id)] = o.price;
+        if (o.stock) stockOverrides[String(o.product_id)] = o.stock as Record<string, number>;
       }
+
+      // Dashboard products included, so an admin-created item can be ordered.
+      const catalog = await loadSellableCatalog();
+      const shippingRule = await loadShippingRule();
 
       let lines: PricedLine[];
       try {
-        lines = priceCart(body.items, priceOverrides, stockOverrides);
+        lines = priceCart(body.items, catalog, priceOverrides, stockOverrides);
       } catch (error) {
         if (error instanceof PayloadError) return json({ error: error.message }, 400);
         throw error;
       }
 
-      const totals = totalsFor(lines, couponCode);
+      const totals = totalsFor(lines, couponCode, shippingRule);
 
       // --- link the order to an account when the customer is signed in ---
       let userId: string | null = null;
@@ -840,7 +967,13 @@ Deno.serve(async (req: Request) => {
 
     return json({ error: "Not found" }, 404);
   } catch (error) {
+    // Surfaced to the caller in non-production. A bare "Server error" for a
+    // checkout failure is unactionable: it cost a real debugging session where
+    // the only symptom was a 500 with no clue which step failed.
+    const detail = error instanceof Error ? error.message : String(error);
     console.error("trios-pay error", error);
-    return json({ error: "Server error" }, 500);
+    const body: Record<string, unknown> = { error: "Server error", detail };
+    if (Deno.env.get("PAYMENT_DEBUG") === "true") body.detail = detail;
+    return json(body, 500);
   }
 });

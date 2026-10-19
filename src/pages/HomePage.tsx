@@ -68,7 +68,6 @@ export default function HomePage() {
       <SEO jsonLd={orgJsonLd} />
       {/* HERO — the operator's campaign reel (Admin → Content). */}
       <HeroSlider slides={content.heroSlides} />
-
       {/* TICKER — first line can be the live free-shipping rule, rest is copy */}
       {ticker.length > 0 && (
         <div className="border-y border-ink/10 bg-ivory overflow-hidden py-4">
@@ -111,22 +110,6 @@ export default function HomePage() {
             </StaggerItem>
           ))}
         </Stagger>
-      </section>
-
-      {/* HOODIE SEASON — the hoodie category gets its own homepage band, so
-          the range is visible without hunting through the shop filters. */}
-      <section className="page-container pb-16 md:pb-24 -mt-2">
-        <Reveal className="grid md:grid-cols-2 gap-1 md:gap-0 rounded-3xl overflow-hidden bg-ink shadow-lift">
-          <div className="relative min-h-[320px] md:min-h-[520px] overflow-hidden order-last md:order-first">
-            <img src={content.hoodies.image} alt="TriosWorld hoodies" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" loading="lazy" />
-          </div>
-          <div className="flex flex-col justify-center p-6 sm:p-8 md:p-16 text-ivory">
-            <p className="text-xs tracking-widest uppercase text-lime mb-4">{content.hoodies.kicker}</p>
-            <h2 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold leading-[0.95]">{lines(content.hoodies.titleLines)}</h2>
-            <p className="text-ivory/70 mt-6 max-w-md">{content.hoodies.body}</p>
-            <Link to={content.hoodies.ctaTo} className="group mt-8 self-start bg-lime text-ink px-6 py-3 rounded-full font-semibold hover:bg-lime/90 transition-colors duration-300 ease-smooth active:scale-[0.98] inline-flex items-center gap-2">{content.hoodies.ctaLabel} <ArrowRight size={16} className="transition-transform duration-300 ease-smooth group-hover:translate-x-1" /></Link>
-          </div>
-        </Reveal>
       </section>
 
       {/* BESTSELLERS */}

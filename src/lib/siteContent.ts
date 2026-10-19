@@ -70,9 +70,6 @@ export interface NavLink {
 export interface HeaderContent {
   /** Words before and after the centred wordmark on mobile, e.g. "TRIOS" / "WORLD". */
   nav: NavLink[];
-  /** The "Hoodies" entry gets its own flag so the band can key off it. */
-  hoodiesLabel: string;
-  hoodiesTo: string;
 }
 
 export interface CategoryCard {
@@ -169,14 +166,9 @@ export interface NewsletterContent {
   disclaimer: string;
 }
 
-export interface HoodieContent {
-  /** Homepage band: kicker, headline, blurb, CTA and photo. */
-  kicker: string;
-  titleLines: string[];
-  body: string;
-  ctaLabel: string;
-  ctaTo: string;
-  image: string;
+export interface HeaderContent {
+  /** The links shown in the site header and mobile drawer. */
+  nav: NavLink[];
 }
 
 export interface SiteContent {
@@ -186,7 +178,6 @@ export interface SiteContent {
   header: HeaderContent;
   hero: HeroContent;
   heroSlides: HeroSlide[];
-  hoodies: HoodieContent;
   ticker: { showFreeShipping: boolean; items: string[] };
   categoriesHeading: { title: string; sub: string };
   categories: CategoryCard[];
@@ -227,7 +218,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     ctaPrimaryTo: '/shop/shop-all',
     ctaSecondaryLabel: 'NEW ARRIVALS',
     ctaSecondaryTo: '/shop/new-arrivals',
-    image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
   },
 
   // The opening slide is the shipped hero verbatim, so an operator who never
@@ -242,7 +233,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/shop-all',
       ctaSecondaryLabel: 'NEW ARRIVALS',
       ctaSecondaryTo: '/shop/new-arrivals',
-      image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 7,
     },
     {
@@ -253,7 +244,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/essentials',
       ctaSecondaryLabel: 'SHOP ALL',
       ctaSecondaryTo: '/shop/shop-all',
-      image: 'https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      image: 'https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
     {
@@ -264,7 +255,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/graphics',
       ctaSecondaryLabel: 'NEW ARRIVALS',
       ctaSecondaryTo: '/shop/new-arrivals',
-      image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
     {
@@ -275,34 +266,22 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/streetwear',
       ctaSecondaryLabel: 'SHOP ALL',
       ctaSecondaryTo: '/shop/shop-all',
-      image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?auto=compress&cs=tinysrgb&w=1920',
+      image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
   ],
-
-  hoodies: {
-    kicker: 'Hoodie Season',
-    titleLines: ['LAYERS', 'THAT LAND.'],
-    body: 'Heavyweight fleece, clean lines and a fit that works over everything. The hoodie the rest of your wardrobe waits for.',
-    ctaLabel: 'Shop Hoodies',
-    ctaTo: '/shop/hoodies',
-    image: 'https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=1200&h=1200',
-  },
 
   header: {
     nav: [
       { label: 'Home', to: '/home' },
       { label: 'Shop All', to: '/shop/shop-all' },
       { label: "Men's Tees", to: '/shop/men' },
-      { label: 'Hoodies', to: '/shop/hoodies' },
       { label: 'New Arrivals', to: '/shop/new-arrivals' },
       { label: 'Oversized', to: '/shop/oversized' },
       { label: 'Graphic Tees', to: '/shop/graphics' },
       { label: 'Streetwear', to: '/shop/streetwear' },
       { label: 'Collections', to: '/collections' },
     ],
-    hoodiesLabel: 'Hoodies',
-    hoodiesTo: '/shop/hoodies',
   },
 
   ticker: {

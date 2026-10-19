@@ -249,8 +249,8 @@
   will-change: transform;
 }
 @keyframes hero-kenburns {
-  from { transform: scale(1.02); }
-  to { transform: scale(1.12); }
+  from { transform: scale(1.01); }
+  to { transform: scale(1.07); }
 }
 
 @media (prefers-reduced-motion: reduce) {

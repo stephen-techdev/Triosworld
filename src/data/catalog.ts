@@ -326,7 +326,6 @@ export const PRODUCTS: Product[] = [
 export const COLLECTIONS = [
   { slug: 'shop-all', name: 'Shop All', blurb: 'Every TriosWorld tee, in one place.' },
   { slug: 'men', name: "Men's T-Shirts", blurb: 'Oversized, regular and street cuts for men.' },
-  { slug: 'hoodies', name: 'Hoodies', blurb: 'Heavyweight fleece, clean lines, everyday layering.' },
   { slug: 'oversized', name: 'Oversized T-Shirts', blurb: 'Boxy fits, drop shoulders, heavyweight feel.' },
   { slug: 'graphics', name: 'Graphic Tees', blurb: 'Original in-house prints and typography.' },
   { slug: 'essentials', name: 'Minimal Essentials', blurb: 'The everyday backbone of your rotation.' },

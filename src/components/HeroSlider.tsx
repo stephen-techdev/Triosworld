@@ -69,7 +69,7 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
   return (
     <section
-      className="relative min-h-[100svh] w-full overflow-hidden bg-ink flex items-end"
+      className="relative min-h-[100svh] md:min-h-0 md:h-[86vh] md:max-h-[860px] w-full overflow-hidden bg-ink flex items-end"
       aria-roledescription="carousel"
       aria-label="Featured collections"
       onTouchStart={(e) => { dragX.current = e.touches[0].clientX; }}
@@ -96,11 +96,15 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           initial={false}
           animate={{ opacity: i === idx ? 0.8 : 0 }}
           transition={{ duration: reduced ? 0 : 1.4, ease: 'easeInOut' }}
-          className={`absolute inset-0 w-full h-full object-cover object-center ${i === idx && !reduced ? 'hero-kenburns' : ''}`}
+          className={`absolute inset-0 w-full h-full object-cover object-[50%_32%] md:object-[50%_28%] ${i === idx && !reduced ? 'hero-kenburns' : ''}`}
         />
       ))}
 
       <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-ink/40" />
+      {/* On wide screens the photo is mostly hidden behind the copy at the
+          bottom-left; a left-weighted scrim keeps the headline readable
+          without flattening the whole image. */}
+      <div className="hidden md:block absolute inset-0 bg-gradient-to-r from-ink/75 via-ink/25 to-transparent" />
 
       {/* Copy. Keyed on the slide index so each change re-runs the stagger. */}
       <motion.div

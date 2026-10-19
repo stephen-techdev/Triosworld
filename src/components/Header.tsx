@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Heart, ShoppingBag, Menu, X } from 'lucide-react';
+import { Search, User, Heart, ShoppingBag, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wordmark } from '@/components/Brand';
 import { useStore } from '@/store/StoreContext';
@@ -19,7 +19,6 @@ const megaGroups = [
   { title: 'Shop', links: [
     { label: 'Shop All', to: '/shop/shop-all' },
     { label: "Men's Tees", to: '/shop/men' },
-    { label: 'Hoodies', to: '/shop/hoodies' },
     { label: 'Oversized', to: '/shop/oversized' },
     { label: 'Graphic Tees', to: '/shop/graphics' },
   ]},
@@ -121,61 +120,20 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
             </div>
           </div>
 
-          {/* ── Desktop: utility row · nav row · centred wordmark ────────── */}
-          <div className="hidden xl:block">
-            {/* Row 1 — announcements and account actions, quiet and small. */}
-            <div className="flex items-center justify-between h-11 border-b border-ink/[0.06]">
-              <p className="text-[11px] tracking-widest uppercase text-ink/45">{content.hero.eyebrow}</p>
-              <div className="flex items-center gap-1">
-                <button onClick={onOpenSearch} aria-label="Search" className={iconBtn}><Search size={18} /></button>
-                {user ? (
-                  <Link to="/account" aria-label={`Account: ${user.full_name}`} className="flex items-center gap-2 px-2 py-1.5 rounded-full hover:bg-ink/5 transition-colors">
-                    <div className="w-6 h-6 rounded-full bg-ink text-ivory flex items-center justify-center text-[11px] font-semibold shrink-0">
-                      {user.full_name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-medium max-w-24 truncate">{user.full_name.split(' ')[0]}</span>
-                  </Link>
-                ) : (
-                  <Link to="/login" className="text-xs font-medium text-ink/70 hover:text-ink transition-colors px-2 py-1.5">Sign In</Link>
-                )}
-                <Link to="/wishlist" aria-label="Wishlist" className={iconBtn}>
-                  <Heart size={18} />
-                  <AnimatePresence>
-                    {wishlist.length > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                        className="absolute -top-0.5 -right-0.5 bg-ink text-ivory text-[10px] font-semibold rounded-full h-4 min-w-4 px-1 flex items-center justify-center"
-                      >
-                        {wishlist.length}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </Link>
-                <button onClick={onOpenCart} aria-label="Cart" className={iconBtn}>
-                  <ShoppingBag size={18} />
-                  <AnimatePresence>
-                    {cartCount > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                        className="absolute -top-1 -right-1 bg-lime text-ink text-[10px] font-semibold rounded-full h-4 min-w-4 px-1 flex items-center justify-center"
-                      >
-                        {cartCount}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </div>
+          {/* ── Desktop: one row — wordmark, centred nav, actions ────────── */}
+          <div className="hidden xl:flex items-center justify-between h-20">
+            <div className="flex items-center flex-1">
+              <Link to="/home" aria-label="TriosWorld home" className="text-2xl text-ink transition-opacity hover:opacity-70">
+                <Wordmark variant="ink" />
+              </Link>
             </div>
 
-            {/* Row 2 — the shop nav, centred under the utility row. */}
-            <nav className="flex items-center justify-center gap-5 2xl:gap-8 h-12" onMouseLeave={leaveMega}>
+            <nav className="flex items-center gap-5 2xl:gap-8" onMouseLeave={leaveMega}>
               {navLinks.map(l => (
-                <div key={`${l.label}-${l.to}`} onMouseEnter={leaveMega} className="relative py-2">
+                <div key={`${l.label}-${l.to}`} onMouseEnter={l.to === '/collections' ? enterMega : leaveMega} className="relative py-2">
                   <Link
                     to={l.to}
-                    className="relative text-[13px] font-medium text-ink/75 hover:text-ink transition-colors whitespace-nowrap after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-ink after:transition-transform after:duration-300 after:ease-smooth hover:after:scale-x-100"
+                    className="relative text-sm font-medium text-ink/75 hover:text-ink transition-colors whitespace-nowrap after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-ink after:transition-transform after:duration-300 after:ease-smooth hover:after:scale-x-100"
                   >
                     {l.label}
                   </Link>
@@ -183,11 +141,48 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               ))}
             </nav>
 
-            {/* Row 3 — the wordmark alone, centred, on a rule. */}
-            <div className="flex items-center justify-center pb-3.5 pt-1" onMouseEnter={enterMega}>
-              <Link to="/home" aria-label="TriosWorld home" className="text-2xl text-ink transition-opacity hover:opacity-70">
-                <Wordmark variant="ink" />
+            <div className="flex items-center gap-1 2xl:gap-2 flex-1 justify-end">
+              <button onClick={onOpenSearch} aria-label="Search" className={iconBtn}><Search size={20} /></button>
+              {user ? (
+                <Link to="/account" aria-label={`Account: ${user.full_name}`} className="flex items-center gap-2 p-1.5 min-h-9 rounded-full hover:bg-ink/5 transition-colors">
+                  <div className="w-7 h-7 rounded-full bg-ink text-ivory flex items-center justify-center text-xs font-semibold shrink-0">
+                    {user.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium max-w-20 truncate">{user.full_name.split(' ')[0]}</span>
+                </Link>
+              ) : (
+                <Link to="/login" aria-label="Sign In" className={`flex ${iconBtn}`}>
+                  <User size={20} />
+                </Link>
+              )}
+              <Link to="/wishlist" aria-label="Wishlist" className={iconBtn}>
+                <Heart size={20} />
+                <AnimatePresence>
+                  {wishlist.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                      className="absolute -top-0.5 -right-0.5 bg-ink text-ivory text-[10px] font-semibold rounded-full h-4 min-w-4 px-1 flex items-center justify-center"
+                    >
+                      {wishlist.length}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </Link>
+              <button onClick={onOpenCart} aria-label="Cart" className={iconBtn}>
+                <ShoppingBag size={20} />
+                <AnimatePresence>
+                  {cartCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                      className="absolute -top-1 -right-1 bg-lime text-ink text-[10px] font-semibold rounded-full h-4 min-w-4 px-1 flex items-center justify-center"
+                    >
+                      {cartCount}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
             </div>
           </div>
         </div>
@@ -215,8 +210,8 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
                     </ul>
                   </div>
                 ))}
-                <Link to={content.header.hoodiesTo} onClick={() => setMegaOpen(false)} className="group relative overflow-hidden rounded-2xl shadow-soft">
-                  <img src={content.hoodies.image} alt="New arrivals" className="w-full h-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105" />
+                <Link to="/shop/new-arrivals" onClick={() => setMegaOpen(false)} className="group relative overflow-hidden rounded-2xl shadow-soft">
+                  <img src="https://images.pexels.com/photos/37186394/pexels-photo-37186394.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=600&h=600" alt="New arrivals" className="w-full h-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent flex items-end p-4">
                     <span className="text-ivory font-display font-semibold text-lg">New Drops →</span>
                   </div>

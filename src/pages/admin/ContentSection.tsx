@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Plus, X, Loader2, Check, Save, Upload, type LucideIcon,
   Megaphone, LayoutTemplate, Image as ImageIcon, Rows3, PackageCheck,
-  FileText, PanelBottom, Sparkles, GalleryHorizontal, Menu, Shirt,
+  FileText, PanelBottom, Sparkles, GalleryHorizontal, Menu,
 } from 'lucide-react';
 import {
   AdminAuthError, getSettings, saveSettings, uploadProductImage,
@@ -506,30 +506,9 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           <AddRow label="Add menu link" onClick={() => setC(p => ({ ...p, header: { ...p.header, nav: [...p.header.nav, { label: '', to: '/shop/shop-all' }] } }))} />
         </div>
         <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-ink/8">
-          <Field label="Hoodies link label" value={c.header.hoodiesLabel}
-            onChange={v => setC(p => ({ ...p, header: { ...p.header, hoodiesLabel: v } }))} />
-          <Field label="Hoodies link goes to" value={c.header.hoodiesTo}
-            onChange={v => setC(p => ({ ...p, header: { ...p.header, hoodiesTo: v } }))} />
-        </div>
-      </Group>
-
-      {/* ── Hoodie band ─────────────────────────────────────────── */}
-      <Group icon={Shirt} title="Hoodie Season band" hint="The hoodie block on the homepage">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Kicker (small line above)" value={c.hoodies.kicker}
-            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, kicker: v } }))} />
-          <ImageField label="Band photo" value={c.hoodies.image}
-            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, image: v } }))} />
-        </div>
-        <LinesField label="Headline — one line each" value={c.hoodies.titleLines}
-          onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, titleLines: v } }))} />
-        <Area label="Body" value={c.hoodies.body} rows={2}
-          onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, body: v } }))} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Button" value={c.hoodies.ctaLabel}
-            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, ctaLabel: v } }))} />
-          <Field label="Goes to" value={c.hoodies.ctaTo}
-            onChange={v => setC(p => ({ ...p, hoodies: { ...p.hoodies, ctaTo: v } }))} />
+          <p className="text-[10px] text-ink/40 sm:col-span-2">
+            These links appear in the header on desktop and in the mobile menu.
+          </p>
         </div>
       </Group>
 

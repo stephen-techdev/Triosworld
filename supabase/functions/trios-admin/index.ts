@@ -1033,10 +1033,12 @@ function storageKeyFromUrl(url: string): string | null {
         return json({ error: "Free-shipping threshold must be a whole number of rupees, zero or more" }, 400);
       }
 
-      const announcement = body.announcement == null ? null : String(body.announcement).trim().slice(0, 200);
-      if (announcement === "") {
-        return json({ error: "Announcement cannot be blank. Leave the field as it was, or write a message." }, 400);
-      }
+      // Blank is allowed and means "derive it": the storefront then builds the
+      // free-shipping line from the threshold, so the two cannot drift apart.
+      const announcement =
+        body.announcement == null || String(body.announcement).trim() === ""
+          ? null
+          : String(body.announcement).trim().slice(0, 200);
 
       // Upsert against the single-row key so a fresh database works too.
       const { error: saveErr } = await supabase

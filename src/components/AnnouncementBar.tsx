@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EASE } from '@/components/Motion';
-import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
+import { announcementLine, useStoreSettings } from '@/lib/storeSettings';
 import { formatINR } from '@/data/catalog';
 
-// The first message is built from the operator's own shipping numbers, so the
-// bar cannot advertise a threshold the checkout does not apply.
+// Messages 2 and 3 are brand copy. The first is the operator's own
+// announcement, falling back to the free-shipping line derived from their
+// threshold — so a saved announcement actually shows, and raising the
+// threshold updates this bar without editing copy.
 const fixedMessages = [
   'New drops every week. Three vibes, one world.',
   'Use code TRIO10 for 10% off your first order.',
@@ -15,7 +17,7 @@ export default function AnnouncementBar() {
   const [i, setI] = useState(0);
   const { settings } = useStoreSettings();
 
-  const messages = [freeShippingLabel(settings, formatINR), ...fixedMessages];
+  const messages = [announcementLine(settings, formatINR), ...fixedMessages];
 
   useEffect(() => {
     const id = setInterval(() => setI(p => (p + 1) % messages.length), 5200);

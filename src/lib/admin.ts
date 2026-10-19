@@ -119,7 +119,7 @@ export interface AdminProduct {
 export interface AdminSettings {
   shipping_fee: number;
   free_shipping_threshold: number;
-  /** The rotating announcement line. Empty means "leave as it is". */
+  /** Rotating top-bar line. Null/blank derives it from the threshold. */
   announcement: string | null;
   updated_at?: string | null;
   updated_by?: string | null;

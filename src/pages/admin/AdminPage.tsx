@@ -1330,16 +1330,15 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
     if (!Number.isInteger(thresholdNum) || thresholdNum < 0) {
       setShopError('Free-shipping threshold must be a whole number of rupees, zero or more.'); return;
     }
-    if (!announcement.trim()) {
-      setShopError('The announcement line cannot be blank.'); return;
-    }
+    // The announcement is optional: blank means the bar derives the
+    // free-shipping line from the threshold, so it can never contradict it.
 
     setShopState('saving');
     try {
       const { settings } = await saveSettings({
         shipping_fee: feeNum,
         free_shipping_threshold: thresholdNum,
-        announcement: announcement.trim(),
+        announcement: announcement.trim() || null,
       });
       // Keep the running storefront in step so the admin preview is honest.
       setStoreSettings({
@@ -1416,13 +1415,14 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
           </div>
 
           <label className="block">
-            <span className="text-xs text-ink/60">Announcement line</span>
+            <span className="text-xs text-ink/60">Announcement line (optional)</span>
             <input type="text" maxLength={200} value={announcement}
-              onChange={e => setAnnouncement(e.target.value)} placeholder="Free shipping over ₹1499 — across India."
+              onChange={e => setAnnouncement(e.target.value)} placeholder="Leave blank to show the free-shipping line"
               className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
             <span className="text-[11px] text-ink/40">
-              Rotates in the top bar. Leave the shipping wording to the fields above —
-              this line is shown as written.
+              Rotates in the top bar. Leave it blank and the bar shows
+              {' '}<em>Free shipping over {formatINR(Number(threshold) || 0)}</em> automatically, which
+              keeps up with the threshold above.
             </span>
           </label>
 

@@ -21,7 +21,9 @@ export interface StoreSettings {
 export const DEFAULT_SETTINGS: StoreSettings = {
   shippingFee: 79,
   freeShippingThreshold: 1499,
-  announcement: 'Free shipping on orders over ₹1499 — across India.',
+  // Empty means "derive it": the bar then shows the free-shipping line built
+  // from the threshold, so the operator never has to retype it after a change.
+  announcement: '',
 };
 
 let cached: StoreSettings | null = null;
@@ -54,7 +56,7 @@ function load(): Promise<StoreSettings> {
       shippingFee: Number(row?.shipping_fee ?? DEFAULT_SETTINGS.shippingFee) || 0,
       freeShippingThreshold:
         Number(row?.free_shipping_threshold ?? DEFAULT_SETTINGS.freeShippingThreshold) || 0,
-      announcement: row?.announcement?.trim() || DEFAULT_SETTINGS.announcement,
+      announcement: row?.announcement?.trim() ?? '',
     };
     return cached;
   })().finally(() => {
@@ -136,4 +138,17 @@ export function amountToFreeShipping(settings: StoreSettings, subtotal: number):
 export function freeShippingLabel(settings: StoreSettings, format: (n: number) => string): string {
   if (settings.freeShippingThreshold <= 0) return 'Free shipping on all orders';
   return `Free shipping over ${format(settings.freeShippingThreshold)}`;
+}
+
+/**
+ * The announcement bar's first line.
+ *
+ * The operator's own text wins. When they leave it blank the line is derived
+ * from the free-shipping threshold, so raising the threshold updates the bar
+ * without anyone editing copy. This is what actually renders — an announcement
+ * saved from the dashboard but never read here would look saved and change
+ * nothing.
+ */
+export function announcementLine(settings: StoreSettings, format: (n: number) => string): string {
+  return settings.announcement.trim() || freeShippingLabel(settings, format);
 }

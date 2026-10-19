@@ -9,7 +9,16 @@ import {
 import SEO from '@/components/SEO';
 import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
-import { CATEGORIES, SIZES, formatINR } from '@/data/catalog';
+import { CATEGORIES, SIZES, SUGGESTED_BADGES, SUGGESTED_FABRICS, SUGGESTED_FITS, formatINR } from '@/data/catalog';
+import ComboField from '@/components/ComboField';
+import { setStoreSettings } from '@/lib/storeSettings';
+
+/**
+ * Collections the shop already has pages for. Free text is still accepted — a
+ * collection with no page of its own still filters correctly under Shop All and
+ * appears on the product page breadcrumb.
+ */
+const COLLECTION_SUGGESTIONS = CATEGORIES.map(c => c.slug);
 import {
   AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
@@ -18,7 +27,6 @@ import {
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview,
 } from '@/lib/admin';
-import { setStoreSettings } from '@/lib/storeSettings';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'feedback' | 'settings';
 
@@ -1057,6 +1065,9 @@ function ProductCard({ product, onSaved, onAuthFail }: {
             <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
               {product.stock_total} in stock
             </span>
+            <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
+              sells at {formatINR(product.price)}
+            </span>
             {product.source === 'runtime' && (
               <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-blue-100 text-blue-800">
                 added in dashboard
@@ -1077,9 +1088,32 @@ function ProductCard({ product, onSaved, onAuthFail }: {
       </div>
 
       <div className="p-3 space-y-3 flex-1">
+        {/*
+          A live readout of what the card is currently showing, so the operator
+          can see the effect of a price edit without leaving the dashboard.
+          MRP below the selling price is a common slip, so it is called out
+          rather than silently rendering a negative discount.
+        */}
+        <div className="rounded-lg bg-stone/40 px-3 py-2 text-[11px] text-ink/60 flex items-center justify-between gap-2">
+          <span>
+            Customer pays <strong className="text-ink">{formatINR(Number(price) || 0)}</strong>
+            {Number(mrp) > Number(price) && (
+              <>
+                {' '}&middot; MRP <span className="line-through">{formatINR(Number(mrp) || 0)}</span>{' '}
+                <strong className="text-green-700">
+                  {Math.round(((Number(mrp) - Number(price)) / Number(mrp)) * 100)}% off
+                </strong>
+              </>
+            )}
+          </span>
+          {Number(mrp) > 0 && Number(mrp) < Number(price) && (
+            <span className="text-red-600 font-medium">MRP is below the selling price</span>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="text-[11px] text-ink/50">Price (₹)</span>
+            <span className="text-[11px] text-ink/50">Selling price (₹)</span>
             <input
               type="number" min={0} value={price}
               onChange={e => setPrice(e.target.value)}
@@ -1097,7 +1131,15 @@ function ProductCard({ product, onSaved, onAuthFail }: {
         </div>
 
         <div>
-          <span className="text-[11px] text-ink/50">Stock per size</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-ink/50">Stock per size</span>
+            <span className="text-[11px] text-ink/50">
+              <strong className="text-ink">
+                {Object.values(stock).reduce((s, v) => s + (Number(v) || 0), 0)}
+              </strong>{' '}
+              total
+            </span>
+          </div>
           <div className="grid grid-cols-3 gap-1.5 mt-1">
             {Object.entries(stock).map(([size, value]) => (
               <label key={size} className="block">
@@ -1604,12 +1646,41 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
             placeholder="Defaults to the selling price" className={`mt-1 ${input}`} />
         </label>
 
-        <label className="block">
-          <span className="text-[11px] text-ink/50">Collection</span>
-          <select value={category} onChange={e => setCategory(e.target.value)} className={`mt-1 ${input}`}>
-            {CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-          </select>
-        </label>
+        {/* What the card will show, before it is saved. */}
+        {(() => {
+          const p = Number(price) || 0;
+          const m = Number(mrp) || p;
+          const off = m > p && m > 0 ? Math.round(((m - p) / m) * 100) : 0;
+          const totalStock = Object.values(stock).reduce((s, v) => s + (Number(v) || 0), 0);
+          return (
+            <div className="sm:col-span-2 rounded-lg bg-stone/40 px-3 py-2 text-[11px] text-ink/60 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>Card will show <strong className="text-ink">{formatINR(p)}</strong></span>
+              {off > 0 && (
+                <>
+                  <span>MRP <span className="line-through">{formatINR(m)}</span></span>
+                  <strong className="text-green-700">{off}% off</strong>
+                </>
+              )}
+              <span className="text-ink/40">|</span>
+              <span>{totalStock} units in stock across {Object.values(stock).filter(v => Number(v) > 0).length} sizes</span>
+              {m > 0 && m < p && (
+                <strong className="text-red-600">MRP is below the selling price</strong>
+              )}
+            </div>
+          );
+        })()}
+
+        <div className="sm:col-span-2">
+          <ComboField
+            label="Collection"
+            value={category}
+            onChange={setCategory}
+            suggestions={COLLECTION_SUGGESTIONS}
+            placeholder="oversized"
+            maxLength={40}
+            hint="A slug, lower case with dashes. This decides which shop page the product appears under."
+          />
+        </div>
 
         <label className="block">
           <span className="text-[11px] text-ink/50">Colours (comma separated)</span>
@@ -1617,29 +1688,35 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
             className={`mt-1 ${input}`} />
         </label>
 
-        <label className="block">
-          <span className="text-[11px] text-ink/50">Fit</span>
-          <select value={fit} onChange={e => setFit(e.target.value)} className={`mt-1 ${input}`}>
-            <option value="">Not set</option>
-            {(['Regular', 'Oversized', 'Relaxed', 'Slim'] as const).map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
-        </label>
+        <ComboField
+          label="Fit"
+          value={fit}
+          onChange={setFit}
+          suggestions={SUGGESTED_FITS}
+          placeholder="Oversized"
+          maxLength={40}
+          hint="Leave blank and the card shows nothing."
+        />
 
-        <label className="block">
-          <span className="text-[11px] text-ink/50">Fabric</span>
-          <select value={fabric} onChange={e => setFabric(e.target.value)} className={`mt-1 ${input}`}>
-            <option value="">Not set</option>
-            {(['Cotton', 'Cotton Blend', 'Heavyweight Cotton', 'French Terry'] as const).map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
-        </label>
+        <ComboField
+          label="Fabric"
+          value={fabric}
+          onChange={setFabric}
+          suggestions={SUGGESTED_FABRICS}
+          placeholder="Heavyweight Cotton"
+          maxLength={40}
+          hint="Leave blank and the card shows nothing."
+        />
 
-        <label className="block">
-          <span className="text-[11px] text-ink/50">Badge (corner pill)</span>
-          <select value={badge} onChange={e => setBadge(e.target.value)} className={`mt-1 ${input}`}>
-            <option value="">None</option>
-            {(['Bestseller', 'New', 'Limited', 'Essential', 'Street', 'Graphic'] as const).map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </label>
+        <ComboField
+          label="Badge (corner pill)"
+          value={badge}
+          onChange={setBadge}
+          suggestions={SUGGESTED_BADGES}
+          placeholder="Bestseller"
+          maxLength={24}
+          hint="Leave blank for no pill."
+        />
 
         <div className="flex gap-4 sm:col-span-2 pt-1">
           <label className="flex items-center gap-2 text-xs text-ink/70">

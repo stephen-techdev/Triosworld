@@ -514,8 +514,17 @@ Deno.serve(async (req: Request) => {
         for (const key of ["description", "care"] as const) {
           if (body[key] !== undefined) patch[key] = body[key] ? String(body[key]) : null;
         }
+        // Free-text card fields: trimmed and length-capped to match the
+        // database constraints, so a long paste is trimmed rather than rejected.
+        const caps = { fit: 40, fabric: 40, badge: 24 } as const;
         for (const key of ["fit", "fabric", "badge"] as const) {
-          if (body[key] !== undefined) patch[key] = body[key] ? String(body[key]) : null;
+          if (body[key] === undefined) continue;
+          const t = String(body[key] ?? "").trim().slice(0, caps[key]);
+          patch[key] = t === "" ? null : t;
+        }
+        // The collection is a slug, so it is normalised the same way the slug is.
+        if (body.category !== undefined) {
+          patch.category = slugify(String(body.category ?? "")) || "new-arrivals";
         }
         if (body.bestseller !== undefined) patch.bestseller = body.bestseller === true;
         if (body.new_arrival !== undefined) patch.new_arrival = body.new_arrival === true;
@@ -660,6 +669,19 @@ Deno.serve(async (req: Request) => {
 
       const id = `r_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
+      // Collection, fit, fabric and badge are free text now, so they only need
+      // trimming and a length cap. `category` is different: it is a slug the
+      // shop pages filter on, so "Graphic Tees" has to become "graphic-tees" or
+      // it would never match a URL.
+      const category = slugify(String(body.category ?? "new-arrivals")) || "new-arrivals";
+      const attr = (v: unknown, max: number): string | null => {
+        const t = String(v ?? "").trim().slice(0, max);
+        return t === "" ? null : t;
+      };
+      const fit = attr(body.fit, 40);
+      const fabric = attr(body.fabric, 40);
+      const badge = attr(body.badge, 24);
+
       const stock: Record<string, number> = {};
       for (const [size, n] of Object.entries((body.stock ?? {}) as Record<string, unknown>)) {
         const v = Number(n);
@@ -684,14 +706,14 @@ Deno.serve(async (req: Request) => {
         name,
         description: body.description ? String(body.description) : null,
         care: body.care ? String(body.care) : null,
-        fit: body.fit ? String(body.fit) : null,
-        fabric: body.fabric ? String(body.fabric) : null,
-        badge: body.badge ? String(body.badge) : null,
+        fit,
+        fabric,
+        badge,
         bestseller: body.bestseller === true,
         new_arrival: body.new_arrival === true,
         price: Math.round(price),
         mrp,
-        category: String(body.category ?? "new-arrivals"),
+        category,
         colors,
         stock,
         images: allImages,

@@ -3,31 +3,44 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronRight, Check } from 'lucide-react';
 import SEO, { breadcrumbJsonLd } from '@/components/SEO';
-import { COLLECTIONS, SIZES, COLORS, type Fit, type Fabric } from '@/data/catalog';
+import { COLLECTIONS, SIZES, COLORS, formatINR } from '@/data/catalog';
 import { useLiveCatalog } from '@/lib/storefrontCatalog';
 import { ProductCardMotion } from '@/components/ProductCard';
 
-const FITS: Fit[] = ['Regular', 'Oversized', 'Relaxed', 'Slim'];
-const FABRICS: Fabric[] = ['Cotton', 'Cotton Blend', 'Heavyweight Cotton', 'French Terry'];
 const SORTS = ['Featured', 'Newest', 'Bestselling', 'Price: Low to High', 'Price: High to Low'] as const;
 type Sort = typeof SORTS[number];
 
 type Filters = {
   sizes: string[];
   colors: string[];
-  fits: Fit[];
-  fabrics: Fabric[];
-  maxPrice: number;
+  fits: string[];
+  fabrics: string[];
+  /** null means "no ceiling" — the slider's top end, whatever that is. */
+  maxPrice: number | null;
   inStockOnly: boolean;
 };
 
-const emptyFilters: Filters = { sizes: [], colors: [], fits: [], fabrics: [], maxPrice: 2000, inStockOnly: false };
+const emptyFilters: Filters = { sizes: [], colors: [], fits: [], fabrics: [], maxPrice: null, inStockOnly: false };
 
 export default function ShopPage() {
   const { slug = 'shop-all' } = useParams();
-  const collection = COLLECTIONS.find(c => c.slug === slug) ?? COLLECTIONS[0];
-  // Merges the coded catalog with anything created in the admin dashboard.
   const { products: liveAll } = useLiveCatalog();
+
+  /**
+   * A collection is free text now, so it may not be one of the built-in pages.
+   *
+   * Falling back to Shop All for an unknown slug used to be the only option,
+   * which meant a product in a new collection appeared on every collection page
+   * at once. An unknown slug now filters to exactly that collection and titles
+   * itself from the slug.
+   */
+  const known = COLLECTIONS.find(c => c.slug === slug);
+  const collection = known ?? {
+    slug,
+    name: slug === 'shop-all' ? 'Shop All' : slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+    blurb: 'Everything filed under this collection.',
+  };
+
   const baseProducts = useMemo(
     () => liveAll.filter((p) => {
       if (slug === 'shop-all') return true;
@@ -36,6 +49,38 @@ export default function ShopPage() {
       return p.categories.includes(slug);
     }),
     [liveAll, slug],
+  );
+
+  /**
+   * Fit and fabric chips come from the products actually on this page.
+   *
+   * They used to be two hardcoded arrays. Now that the operator can type any
+   * value, a fixed list would render filters for products that do not exist and
+   * silently drop the ones that do — a "Boxy" cut would be unfilterable.
+   */
+  /**
+   * Price slider bounds come from the catalogue.
+   *
+   * The ceiling was a fixed ₹2000, so a product the operator priced above that
+   * could never be shown - it was filtered out by its own price. The floor and
+   * ceiling are now the cheapest and dearest product on this page.
+   */
+  const priceFloor = useMemo(
+    () => (baseProducts.length ? Math.floor(Math.min(...baseProducts.map(p => p.price)) / 100) * 100 : 0),
+    [baseProducts],
+  );
+  const priceCeiling = useMemo(
+    () => (baseProducts.length ? Math.ceil(Math.max(...baseProducts.map(p => p.price)) / 100) * 100 : 1000),
+    [baseProducts],
+  );
+
+  const FITS = useMemo(
+    () => [...new Set(baseProducts.map(p => p.fit).filter((f): f is string => Boolean(f)))].sort(),
+    [baseProducts],
+  );
+  const FABRICS = useMemo(
+    () => [...new Set(baseProducts.map(p => p.fabric).filter((f): f is string => Boolean(f)))].sort(),
+    [baseProducts],
   );
 
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -50,7 +95,7 @@ export default function ShopPage() {
       if (filters.colors.length && !p.variants.some(v => filters.colors.includes(v.color))) return false;
       if (filters.fits.length && !(p.fit && filters.fits.includes(p.fit))) return false;
       if (filters.fabrics.length && !(p.fabric && filters.fabrics.includes(p.fabric))) return false;
-      if (p.price > filters.maxPrice) return false;
+      if (filters.maxPrice !== null && p.price > filters.maxPrice) return false;
       if (filters.inStockOnly && !p.variants.some(v => v.sizes.some(s => s.stock > 0))) return false;
       return true;
     });
@@ -63,7 +108,7 @@ export default function ShopPage() {
     return list;
   }, [baseProducts, filters, sort]);
 
-  const activeCount = filters.sizes.length + filters.colors.length + filters.fits.length + filters.fabrics.length + (filters.inStockOnly ? 1 : 0) + (filters.maxPrice < 2000 ? 1 : 0);
+  const activeCount = filters.sizes.length + filters.colors.length + filters.fits.length + filters.fabrics.length + (filters.inStockOnly ? 1 : 0) + (filters.maxPrice !== null ? 1 : 0);
 
   const toggleArr = <T,>(arr: T[], v: T): T[] => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
 
@@ -118,10 +163,30 @@ export default function ShopPage() {
         </div>
       </FilterGroup>
       <FilterGroup title="Price">
-        <input type="range" min={499} max={2000} step={100} value={filters.maxPrice}
+        <input
+          type="range"
+          min={priceFloor}
+          max={priceCeiling}
+          step={100}
+          disabled={priceCeiling <= priceFloor}
+          value={filters.maxPrice ?? priceCeiling}
           onChange={e => setFilters(f => ({ ...f, maxPrice: Number(e.target.value) }))}
-          className="w-full accent-ink" />
-        <div className="flex justify-between text-xs text-ink/50 mt-1"><span>₹499</span><span>Up to ₹{filters.maxPrice}</span></div>
+          className="w-full accent-ink disabled:opacity-40"
+        />
+        <div className="flex justify-between text-xs text-ink/50 mt-1">
+          <span>{formatINR(priceFloor)}</span>
+          <span>
+            {filters.maxPrice === null || filters.maxPrice >= priceCeiling
+              ? 'Any price'
+              : `Up to ${formatINR(filters.maxPrice)}`}
+          </span>
+        </div>
+        {filters.maxPrice !== null && (
+          <button type="button" onClick={() => setFilters(f => ({ ...f, maxPrice: null }))}
+            className="text-[11px] text-ink/50 underline hover:text-ink mt-1">
+            Clear price filter
+          </button>
+        )}
       </FilterGroup>
       <FilterGroup title="Availability">
         <label className="flex items-center gap-2.5 text-sm cursor-pointer">

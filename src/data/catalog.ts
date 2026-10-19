@@ -1,7 +1,27 @@
 export type Gender = 'men';
-export type Fit = 'Regular' | 'Oversized' | 'Relaxed' | 'Slim';
-export type Fabric = 'Cotton' | 'Cotton Blend' | 'Heavyweight Cotton' | 'French Terry';
-export type Badge = 'Bestseller' | 'New' | 'Limited' | 'Essential' | 'Street' | 'Graphic';
+
+/**
+ * Fit, fabric and badge are whatever the operator typed in the admin dashboard.
+ *
+ * These were closed unions ('Regular' | 'Oversized' | ...) which meant a shop
+ * stocking a "Boxy" cut or a "Linen Blend" could not record it — the list was a
+ * guess about the inventory. The admin form now offers suggestions but accepts
+ * anything, so the type is a plain string.
+ *
+ * SUGGESTED_* below are what the form pre-fills; they are advice, not a limit.
+ */
+export type Fit = string;
+export type Fabric = string;
+export type Badge = string;
+
+/** Offered as autocomplete suggestions in Admin → Products. Never enforced. */
+export const SUGGESTED_FITS = ['Regular', 'Oversized', 'Relaxed', 'Slim', 'Boxy', 'Drop Shoulder'];
+export const SUGGESTED_FABRICS = [
+  'Cotton', 'Cotton Blend', 'Heavyweight Cotton', 'French Terry', 'Linen Blend', 'Cotton Slub',
+];
+export const SUGGESTED_BADGES = [
+  'Bestseller', 'New', 'Limited', 'Essential', 'Street', 'Graphic', 'Sold Out', 'Back in Stock',
+];
 
 export interface Variant {
   color: string;

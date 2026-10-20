@@ -83,22 +83,15 @@ async function loadShippingRule(): Promise<ShippingRule> {
 }
 const PAYMENT_WINDOW_MINUTES = 15;
 
-// Coupons are validated server-side; the browser only ever sends the code.
-//
-// The list lives in `store_settings.content.coupons`, owned by Admin → Settings,
-// so an operator can add, edit or retire a code without a redeploy. The built-in
-// code below is only used while that key has never been written — once an
-// operator touches coupons at all, their list is the whole truth.
+// Coupons are validated server-side and must be defined by the admin in
+// Admin -> Settings (store_settings.content.coupons). Only admin-created
+// active codes are accepted. No built-in/fallback codes.
 interface Coupon {
   type: "pct" | "flat";
   value: number;
   /** Minimum subtotal the code applies to. 0 = no minimum. */
   min: number;
 }
-
-const FALLBACK_COUPONS: Record<string, Coupon> = {
-  TRIO10: { type: "pct", value: 10, min: 0 },
-};
 
 async function loadCoupons(): Promise<Record<string, Coupon>> {
   try {
@@ -108,8 +101,8 @@ async function loadCoupons(): Promise<Record<string, Coupon>> {
       .maybeSingle();
 
     const doc = (data?.content ?? null) as Record<string, unknown> | null;
-    // Never configured: keep the shipped default so checkout never dead-ends.
-    if (!doc || !("coupons" in doc)) return FALLBACK_COUPONS;
+    // Only admin-defined coupons are accepted. If none configured, empty.
+    if (!doc || !("coupons" in doc)) return {};
 
     const raw = doc.coupons;
     if (!Array.isArray(raw)) return {};
@@ -118,20 +111,20 @@ async function loadCoupons(): Promise<Record<string, Coupon>> {
     for (const c of raw) {
       if (!c || typeof c !== "object") continue;
       const o = c as Record<string, unknown>;
+      if (o.active === false) continue;
       const code = String(o.code ?? "").trim().toUpperCase();
       const value = Number(o.value);
       if (!code || !Number.isFinite(value) || value <= 0) continue;
-      // A retired or zero-value code is simply absent, so applying it fails
-      // loudly instead of silently charging full price.
-      if (o.active === false) continue;
+      if (!/^[A-Z0-9_-]+$/.test(code) || code.length > 24) continue;
       const type = o.type === "flat" ? "flat" : "pct";
+      if (type === "pct" && value > 100) continue;
       const min = Number(o.min);
-      out[code] = { type, value, min: Number.isFinite(min) && min > 0 ? min : 0 };
+      out[code] = { type, value, min: Number.isFinite(min) && min > 0 ? Math.floor(min) : 0 };
     }
     return out;
   } catch {
-    // A failed read must never take checkout down; the default code still works.
-    return FALLBACK_COUPONS;
+    // On read failure, do not fall back to built-ins - only admin-defined count.
+    return {};
   }
 }
 

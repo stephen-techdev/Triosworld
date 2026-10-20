@@ -26,7 +26,7 @@ import ContentSection from '@/pages/admin/ContentSection';
  */
 const BUILTIN_COLLECTIONS = ['shop-all', 'men', 'bestsellers', 'new-arrivals'];
 import {
-  AdminAuthError, adminLogout, changeAdminPassword, createProduct, deleteCustomer,
+  AdminAuthError, adminLogout, changeAdminPassword, clearFeedback, clearGuests, clearOrders, createProduct, deleteCustomer,
   deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
   getProducts, getSettings, muteCustomer, normalizeProductColors, readSession, saveSettings,
   setFeedbackStatus, updateOrder, updateProduct,

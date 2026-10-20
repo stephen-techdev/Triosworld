@@ -163,7 +163,7 @@ export default function AdminPage() {
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
               {tab === 'content' && <ContentSection onAuthFail={signOut} />}
-              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
+              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}\n        {tab === 'coupons' && <CouponsSection />}
               {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
             </motion.div>
           </AnimatePresence>

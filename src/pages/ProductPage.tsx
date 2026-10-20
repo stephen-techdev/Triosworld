@@ -114,6 +114,15 @@ export default function ProductPage() {
   const totalStock = variant.sizes.reduce((s, x) => s + x.stock, 0);
   const inStock = totalStock > 0;
 
+  // A colour whose own stock has run out is shown but cannot be bought: the
+  // swatch greys out and its photo is never shown. Only colours that actually
+  // carry per-colour stock can sell out this way — a colour sharing the
+  // product-wide stock is available as long as the product is. `hasColorStock`
+  // gates the grey-out so a product that never used per-colour stock behaves
+  // exactly as it did before.
+  const colorSoldOut = product.variants.map((v) => v.sizes.reduce((s, x) => s + x.stock, 0) === 0);
+  const hasColorStock = product.variants.some((v) => v.sizes.some((x) => x.stock > 0));
+
   // Reviews come from the dashboard. With none published, the rating line is
   // hidden entirely rather than showing a number nothing backs it.
   const reviews = content.pdp.reviews;
@@ -145,7 +154,12 @@ export default function ProductPage() {
     setTimeout(() => setAdded(false), 2200);
   };
 
-  const selectColor = (i: number) => { setColorIdx(i); setImageIdx(0); };
+  const selectColor = (i: number) => {
+    // A sold-out colour cannot be selected, so its photo is never shown.
+    if (hasColorStock && colorSoldOut[i]) return;
+    setColorIdx(i);
+    setImageIdx(0);
+  };
 
   return (
     <div className="page-container py-6 md:py-10 pb-24 md:pb-10">
@@ -260,11 +274,23 @@ export default function ProductPage() {
           <div className="mt-7">
             <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium">Colour: <span className="text-ink/60">{variant.color}</span></span></div>
             <div className="flex gap-2.5">
-              {product.variants.map((v, i) => (
-                <button key={v.color} onClick={() => selectColor(i)} title={v.color}
-                  className={`w-9 h-9 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'}`}
-                  style={{ backgroundColor: v.hex }} aria-label={v.color} />
-              ))}
+              {product.variants.map((v, i) => {
+                const soldOut = hasColorStock && colorSoldOut[i];
+                return (
+                  <button key={v.color} onClick={() => selectColor(i)} title={soldOut ? `${v.color} — sold out` : v.color}
+                    disabled={soldOut}
+                    className={`relative w-9 h-9 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    style={{ backgroundColor: v.hex }} aria-label={soldOut ? `${v.color} sold out` : v.color}>
+                    {/* Strike-through marks the sold-out colour without relying
+                        on the faded swatch alone, so it reads at a glance. */}
+                    {soldOut && (
+                      <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                        <span className="block w-full h-[2px] bg-ink/70 rotate-45 rounded-full" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -520,17 +546,27 @@ export default function ProductPage() {
                     colourways never has to close it and hunt for the swatch. */}
                 {product.variants.length > 1 && (
                   <div className="flex items-center justify-center gap-2.5 mt-3">
-                    {product.variants.map((v, i) => (
-                      <button
-                        key={v.color}
-                        type="button"
-                        onClick={() => { setColorIdx(i); setViewerIdx(0); }}
-                        aria-label={`Show ${v.color}`}
-                        title={v.color}
-                        className={`w-7 h-7 rounded-full border-2 transition ${colorIdx === i ? 'border-lime' : 'border-ivory/25'}`}
-                        style={{ backgroundColor: v.hex }}
-                      />
-                    ))}
+                    {product.variants.map((v, i) => {
+                      const soldOut = hasColorStock && colorSoldOut[i];
+                      return (
+                        <button
+                          key={v.color}
+                          type="button"
+                          disabled={soldOut}
+                          onClick={() => { setColorIdx(i); setViewerIdx(0); }}
+                          aria-label={soldOut ? `${v.color} sold out` : `Show ${v.color}`}
+                          title={soldOut ? `${v.color} — sold out` : v.color}
+                          className={`relative w-7 h-7 rounded-full border-2 transition ${colorIdx === i ? 'border-lime' : 'border-ivory/25'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          style={{ backgroundColor: v.hex }}
+                        >
+                          {soldOut && (
+                            <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                              <span className="block w-full h-[2px] bg-ivory/80 rotate-45 rounded-full" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 

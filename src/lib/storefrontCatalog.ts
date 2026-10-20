@@ -61,17 +61,21 @@ function asStringArray(v: unknown): string[] {
  * brand colour list, and anything unknown falls back to ink rather than
  * rendering a swatch with no colour at all. This is the fix for swatches that
  * all showed #171717 regardless of what was entered in admin.
+ *
+ * A colour may also carry its own per-size stock (`sizes`), which is what lets
+ * Blue-M be available while Blue-L is sold out.
  */
-function asColors(v: unknown): { name: string; hex: string }[] {
+function asColors(v: unknown): { name: string; hex: string; sizes?: Record<string, number> }[] {
   if (!Array.isArray(v)) return [];
-  const out: { name: string; hex: string }[] = [];
+  const out: { name: string; hex: string; sizes?: Record<string, number> }[] = [];
   for (const entry of v) {
     if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
       const name = String((entry as { name?: unknown }).name ?? '').trim();
       if (!name) continue;
       const raw = String((entry as { hex?: unknown }).hex ?? '').trim().toLowerCase();
       const hex = /^#[0-9a-f]{6}$/.test(raw) ? raw : knownHex(name);
-      out.push({ name, hex });
+      const sizes = asStock((entry as { sizes?: unknown }).sizes);
+      out.push(Object.keys(sizes).length ? { name, hex, sizes } : { name, hex });
     } else if (typeof entry === 'string' && entry.trim()) {
       const name = entry.trim();
       out.push({ name, hex: knownHex(name) });
@@ -113,20 +117,39 @@ function imagesForColor(index: number, colors: number, images: string[]): string
   return images;
 }
 
+/**
+ * Build one variant's size list.
+ *
+ * When the colour carries its own per-size stock that wins, so Blue can have M
+ * in stock while Blue-L is sold out. When it does not (every product saved
+ * before per-colour stock existed) the whole product shares one list, exactly
+ * as before. Sizes are ordered the way the storefront renders them, and any
+ * size the operator never set shows 0 — out of stock, not dropped.
+ */
+function sizesForColor(
+  color: { sizes?: Record<string, number> },
+  shared: Record<string, number>,
+): { size: string; stock: number }[] {
+  const table = color.sizes && Object.keys(color.sizes).length ? color.sizes : shared;
+  const has = Object.keys(table).length > 0;
+  const known = SIZES.filter((s) => has && s in table).map((s) => ({ size: s, stock: table[s] }));
+  const extra = has
+    ? Object.keys(table).filter((s) => !SIZES.includes(s)).sort().map((s) => ({ size: s, stock: table[s] }))
+    : [];
+  const list = [...known, ...extra];
+  return list.length ? list : SIZES.map((size) => ({ size, stock: 0 }));
+}
+
 function toProduct(row: RuntimeRow): Product {
   const images = asStringArray(row.images);
   const colors = asColors(row.colors);
   const stock = asStock(row.stock);
 
-  const sizes = Object.keys(stock).length
-    ? Object.entries(stock).map(([size, qty]) => ({ size, stock: qty }))
-    : SIZES.map((size) => ({ size, stock: 0 }));
-
   const variants = (colors.length ? colors : [{ name: 'Default', hex: '#171717' }]).map((c, i) => ({
     color: c.name,
     hex: c.hex,
     images: imagesForColor(i, colors.length || 1, images),
-    sizes,
+    sizes: sizesForColor(c, stock),
   }));
 
   return {

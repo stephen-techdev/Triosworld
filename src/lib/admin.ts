@@ -177,10 +177,14 @@ export interface AdminFeedback {
   created_at: string;
 }
 
-/** A colour row from the admin picker: display name + the exact swatch hex. */
+/** A colour row from the admin picker: display name, exact swatch hex, and an
+ *  optional per-size stock map (Blue-M 8, Blue-L 0). */
 export interface ProductColor {
   name: string;
   hex: string;
+  /** Size → units on hand for THIS colour. Absent means "use the product's
+   *  shared stock", which is how every colour behaved before this existed. */
+  sizes?: Record<string, number>;
 }
 
 /**
@@ -193,16 +197,32 @@ export function normalizeProductColors(v: unknown): ProductColor[] {
   const out: ProductColor[] = [];
   for (const entry of v) {
     if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
-      const name = String((entry as ProductColor).name ?? '').trim();
-      const raw = String((entry as ProductColor).hex ?? '').trim().toLowerCase();
+      const obj = entry as ProductColor;
+      const name = String(obj.name ?? '').trim();
+      const raw = String(obj.hex ?? '').trim().toLowerCase();
       const resolved = /^#[0-9a-f]{6}$/.test(raw) ? raw : hexForColorName(name);
-      if (name) out.push({ name, hex: resolved ?? '#171717' });
+      if (!name) continue;
+      const sizes = normalizeSizeStock(obj.sizes);
+      out.push(sizes ? { name, hex: resolved ?? '#171717', sizes } : { name, hex: resolved ?? '#171717' });
     } else if (typeof entry === 'string' && entry.trim()) {
       const name = entry.trim();
       out.push({ name, hex: hexForColorName(name) ?? '#171717' });
     }
   }
   return out;
+}
+
+/** Clamp a per-size stock map to real, non-negative counts; drop it if empty. */
+function normalizeSizeStock(v: unknown): Record<string, number> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [size, qty] of Object.entries(v as Record<string, unknown>)) {
+    const key = String(size).trim();
+    const num = Number(qty);
+    if (!key || !Number.isFinite(num)) continue;
+    out[key] = Math.max(0, Math.min(100000, Math.round(num)));
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 export class AdminAuthError extends Error {}

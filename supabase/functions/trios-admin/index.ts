@@ -130,22 +130,42 @@ const KNOWN_COLOR_HEX: Record<string, string> = {
  * legacy bare-name strings, resolving well-known names to their hex and
  * falling back to ink for anything unknown — the same neutral the card used
  * before the picker existed.
+ *
+ * Each colour may also carry its own per-size stock (`sizes`). That is what
+ * lets a product hold, say, Blue-M in stock while Blue-L is sold out: the size
+ * picker on the product page reads the selected colour's own numbers. A colour
+ * with no `sizes` map (every colour written before this existed) simply falls
+ * back to the product-wide `stock`, so nothing already saved changes behaviour.
  */
-function normalizeColors(raw: unknown): { name: string; hex: string }[] {
+function normalizeColors(raw: unknown): { name: string; hex: string; sizes?: Record<string, number> }[] {
   if (!Array.isArray(raw)) return [];
-  const out: { name: string; hex: string }[] = [];
+  const out: { name: string; hex: string; sizes?: Record<string, number> }[] = [];
   for (const entry of raw.slice(0, 12)) {
     let name = "";
     let hex = "";
+    let sizes: Record<string, number> | undefined;
     if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-      name = String((entry as Record<string, unknown>).name ?? "").trim().slice(0, 40);
-      hex = String((entry as Record<string, unknown>).hex ?? "").trim().toLowerCase();
+      const obj = entry as Record<string, unknown>;
+      name = String(obj.name ?? "").trim().slice(0, 40);
+      hex = String(obj.hex ?? "").trim().toLowerCase();
+      // Per-size stock, clamped to a sane count and capped to the sizes we
+      // render. An empty map is dropped so it means "use the shared stock".
+      if (obj.sizes && typeof obj.sizes === "object" && !Array.isArray(obj.sizes)) {
+        const map: Record<string, number> = {};
+        for (const [size, qty] of Object.entries(obj.sizes as Record<string, unknown>)) {
+          const key = String(size).trim().slice(0, 12);
+          const num = Number(qty);
+          if (!key || !Number.isFinite(num)) continue;
+          map[key] = Math.max(0, Math.min(100000, Math.round(num)));
+        }
+        if (Object.keys(map).length) sizes = map;
+      }
     } else if (typeof entry === "string") {
       name = entry.trim().slice(0, 40);
     }
     if (!name) continue;
     if (!/^#[0-9a-f]{6}$/.test(hex)) hex = KNOWN_COLOR_HEX[name.toLowerCase()] ?? "#171717";
-    out.push({ name, hex });
+    out.push(sizes ? { name, hex, sizes } : { name, hex });
   }
   return out;
 }

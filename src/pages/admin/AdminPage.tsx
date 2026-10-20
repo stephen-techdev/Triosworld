@@ -1115,7 +1115,6 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
               <Pencil size={12} /> Edit
             </button>
           </div>
-          <p className="text-[11px] text-ink/45 mt-1 font-mono truncate">{product.id}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
               {product.stock_total} in stock
@@ -1627,6 +1626,26 @@ function ColorRows({ rows, onChange, compact = false }: {
   const set = (i: number, patch: Partial<ProductColor>) =>
     onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
 
+  const setSize = (i: number, size: string, val: string) => {
+    const num = val === '' ? '' : Math.max(0, Math.min(100000, Math.round(Number(val) || 0)));
+    const current = rows[i].sizes ?? {};
+    const next = { ...current, [size]: typeof num === 'number' ? num : 0 };
+    if (val === '') {
+      const copy = { ...current };
+      delete copy[size];
+      set(i, { sizes: Object.keys(copy).length ? copy : undefined });
+      return;
+    }
+    set(i, { sizes: next });
+  };
+
+  const colorTotal = (r: ProductColor) => {
+    if (!r.sizes) return null;
+    const sum = SIZES.reduce((acc, s) => acc + Number(r.sizes?.[s] ?? 0), 0);
+    const extra = Object.entries(r.sizes).filter(([k]) => !SIZES.includes(k)).reduce((acc, [, v]) => acc + Number(v || 0), 0);
+    return sum + extra;
+  };
+
   /**
    * Typing a colour name is enough. The moment the name matches a colour in the
    * shared table, the swatch snaps to that colour — so "Red" paints red on the
@@ -1641,34 +1660,62 @@ function ColorRows({ rows, onChange, compact = false }: {
 
   return (
     <div className="space-y-2">
-      {rows.map((row, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <input
-            type="color"
-            value={/^#[0-9a-fA-F]{6}$/.test(row.hex) ? row.hex : '#171717'}
-            onChange={e => set(i, { hex: e.target.value })}
-            aria-label={`Colour ${i + 1} swatch`}
-            className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} shrink-0 rounded-md border border-ink/15 bg-transparent p-0.5 cursor-pointer`}
-          />
-          <input
-            value={row.name}
-            onChange={e => onName(i, e.target.value)}
-            placeholder="Black"
-            maxLength={40}
-            aria-label={`Colour ${i + 1} name`}
-            className="flex-1 min-w-0 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:border-ink"
-          />
-          <span className="font-mono text-[10px] text-ink/40 w-16 shrink-0">{row.hex}</span>
-          <button
-            type="button"
-            onClick={() => onChange(rows.filter((_, k) => k !== i))}
-            aria-label={`Remove colour ${row.name || i + 1}`}
-            className="shrink-0 w-7 h-7 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 hover:border-red-200 transition grid place-items-center"
-          >
-            <X size={13} />
-          </button>
-        </div>
-      ))}
+      {rows.map((row, i) => {
+        const total = colorTotal(row);
+        return (
+          <div key={i} className="flex items-center gap-1.5 flex-wrap rounded-lg border border-ink/10 px-2 py-1.5">
+            <input
+              type="color"
+              value={/^#[0-9a-fA-F]{6}$/.test(row.hex) ? row.hex : '#171717'}
+              onChange={e => set(i, { hex: e.target.value })}
+              aria-label={`Colour ${i + 1} swatch`}
+              className={`${compact ? 'w-7 h-7' : 'w-8 h-8'} shrink-0 rounded-md border border-ink/15 bg-transparent p-0.5 cursor-pointer`}
+            />
+            <div className="flex flex-col min-w-[90px] max-w-[110px]">
+              <input
+                value={row.name}
+                onChange={e => onName(i, e.target.value)}
+                placeholder="Colour name"
+                maxLength={40}
+                aria-label={`Colour ${i + 1} name`}
+                className="w-full rounded-lg border border-ink/15 px-2 py-1 text-xs focus:outline-none focus:border-ink"
+              />
+              <span className="font-mono text-[9px] text-ink/40 hidden sm:inline">{row.hex}</span>
+            </div>
+
+            {/* Per-colour stock inputs to the right of the colour label */}
+            <div className="flex items-center gap-1 flex-wrap ml-2">
+              {SIZES.map(s => (
+                <label key={s} className="flex items-center gap-0.5">
+                  <span className="text-[9px] text-ink/40 uppercase">{s}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    value={row.sizes?.[s] ?? ''}
+                    onChange={e => setSize(i, s, e.target.value)}
+                    placeholder="0"
+                    className="w-9 h-7 rounded border border-ink/10 text-center text-[11px] focus:outline-none focus:border-ink"
+                  />
+                </label>
+              ))}
+            </div>
+
+            {total !== null && (
+              <span className="text-[10px] text-ink/50 whitespace-nowrap ml-1" title="Total stock for this colour">Count: {total}</span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onChange(rows.filter((_, k) => k !== i))}
+              aria-label={`Remove colour ${row.name || i + 1}`}
+              className="shrink-0 w-6 h-6 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 hover:border-red-200 transition grid place-items-center ml-auto"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        );
+      })}
       <button
         type="button"
         onClick={() => onChange([...rows, { name: '', hex: '#171717' }])}
@@ -1945,7 +1992,7 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
         <div className="sticky top-0 z-10 bg-ivory/95 backdrop-blur border-b border-ink/10 px-5 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">Edit “{product.name}”</p>
-            <p className="text-[11px] text-ink/45 font-mono truncate">{product.id}</p>
+            {/* product id hidden per request */}
           </div>
           <button
             type="button"

@@ -199,6 +199,8 @@ interface Sellable {
   mrp: number;
   sizes: Record<string, number>;
   colors: string[];
+  /** Colour name -> its own per-size stock. Only present for dashboard rows. */
+  colorSizes: Record<string, Record<string, number>>;
   active: boolean;
 }
 
@@ -236,7 +238,10 @@ function priceCart(
     }
 
     const size = String(line.size ?? "");
-    const available = stockOverrides[productId]?.[size] ?? entry.sizes[size];
+    // The selected colour's own stock is authoritative when it has one; the
+    // merged product-wide list is only a fallback for shared-stock rows.
+    const colorOwn = color && entry.colorSizes[color]?.[size];
+    const available = stockOverrides[productId]?.[size] ?? colorOwn ?? entry.sizes[size];
     if (available === undefined) throw new PayloadError(`${entry.name}: that size is unavailable.`);
     if (available <= 0) throw new PayloadError(`${entry.name} in size ${size} is out of stock.`);
 
@@ -276,6 +281,7 @@ async function loadSellableCatalog(): Promise<Record<string, Sellable>> {
       mrp: entry.mrp,
       sizes: entry.sizes,
       colors: entry.colors,
+      colorSizes: {},
       active: true,
     };
   }
@@ -302,6 +308,44 @@ async function loadSellableCatalog(): Promise<Record<string, Sellable>> {
       const v = Number(n);
       if (Number.isFinite(v) && v >= 0) sizes[size] = Math.floor(v);
     }
+
+    // Colours are { name, hex, sizes } objects since per-colour stock landed.
+    // A colour may carry its own size map; when it does, that colour's own
+    // numbers win at checkout, exactly as the storefront shows them.
+    const colorNames: string[] = [];
+    const colorSizes: Record<string, Record<string, number>> = {};
+    let perColor = false;
+
+    if (Array.isArray(r.colors)) {
+      for (const raw of r.colors as unknown[]) {
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          const o = raw as Record<string, unknown>;
+          const nm = String(o.name ?? "").trim();
+          if (!nm) continue;
+          colorNames.push(nm);
+          const cs = o.sizes;
+          if (cs && typeof cs === "object" && !Array.isArray(cs)) {
+            const m: Record<string, number> = {};
+            for (const [sz, n] of Object.entries(cs as Record<string, unknown>)) {
+              const v = Number(n);
+              if (Number.isFinite(v) && v >= 0) m[String(sz)] = Math.floor(v);
+            }
+            if (Object.keys(m).length) { colorSizes[nm] = m; perColor = true; }
+          }
+        } else if (typeof raw === "string" && raw.trim()) {
+          colorNames.push(raw.trim());
+        }
+      }
+    }
+
+    // When colours carry their own stock, the sellable size list is the union
+    // across them; otherwise the product-wide map is the whole truth.
+    if (perColor) {
+      for (const m of Object.values(colorSizes)) {
+        for (const [sz, n] of Object.entries(m)) sizes[sz] = (sizes[sz] ?? 0) + n;
+      }
+    }
+
     catalog[id] = {
       name: String(r.name ?? id),
       slug: String(r.slug ?? id),
@@ -310,7 +354,8 @@ async function loadSellableCatalog(): Promise<Record<string, Sellable>> {
       // An empty stock map means every size is out of stock, which is the
       // honest reading: the operator has not recorded any units.
       sizes,
-      colors: Array.isArray(r.colors) ? (r.colors as unknown[]).map(String) : [],
+      colors: colorNames,
+      colorSizes,
       active: r.is_active !== false,
     };
   }

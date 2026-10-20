@@ -391,39 +391,73 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ==================== ORDER DELETE (INDIVIDUAL) ====================
+    if (path === "/order-delete" && req.method === "POST") {
+      try {
+        const body = await req.json().catch(() => ({}));
+        const id = String(body.id ?? "").trim();
+        if (!id) return json({ error: "id required" }, 400);
+        await supabase.from("order_events").delete().eq("order_id", id);
+        const { error } = await supabase.from("orders").delete().eq("id", id);
+        if (error) return json({ error: error.message }, 500);
+        await audit(session.email, "order.delete", "order", id, {});
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed" }, 500);
+      }
+    }
+
+    // ==================== FEEDBACK DELETE (INDIVIDUAL) ====================
+    if (path === "/feedback-delete" && req.method === "POST") {
+      try {
+        const body = await req.json().catch(() => ({}));
+        const id = String(body.id ?? "").trim();
+        if (!id) return json({ error: "id required" }, 400);
+        const { error } = await supabase.from("feedback").delete().eq("id", id);
+        if (error) return json({ error: error.message }, 500);
+        await audit(session.email, "feedback.delete", "feedback", id, {});
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed" }, 500);
+      }
+    }
+
     // ==================== ORDERS / PAYMENTS ====================
     if (path === "/orders-clear" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const scope = String(body.scope ?? "all").trim();
-      // Clear related events first to avoid FK issues
-      if (scope === "all") {
-        await supabase.from("order_events").delete().neq("id", "00000000-0000-0000-0000-000000000000").catch(() => undefined);
-        const { error, count } = await supabase.from("orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-        if (error) return json({ error: error.message }, 500);
-        await audit(session.email, "orders.clear", "orders", null, { scope, count: count ?? null });
-        return json({ ok: true, deleted: count ?? 0 });
-      } else if (scope === "guests") {
-        const { data: guestOrders } = await supabase.from("orders").select("id").is("user_id", null);
-        const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
-        if (ids.length) {
-          await supabase.from("order_events").delete().in("order_id", ids).catch(() => undefined);
-          const { error, count } = await supabase.from("orders").delete().in("id", ids);
+      try {
+        if (scope === "guests") {
+          const { data: guestOrders } = await supabase.from("orders").select("id").is("user_id", null);
+          const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
+          if (ids.length) {
+            await supabase.from("order_events").delete().in("order_id", ids);
+            const { error } = await supabase.from("orders").delete().in("id", ids);
+            if (error) return json({ error: error.message }, 500);
+            await audit(session.email, "orders.clear", "orders", null, { scope, count: ids.length });
+            return json({ ok: true, deleted: ids.length });
+          }
+          return json({ ok: true, deleted: 0 });
+        } else if (scope === "all") {
+          await supabase.from("order_events").delete().not("id", "is", null);
+          const { error } = await supabase.from("orders").delete().not("id", "is", null);
           if (error) return json({ error: error.message }, 500);
-          await audit(session.email, "orders.clear", "orders", null, { scope, count: count ?? null });
-          return json({ ok: true, deleted: count ?? 0 });
+          await audit(session.email, "orders.clear", "orders", null, { scope });
+          return json({ ok: true, deleted: 0 });
+        } else {
+          const { data: rows } = await supabase.from("orders").select("id").eq("payment_status", scope);
+          const ids = (rows ?? []).map((o: any) => o.id).filter(Boolean);
+          if (ids.length) {
+            await supabase.from("order_events").delete().in("order_id", ids);
+            const { error } = await supabase.from("orders").delete().in("id", ids);
+            if (error) return json({ error: error.message }, 500);
+            await audit(session.email, "orders.clear", "orders", null, { scope, count: ids.length });
+            return json({ ok: true, deleted: ids.length });
+          }
+          return json({ ok: true, deleted: 0 });
         }
-        return json({ ok: true, deleted: 0 });
-      } else {
-        const { data: rows } = await supabase.from("orders").select("id").eq("payment_status", scope);
-        const ids = (rows ?? []).map((o: any) => o.id).filter(Boolean);
-        if (ids.length) {
-          await supabase.from("order_events").delete().in("order_id", ids).catch(() => undefined);
-          const { error, count } = await supabase.from("orders").delete().in("id", ids);
-          if (error) return json({ error: error.message }, 500);
-          await audit(session.email, "orders.clear", "orders", null, { scope, count: count ?? null });
-          return json({ ok: true, deleted: count ?? 0 });
-        }
-        return json({ ok: true, deleted: 0 });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed to clear orders" }, 500);
       }
     }
 
@@ -1064,18 +1098,23 @@ function storageKeyFromUrl(url: string): string | null {
 
     // ==================== CUSTOMERS CLEAR (GUESTS) ====================
     if (path === "/customers-clear-guests" && req.method === "POST") {
-      // Remove guest orders and their order events; keep registered accounts intact.
-      const { data: guestOrders } = await supabase
-        .from("orders")
-        .select("id")
-        .is("user_id", null);
-      const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
-      if (ids.length) {
-        await supabase.from("order_events").delete().in("order_id", ids).catch(() => undefined);
-        await supabase.from("orders").delete().in("id", ids).catch(() => undefined);
+      try {
+        const { data: guestOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .is("user_id", null);
+        const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
+        if (ids.length) {
+          await supabase.from("order_events").delete().in("order_id", ids);
+          const { error } = await supabase.from("orders").delete().in("id", ids);
+          if (error) return json({ error: error.message }, 500);
+          await audit(session.email, "customers.clear_guests", "orders", null, { count: ids.length });
+          return json({ ok: true, deleted: ids.length });
+        }
+        return json({ ok: true, deleted: 0 });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed to clear guests" }, 500);
       }
-      await audit(session.email, "customers.clear_guests", "orders", null, { count: ids.length });
-      return json({ ok: true, deleted: ids.length });
     }
 
     // ==================== CUSTOMER DELETE ====================
@@ -1144,14 +1183,18 @@ function storageKeyFromUrl(url: string): string | null {
     }
 
     if (path === "/feedback-clear" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const status = String(body.status ?? "").trim();
-      let q = supabase.from("feedback").delete();
-      if (status && ["new", "read", "resolved"].includes(status)) q = q.eq("status", status);
-      const { error, count } = await q;
-      if (error) return json({ error: error.message }, 500);
-      await audit(session.email, "feedback.clear", "feedback", null, { status: status || "all", count: count ?? null });
-      return json({ ok: true, deleted: count ?? 0 });
+      try {
+        const body = await req.json().catch(() => ({}));
+        const status = String(body.status ?? "").trim();
+        let q = supabase.from("feedback").delete();
+        if (status && ["new", "read", "resolved"].includes(status)) q = q.eq("status", status);
+        const { error } = await q;
+        if (error) return json({ error: error.message }, 500);
+        await audit(session.email, "feedback.clear", "feedback", null, { status: status || "all" });
+        return json({ ok: true, deleted: 0 });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed to clear feedback" }, 500);
+      }
     }
 
     if (path === "/feedback" && req.method === "POST") {

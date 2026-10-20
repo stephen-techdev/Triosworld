@@ -27,7 +27,7 @@ import ContentSection from '@/pages/admin/ContentSection';
 const BUILTIN_COLLECTIONS = ['shop-all', 'men', 'bestsellers', 'new-arrivals'];
 import {
   AdminAuthError, adminLogout, changeAdminPassword, clearFeedback, clearGuests, clearOrders, createProduct, deleteCustomer,
-  deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
+  deleteFeedback, deleteOrder, deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
   getProducts, getSettings, muteCustomer, normalizeProductColors, readSession, saveSettings,
   setFeedbackStatus, updateOrder, updateProduct,
   uploadProductImage,
@@ -337,6 +337,17 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
     }
   };
 
+  const removeOrder = async (order: AdminOrder) => {
+    if (!confirm(`Delete order ${order.order_number}? This cannot be undone.`)) return;
+    try {
+      await deleteOrder(order.id);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      alert(err instanceof Error ? err.message : 'Failed to delete order');
+    }
+  };
+
   const doClear = async (scope: 'all' | 'paid' | 'failed' | 'pending' | 'guests') => {
     const label = scope === 'all' ? 'ALL orders' : scope === 'guests' ? 'all GUEST orders' : `all ${scope} orders`;
     if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
@@ -429,9 +440,12 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                   </p>
                   <p className="text-[11px] text-ink/40 mt-0.5">{shortDate(order.created_at)}</p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex items-center gap-2">
                   <p className="font-semibold text-sm">{formatINR(order.amount_paid ?? order.total)}</p>
-                  <ChevronDown size={16} className={`ml-auto mt-1 text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeOrder(order); }} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete order">
+                    <Trash2 size={14} />
+                  </button>
+                  <ChevronDown size={16} className={`text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
                 </div>
               </button>
 
@@ -1368,6 +1382,17 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
     }
   };
 
+  const removeFeedback = async (f: AdminFeedback) => {
+    if (!confirm('Delete this feedback? This cannot be undone.')) return;
+    try {
+      await deleteFeedback(f.id);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      alert(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  };
+
   const doClear = async () => {
     const label = filter === 'all' ? 'all feedback' : `all ${filter} feedback`;
     if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
@@ -1439,6 +1464,12 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
                   {f.status}
                 </span>
               </div>
+              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
+                <Trash2 size={13} />
+              </button>
+              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
+                <Trash2 size={13} />
+              </button>
               <span className="text-[11px] text-ink/40 shrink-0">{shortDate(f.created_at)}</span>
             </div>
 

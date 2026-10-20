@@ -35,7 +35,7 @@ import {
   type AdminSession, type Overview, type ProductColor,
 } from '@/lib/admin';
 
-type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
+type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'coupons' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },

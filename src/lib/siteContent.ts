@@ -359,8 +359,8 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ] },
     ],
     address: 'Mumbai, India',
-    phone: '+91 88836 26787',
-    whatsapp: '918883626787',
+    phone: '+91 63838 83727',
+    whatsapp: '916383883727',
     email: 'hello@triosworld.com',
     socials: [
       { icon: 'instagram', label: 'Instagram', href: 'https://instagram.com' },

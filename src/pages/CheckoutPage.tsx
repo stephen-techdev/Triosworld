@@ -267,16 +267,6 @@ export default function CheckoutPage() {
             {serverError && (
               <div className="mt-4" role="alert">
                 <p className="text-sm text-red-600">{serverError}</p>
-                {serviceDown && (
-                  <a
-                    href={whatsappLink('Hi TriosWorld, I want to place an order — the website payment is not available.')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition"
-                  >
-                    Order on WhatsApp instead
-                  </a>
-                )}
               </div>
             )}
 
@@ -291,6 +281,24 @@ export default function CheckoutPage() {
                 ? <><Loader2 size={18} className="animate-spin" /> Starting secure payment…</>
                 : <>Pay securely · {formatINR(total)}</>}
             </motion.button>
+
+            <a
+              href={(() => {
+                const items = cart.map(i => {
+                  const p = resolveProduct(i.productId);
+                  const v = p?.variants.find(x => x.color === i.color);
+                  return `- ${p?.name || i.productId} | Color: ${i.color} | Size: ${i.size} | Qty: ${i.qty} | Price: ${p ? formatINR(p.price * i.qty) : ''}`;
+                }).join('\n');
+                const msg = `Hi TriosWorld, I want to place an order.\n\nCustomer Details:\nName: ${form.fullName}\nMobile: ${form.mobile}\nEmail: ${form.email || 'N/A'}\nAddress: ${form.address}, ${form.city}, ${form.state} - ${form.pincode}\n\nOrder Details:\n${items}\n\nSubtotal: ${formatINR(subtotal)}\nShipping: ${shipping === 0 ? 'Free' : formatINR(shipping)}\nDiscount: ${couponApplied ? '-'+formatINR(discount) : '₹0'}\nTotal: ${formatINR(total)}\n\nPayment: UPI/WhatsApp Order`;
+                return whatsappLink(msg);
+              })()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
+            >
+              <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
+              Pay via WhatsApp
+            </a>
             <p className="text-[11px] text-ink/40 mt-3 text-center">
               You’ll get a UPI QR on the next screen. Nothing is charged until you confirm the payment
               in your UPI app.

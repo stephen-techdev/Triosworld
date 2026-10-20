@@ -8,8 +8,8 @@ import type { SVGProps } from 'react';
  * on the site follows the dashboard without a code edit. The constants remain
  * as the pre-load fallback.
  */
-export const WHATSAPP_NUMBER = '918883626787';
-export const WHATSAPP_DISPLAY = '+91 88836 26787';
+export const WHATSAPP_NUMBER = '916383883727';
+export const WHATSAPP_DISPLAY = '+91 63838 83727';
 
 let activeNumber = WHATSAPP_NUMBER;
 

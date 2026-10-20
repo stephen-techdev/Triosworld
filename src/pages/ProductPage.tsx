@@ -273,13 +273,13 @@ export default function ProductPage() {
           {/* Colour */}
           <div className="mt-7">
             <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium">Colour: <span className="text-ink/60">{variant.color}</span></span></div>
-            <div className="flex gap-2.5">
+            <div className="flex gap-2">
               {product.variants.map((v, i) => {
                 const soldOut = hasColorStock && colorSoldOut[i];
                 return (
                   <button key={v.color} onClick={() => selectColor(i)} title={soldOut ? `${v.color} — sold out` : v.color}
                     disabled={soldOut}
-                    className={`relative w-9 h-9 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
                     style={{ backgroundColor: v.hex }} aria-label={soldOut ? `${v.color} sold out` : v.color}>
                     {/* Strike-through marks the sold-out colour without relying
                         on the faded swatch alone, so it reads at a glance. */}

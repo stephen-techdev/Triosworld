@@ -45,23 +45,21 @@ export default function ProductCard({ product }: Props) {
       <div className="relative">
         <Link
           to={`/product/${product.slug}`}
-          className="block relative overflow-hidden bg-stone/50 aspect-[4/5]"
+          className="block relative overflow-hidden bg-stone/50 aspect-[3/4] sm:aspect-[4/5]"
         >
-          <img
-            src={v.images[0]}
-            alt={product.name}
-            className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-[350ms] ease-out group-hover:scale-[1.02] ${hasSecondImage ? 'group-hover:opacity-0' : ''}`}
-            loading="lazy"
-          />
-          {hasSecondImage && (
+          {v.images.slice(0, 5).map((img, i) => (
             <img
-              src={v.images[1]}
-              alt={`${product.name} alternate view`}
-              className="absolute inset-0 w-full h-full object-cover object-top opacity-0 transition-all duration-[350ms] ease-out group-hover:scale-[1.02] group-hover:opacity-100"
+              key={`${img}-${i}`}
+              src={img}
+              alt={`${product.name} view ${i + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-[350ms] ease-out group-hover:scale-[1.02] ${i === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              style={{
+                transitionDelay: `${i * 50}ms`,
+                objectPosition: 'center top'
+              }}
               loading="lazy"
-              decoding="async"
             />
-          )}
+          ))}
 
           {/* Badge — top left, clean pill. Only rendered when set, so a
               dashboard product without a badge shows no empty pill. */}

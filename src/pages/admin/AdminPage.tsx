@@ -325,6 +325,8 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
 
   const [openId, setOpenId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearErr, setClearErr] = useState<string | null>(null);
 
   const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
     try {
@@ -332,6 +334,21 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
       await reload();
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
+    }
+  };
+
+  const doClear = async (scope: 'all' | 'paid' | 'failed' | 'pending' | 'guests') => {
+    const label = scope === 'all' ? 'ALL orders' : scope === 'guests' ? 'all GUEST orders' : `all ${scope} orders`;
+    if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
+    setClearing(true); setClearErr(null);
+    try {
+      await clearOrders({ scope });
+      await reload();
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setClearErr(e instanceof Error ? e.message : 'Failed to clear');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -363,6 +380,16 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
             className="w-full text-sm bg-ivory border border-ink/10 rounded-full pl-9 pr-3 py-2.5 focus:outline-none focus:border-ink"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-[11px] text-ink/50">Clear:</span>
+        <button type="button" disabled={clearing} onClick={() => doClear('guests')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Guest orders</button>
+        <button type="button" disabled={clearing} onClick={() => doClear('pending')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Pending</button>
+        <button type="button" disabled={clearing} onClick={() => doClear('failed')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Failed</button>
+        <button type="button" disabled={clearing} onClick={() => doClear('paid')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Paid</button>
+        <button type="button" disabled={clearing} onClick={() => doClear('all')} className="px-2.5 py-1 rounded-full text-[11px] border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40">Clear all</button>
+        {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
       </div>
 
       {error && <ErrorNote message={error} onRetry={reload} />}
@@ -569,6 +596,8 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const { data, error, loading, reload } = useAdminData<AdminCustomer[]>(loader, onAuthFail);
   const [query, setQuery] = useState('');
   const [openMobile, setOpenMobile] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearErr, setClearErr] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -576,6 +605,20 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
     if (!q) return data;
     return data.filter(c => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
   }, [data, query]);
+
+  const clearGuestHistory = async () => {
+    if (!confirm('Clear all guest order history? This cannot be undone.')) return;
+    setClearing(true); setClearErr(null);
+    try {
+      await clearGuests();
+      await reload();
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setClearErr(e instanceof Error ? e.message : 'Failed to clear');
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <div>
@@ -589,6 +632,11 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
           placeholder="Search by name or mobile"
           className="w-full text-sm bg-ivory border border-ink/10 rounded-full pl-9 pr-3 py-2.5 focus:outline-none focus:border-ink"
         />
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <button type="button" disabled={clearing} onClick={clearGuestHistory} className="px-3 py-1.5 rounded-full text-xs border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Clear guest history</button>
+        {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
       </div>
 
       {error && <ErrorNote message={error} onRetry={reload} />}
@@ -1308,6 +1356,8 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [filter, setFilter] = useState<'all' | 'new' | 'read' | 'resolved'>('all');
   const loader = useCallback(() => getFeedback(filter), [filter]);
   const { data, error, loading, reload } = useAdminData<AdminFeedback[]>(loader, onAuthFail);
+  const [clearing, setClearing] = useState(false);
+  const [clearErr, setClearErr] = useState<string | null>(null);
 
   const setStatus = async (id: string, status: 'new' | 'read' | 'resolved') => {
     try {
@@ -1318,23 +1368,42 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
     }
   };
 
+  const doClear = async () => {
+    const label = filter === 'all' ? 'all feedback' : `all ${filter} feedback`;
+    if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
+    setClearing(true); setClearErr(null);
+    try {
+      await clearFeedback(filter);
+      await reload();
+    } catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setClearErr(e instanceof Error ? e.message : 'Failed to clear');
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div>
       <SectionHead title="Customer feedback" subtitle="Everything sent from the store's feedback button" onRefresh={reload} loading={loading} />
 
-      <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
-        {(['all', 'new', 'read', 'resolved'] as const).map(f => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={`px-3.5 py-2 rounded-full text-xs font-medium capitalize whitespace-nowrap transition ${
-              filter === f ? 'bg-ink text-ivory' : 'bg-ivory border border-ink/10 text-ink/60 hover:text-ink'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {(['all', 'new', 'read', 'resolved'] as const).map(f => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`px-3.5 py-2 rounded-full text-xs font-medium capitalize whitespace-nowrap transition ${
+                filter === f ? 'bg-ink text-ivory' : 'bg-ivory border border-ink/10 text-ink/60 hover:text-ink'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <button type="button" disabled={clearing} onClick={doClear} className="px-3 py-1.5 rounded-full text-xs border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Clear {filter === 'all' ? 'all' : filter}</button>
+        {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
       </div>
 
       {error && <ErrorNote message={error} onRetry={reload} />}

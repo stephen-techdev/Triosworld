@@ -323,6 +323,9 @@ export const getOrders = (params: { status?: string; q?: string } = {}) => {
 export const updateOrder = (id: string, patch: { status?: string; payment_status?: string }) =>
   adminRequest<{ ok: boolean }>('/order', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
 
+export const clearOrders = (params: { scope?: 'all' | 'paid' | 'failed' | 'pending' | 'guests' } = {}) =>
+  adminRequest<{ ok: boolean; deleted: number }>('/orders-clear', { method: 'POST', body: JSON.stringify(params) });
+
 export const getOrderEvents = (id: string) =>
   adminRequest<{ events: { id: string; event: string; detail: unknown; created_at: string }[] }>(
     `/order-events?id=${encodeURIComponent(id)}`,
@@ -330,6 +333,9 @@ export const getOrderEvents = (id: string) =>
 
 export const getCustomers = () =>
   adminRequest<{ customers: AdminCustomer[] }>('/customers').then(r => r.customers);
+
+export const clearGuests = () =>
+  adminRequest<{ ok: boolean; deleted: number }>('/customers-clear-guests', { method: 'POST', body: JSON.stringify({}) });
 
 export const getProducts = () =>
   adminRequest<{ products: AdminProduct[] }>('/products').then(r => r.products);
@@ -423,6 +429,9 @@ export const getFeedback = (status?: string) =>
 
 export const setFeedbackStatus = (id: string, status: 'new' | 'read' | 'resolved') =>
   adminRequest<{ ok: boolean }>('/feedback', { method: 'POST', body: JSON.stringify({ id, status }) });
+
+export const clearFeedback = (status?: string) =>
+  adminRequest<{ ok: boolean; deleted: number }>('/feedback-clear', { method: 'POST', body: JSON.stringify({ status: status && status !== 'all' ? status : undefined }) });
 
 export const changeAdminPassword = (current: string, next: string) =>
   adminRequest<{ ok: boolean }>('/password', { method: 'POST', body: JSON.stringify({ current, next }) });

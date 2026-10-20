@@ -146,7 +146,7 @@ export default function AdminPage() {
                 <ArrowLeft size={17} /> Back to store
               </Link>
             </div>
-          </nav>
+          <av>
         </aside>
 
         <main className="flex-1 min-w-0">
@@ -163,7 +163,7 @@ export default function AdminPage() {
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
               {tab === 'content' && <ContentSection onAuthFail={signOut} />}
-              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}\n        {tab === 'coupons' && <CouponsSection />}
+              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}        {tab === 'coupons' && <CouponsSection />}
               {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
             </motion.div>
           </AnimatePresence>

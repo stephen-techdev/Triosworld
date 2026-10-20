@@ -120,7 +120,7 @@ export default function CheckoutPage() {
 
     try {
       const order = await createOrder({
-        items: cart,
+        items: cart.filter(i => resolveProduct(i.productId)),
         customer: {
           name: form.fullName.trim(),
           mobile: form.mobile,

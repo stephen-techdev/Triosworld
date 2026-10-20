@@ -84,9 +84,56 @@ async function loadShippingRule(): Promise<ShippingRule> {
 const PAYMENT_WINDOW_MINUTES = 15;
 
 // Coupons are validated server-side; the browser only ever sends the code.
-const COUPONS: Record<string, { type: "pct"; value: number }> = {
-  TRIO10: { type: "pct", value: 10 },
+//
+// The list lives in `store_settings.content.coupons`, owned by Admin → Settings,
+// so an operator can add, edit or retire a code without a redeploy. The built-in
+// code below is only used while that key has never been written — once an
+// operator touches coupons at all, their list is the whole truth.
+interface Coupon {
+  type: "pct" | "flat";
+  value: number;
+  /** Minimum subtotal the code applies to. 0 = no minimum. */
+  min: number;
+}
+
+const FALLBACK_COUPONS: Record<string, Coupon> = {
+  TRIO10: { type: "pct", value: 10, min: 0 },
 };
+
+async function loadCoupons(): Promise<Record<string, Coupon>> {
+  try {
+    const { data } = await supabase
+      .from("store_settings")
+      .select("content")
+      .maybeSingle();
+
+    const doc = (data?.content ?? null) as Record<string, unknown> | null;
+    // Never configured: keep the shipped default so checkout never dead-ends.
+    if (!doc || !("coupons" in doc)) return FALLBACK_COUPONS;
+
+    const raw = doc.coupons;
+    if (!Array.isArray(raw)) return {};
+
+    const out: Record<string, Coupon> = {};
+    for (const c of raw) {
+      if (!c || typeof c !== "object") continue;
+      const o = c as Record<string, unknown>;
+      const code = String(o.code ?? "").trim().toUpperCase();
+      const value = Number(o.value);
+      if (!code || !Number.isFinite(value) || value <= 0) continue;
+      // A retired or zero-value code is simply absent, so applying it fails
+      // loudly instead of silently charging full price.
+      if (o.active === false) continue;
+      const type = o.type === "flat" ? "flat" : "pct";
+      const min = Number(o.min);
+      out[code] = { type, value, min: Number.isFinite(min) && min > 0 ? min : 0 };
+    }
+    return out;
+  } catch {
+    // A failed read must never take checkout down; the default code still works.
+    return FALLBACK_COUPONS;
+  }
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -376,7 +423,12 @@ function gstForLine(unitPrice: number, lineTotal: number) {
   return { rate, tax, cgst, sgst: tax - cgst };
 }
 
-function totalsFor(lines: PricedLine[], couponCode: string, shipping: ShippingRule) {
+function totalsFor(
+  lines: PricedLine[],
+  couponCode: string,
+  shipping: ShippingRule,
+  coupons: Record<string, Coupon>,
+) {
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
   // A threshold of 0 means every order ships free.
   const shippingAmount =
@@ -384,14 +436,30 @@ function totalsFor(lines: PricedLine[], couponCode: string, shipping: ShippingRu
       ? 0
       : shipping.flatShipping;
 
+  // A code the customer typed is checked hard: an unknown, retired or
+  // under-minimum code is refused with a clear message rather than quietly
+  // charging full price and letting the customer discover it on the receipt.
   const applied = couponCode.trim().toUpperCase();
-  const coupon = COUPONS[applied];
-  const discount = coupon ? Math.round((subtotal * coupon.value) / 100) : 0;
+  let discount = 0;
+
+  if (applied) {
+    const coupon = coupons[applied];
+    if (!coupon) throw new PayloadError("That coupon code is not valid.");
+    if (subtotal < coupon.min) {
+      throw new PayloadError(
+        `Coupon ${applied} needs a minimum order of Rs. ${coupon.min}.`,
+      );
+    }
+    discount =
+      coupon.type === "flat"
+        ? Math.min(Math.round(coupon.value), subtotal)
+        : Math.round((subtotal * coupon.value) / 100);
+  }
 
   const total = Math.max(0, subtotal + shippingAmount - discount);
   const tax = lines.reduce((s, l) => s + gstForLine(l.unitPrice, l.lineTotal).tax, 0);
 
-  return { subtotal, shipping: shippingAmount, discount, total, tax, couponApplied: coupon ? applied : null };
+  return { subtotal, shipping: shippingAmount, discount, total, tax, couponApplied: applied || null };
 }
 
 /** Basic-auth REST call against Razorpay. Never throws; returns { ok, data }. */
@@ -657,7 +725,16 @@ Deno.serve(async (req: Request) => {
         throw error;
       }
 
-      const totals = totalsFor(lines, couponCode, shippingRule);
+      let totals;
+      try {
+        const coupons = await loadCoupons();
+        totals = totalsFor(lines, couponCode, shippingRule, coupons);
+      } catch (error) {
+        // Invalid/expired coupon codes are a customer mistake, not a server
+        // fault, so they come back as a plain 400 with the reason.
+        if (error instanceof PayloadError) return json({ error: error.message }, 400);
+        throw error;
+      }
 
       // --- link the order to an account when the customer is signed in ---
       let userId: string | null = null;

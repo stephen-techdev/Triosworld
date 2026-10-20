@@ -116,7 +116,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const value = useMemo<StoreContextValue>(() => {
-    const cartCount = state.cart.reduce((s, i) => s + i.qty, 0);
+    const cartCount = state.cart.filter(i => liveProductById(i.productId)).reduce((s, i) => s + i.qty, 0);
     const subtotal = state.cart.reduce((s, i) => {
       const p = liveProductById(i.productId);
       return s + (p ? p.price * i.qty : 0);

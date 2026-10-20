@@ -26,7 +26,7 @@ export default function CartDrawer({ open, onClose }: Props) {
             transition={{ type: 'tween', duration: 0.3 }}
             className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[100vw] sm:max-w-[92vw] bg-ivory z-[55] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-ink/10">
-              <h3 className="font-display text-lg font-semibold">Your Bag ({cartCount})</h3>
+              <h3 className="font-display text-lg font-semibold">Your Bag{cartCount ? ` (${cartCount})` : ''}</h3>
               <button onClick={onClose} aria-label="Close cart"><X size={22} /></button>
             </div>
 

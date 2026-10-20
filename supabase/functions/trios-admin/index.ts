@@ -1261,6 +1261,13 @@ function storageKeyFromUrl(url: string): string | null {
       });
     }
 
+    // COUPONS - admin defined only (trios-pay reads this)
+    const readContent = async function(){ const r = await supabase.from("store_settings").select("content").maybeSingle(); const d = r && r.data ? r.data.content : null; return (d && typeof d === "object" && !Array.isArray(d)) ? d : {}; };
+    const writeCoupons = async function(c){ const doc = await readContent(); const upd = Object.assign({}, doc, { coupons: c }); await supabase.from("store_settings").update({ content: upd, updated_by: session.email, updated_at: new Date().toISOString() }).eq("id", 1); };
+    const cc = function(c){ return (c && typeof c === "object") ? String(c.code || "").toUpperCase().trim() : ""; };
+    if(path === "/coupons" && req.method === "GET"){ const doc = await readContent(); const raw = Array.isArray(doc.coupons) ? doc.coupons : []; return json({ coupons: raw }); }
+    if(path === "/coupons" && req.method === "POST"){ const body = await req.json().catch(function(){return{}}); const code = String(body.code||"").toUpperCase().trim(); const type = body.type === "flat" ? "flat" : "pct"; const val = Number(body.value); const min = Number(body.min)||0; const active = body.active !== false; if(!code || !/^[A-Z0-9_-]+$/.test(code) || code.length > 24) return json({error:"Invalid code"},400); if(!isFinite(val) || val <= 0) return json({error:"Invalid value"},400); if(type === "pct" && val > 100) return json({error:"Percent cannot exceed 100"},400); const doc = await readContent(); const list = Array.isArray(doc.coupons) ? doc.coupons.slice() : []; const idx = list.findIndex(function(x){ return cc(x) === code; }); const entry = { code: code, type: type, value: val, min: min, active: active }; if(idx < 0) list.push(entry); else list[idx] = Object.assign({}, list[idx], entry); await writeCoupons(list); return json({ok:true,coupon:entry}); }
+    if(path === "/coupons-delete" && req.method === "POST"){ const body = await req.json().catch(function(){return{}}); const code = String(body.code||"").toUpperCase().trim(); if(!code) return json({error:"code required"},400); const doc = await readContent(); const list = Array.isArray(doc.coupons) ? doc.coupons : []; const next = list.filter(function(x){ return cc(x) !== code; }); if(next.length === list.length) return json({error:"No such coupon"},404); await writeCoupons(next); return json({ok:true}); }
     if (path === "/settings" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const patch: Record<string, unknown> = {};

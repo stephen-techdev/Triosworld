@@ -672,7 +672,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="WhatsApp number (country code, digits only)" value={c.footer.whatsapp}
-            placeholder="918883626787"
+            placeholder="916383883727"
             onChange={v => setC(p => ({ ...p, footer: { ...p.footer, whatsapp: v } }))} />
           <Field label="Closing line (next to ©)" value={c.footer.note}
             onChange={v => setC(p => ({ ...p, footer: { ...p.footer, note: v } }))} />

@@ -437,7 +437,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       body: [
         { p: 'We are here to help. Reach us any of the ways below — typical response time is under 24 hours on business days.' },
         { h: 'Email', p: 'hello@triosworld.com' },
-        { h: 'Phone', p: '+91 88836 26787 (Mon–Sat, 10am–7pm IST)' },
+        { h: 'Phone', p: '+91 63838 83727 (Mon–Sat, 10am–7pm IST)' },
         { h: 'Address', p: 'TriosWorld, Mumbai, India' },
       ],
     },

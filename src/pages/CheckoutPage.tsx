@@ -211,27 +211,21 @@ export default function CheckoutPage() {
 
     const reference = `TW-${Date.now().toString().slice(-6)}`;
 
-    // On a phone the picture goes to WhatsApp as an attachment. Detect that
-    // before anything asynchronous happens, so the share still counts as part
-    // of the customer's click.
-    const probe = new File([new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' })], 'order.png', { type: 'image/png' });
-    const canShareFile =
-      typeof navigator !== 'undefined' &&
-      typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [probe] });
+    // Where the picture of the order will live. The path is the order
+    // reference, so it is known before the picture is even drawn — which means
+    // the chat can be opened straight away, with the order message in it.
+    const pictureUrl = orderImageUrl(reference);
 
-    // On a desktop the browser cannot attach a file, so a tab is opened right
-    // away (a click must open it) and pointed at WhatsApp once the picture is
-    // ready.
-    const tab = canShareFile ? null : window.open('', '_blank');
+    // The chat opens right here, in this click: the greeting plus the order.
+    // No share sheet, no empty tab — the customer lands in the chat with the
+    // message already written.
+    window.open(whatsappLink(`${GREETING}\n${pictureUrl}`), '_blank', 'noopener');
 
     try {
       const blob = await buildOrderImage(reference);
-      const file = new File([blob], `${reference}.png`, { type: 'image/png' });
 
-      // The picture is stored so the order page can show the very same order
-      // later. On a phone it happens in the background — the share must not
-      // wait for the upload.
+      // The picture is stored so WhatsApp can show it and the order page can
+      // show the very same order.
       const upload = uploadOrderImage(blob, reference).then((url) => {
         if (url) setWhatsAppOrderImage(reference, url);
         return url;
@@ -268,37 +262,19 @@ export default function CheckoutPage() {
         },
       });
 
-      if (canShareFile) {
-        // The share sheet opens with WhatsApp in it; the picture is attached
-        // and the customer only has to press Send.
-        await navigator.share({
-          files: [file],
-          title: `TriosWorld order ${reference}`,
-          text: GREETING,
-        });
-      } else {
-        const url = await upload;
-        if (!url) {
-          tab?.close();
-          setWaStage('error');
-          return;
-        }
-        // The message is the greeting plus the picture of the order.
-        if (tab) {
-          tab.location.href = whatsappLink(`${GREETING}\n${url}`);
-        } else {
-          window.open(whatsappLink(`${GREETING}\n${url}`), '_blank', 'noopener');
-        }
-      }
+      // Wait for the picture to be stored so WhatsApp can render it the
+      // moment the message is sent, and so the order page shows the same
+      // picture. The chat is already open while this happens.
+      await upload;
     } catch {
-      // The customer dismissed the share sheet, or the upload failed.
-      tab?.close();
-      setWaStage('idle');
-      return;
+      // The picture could not be drawn or stored — the chat is still open with
+      // the message, so the order is not lost.
+      setWaStage('error');
     }
 
-    // The message is away. The customer lands on the order page, where the
-    // order number, the picture of the order and the confirmation live.
+    // The chat is open with the order message. The customer lands on the
+    // order page, where the order number, the picture of the order and the
+    // confirmation live.
     navigate(`/order/${reference}`);
   };
 

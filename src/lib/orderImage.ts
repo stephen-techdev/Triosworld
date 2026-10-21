@@ -23,11 +23,16 @@ interface OrderImageInput {
   reference: string;
   /** Human date, e.g. "21 Oct 2026, 14:32". */
   dateLabel: string;
+  /** The greeting that goes with the message. */
+  greeting: string;
   /** Pre-formatted order lines, already priced. */
   lines: string[];
   /** Printed in the footer. */
   footnote: string;
-  /** What the QR code in the message box opens — our WhatsApp chat. */
+  /**
+   * What the QR code opens. It is the picture of the order itself, so the
+   * store can scan it and read the order straight away.
+   */
   qrPayload: string;
 }
 
@@ -86,9 +91,10 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
   const headerHeight = 190;
   const bodyLineHeight = 38;
   const bodyHeight = bodyLines.length * bodyLineHeight + 60;
+  const greetingHeight = 74;
   const messageBoxHeight = 260;
   const footerHeight = 120;
-  const height = headerHeight + bodyHeight + messageBoxHeight + footerHeight;
+  const height = headerHeight + greetingHeight + bodyHeight + messageBoxHeight + footerHeight;
 
   canvas.width = WIDTH;
   canvas.height = height;
@@ -124,8 +130,14 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
   ctx.fillText('Order reference', WIDTH - PAD, 124);
   ctx.textAlign = 'left';
 
+  // --- the greeting that opens the message ---
+  const greetingTop = headerHeight + 48;
+  ctx.fillStyle = INK;
+  ctx.font = 'italic 500 26px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.fillText(`“${input.greeting}”`, PAD, greetingTop);
+
   // --- body ---
-  let y = headerHeight + 46;
+  let y = headerHeight + greetingHeight + 30;
   ctx.fillStyle = INK;
   ctx.font = '400 26px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
   for (const line of bodyLines) {
@@ -142,7 +154,7 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
   }
 
   // --- message box: the QR code and "this is my order" ---
-  const boxTop = headerHeight + bodyHeight;
+  const boxTop = headerHeight + greetingHeight + bodyHeight;
   const boxX = PAD;
   const boxW = WIDTH - PAD * 2;
   const boxY = boxTop + 12;
@@ -172,8 +184,8 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
 
   ctx.fillStyle = MUTED;
   ctx.font = '400 22px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-  ctx.fillText('Scan the QR to open our WhatsApp chat', textX, qrY + 88);
-  ctx.fillText('with this order attached.', textX, qrY + 120);
+  ctx.fillText('Send this on WhatsApp. The store scans', textX, qrY + 88);
+  ctx.fillText('the QR to open the order details.', textX, qrY + 120);
 
   ctx.fillStyle = INK;
   ctx.font = '600 22px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';

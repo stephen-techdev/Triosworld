@@ -1,4 +1,16 @@
 /**
+ * Where the picture of an order lives.
+ *
+ * The path is predictable (it is the order reference) so the QR code inside
+ * the picture can point at it before the picture is even uploaded: the store
+ * scans the QR and the order opens straight away.
+ */
+export function orderImageUrl(reference: string): string {
+  const base = import.meta.env.VITE_SUPABASE_URL as string;
+  return `${base}/storage/v1/object/public/product-images/orders/${reference}.png`;
+}
+
+/**
  * Uploads the rendered order picture so WhatsApp can show it.
  *
  * On a phone the picture is handed to WhatsApp straight from the browser

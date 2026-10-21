@@ -25,6 +25,8 @@ export interface WhatsAppOrder {
   createdAt: string;
   /** The picture of the order — the same one that was sent on WhatsApp. */
   imageUrl: string | null;
+  /** Set when the customer confirmed the order on the website. */
+  confirmedAt: string | null;
   items: WhatsAppOrderItem[];
   subtotal: number;
   shipping: number;
@@ -73,4 +75,16 @@ export function setWhatsAppOrderImage(reference: string, imageUrl: string) {
 
 export function readWhatsAppOrder(reference: string): WhatsAppOrder | null {
   return readAll().find(o => o.reference === reference) ?? null;
+}
+
+/** The customer confirmed the order on the website. */
+export function confirmWhatsAppOrder(reference: string) {
+  try {
+    const next = readAll().map(o =>
+      o.reference === reference ? { ...o, confirmedAt: o.confirmedAt ?? new Date().toISOString() } : o,
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
 }

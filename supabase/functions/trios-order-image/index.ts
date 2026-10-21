@@ -61,11 +61,13 @@ Deno.serve(async (req: Request) => {
         return json({ error: "image is empty or too large" }, 400);
       }
 
-      const filePath = `orders/${reference}-${Date.now()}.png`;
+      // The path is the order reference, so the QR code inside the picture can
+      // point at this exact URL before the picture is uploaded.
+      const filePath = `orders/${reference}.png`;
 
       const { error } = await supabase.storage.from(BUCKET).upload(filePath, bytes, {
         contentType: "image/png",
-        upsert: false,
+        upsert: true,
       });
       if (error) return json({ error: error.message }, 500);
 

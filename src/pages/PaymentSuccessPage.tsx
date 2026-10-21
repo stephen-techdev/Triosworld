@@ -14,7 +14,7 @@ import {
   takePendingOrder, type StatusResult,
 } from '@/lib/payments';
 import { downloadReceipt } from '@/lib/receipt';
-import { readWhatsAppOrder } from '@/lib/whatsappOrders';
+import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
 
 const POLL_MS = 5000;
 
@@ -55,6 +55,8 @@ export default function PaymentSuccessPage() {
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(0);
+  /** Bumped when the customer confirms a WhatsApp order, to re-read it. */
+  const [confirmedTick, setConfirmedTick] = useState(0);
 
   const clearedRef = useRef(false);
 
@@ -163,20 +165,50 @@ export default function PaymentSuccessPage() {
   // -------------------------------------------------------------------------
   const localOrder = readWhatsAppOrder(orderNumber);
   if (localOrder) {
+    // Re-read the order after the customer confirms it, so the page flips to
+    // the confirmed view without a reload.
+    const waOrder = confirmedTick ? readWhatsAppOrder(orderNumber) ?? localOrder : localOrder;
+    const confirmed = Boolean(waOrder.confirmedAt);
     return (
       <div className="page-container py-12 md:py-16">
-        <SEO title={`Order ${localOrder.reference}`} noindex />
+        <SEO title={`Order ${waOrder.reference}`} noindex />
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-full bg-lime mx-auto flex items-center justify-center mb-5">
-              <Check size={32} strokeWidth={2.5} />
+              {confirmed ? <Check size={32} strokeWidth={2.5} /> : <ShieldCheck size={30} strokeWidth={2.2} />}
             </div>
-            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">Order confirmed</h1>
+            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
+              {confirmed ? 'Order confirmed' : 'Confirm your order'}
+            </h1>
             <p className="text-sm text-ink/60">
-              Thank you — your order is confirmed. <strong className="text-ink">Our team will meet you soon</strong>{' '}
-              and message you on WhatsApp with the payment details.
+              {confirmed ? (
+                <>
+                  Thank you — your order is confirmed. <strong className="text-ink">Our team will meet you soon</strong>{' '}
+                  and message you on WhatsApp with the payment details.
+                </>
+              ) : (
+                <>
+                  Please confirm that you have sent the order on WhatsApp. Once you confirm, our team
+                  will meet you soon and message you with the payment details.
+                </>
+              )}
             </p>
           </div>
+
+          {!confirmed && (
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  confirmWhatsAppOrder(waOrder.reference);
+                  setConfirmedTick(Date.now());
+                }}
+                className="w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
+              >
+                <Check size={18} /> Yes, I sent the order
+              </button>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-ink/10 bg-ivory p-6 md:p-7">
             <div className="flex items-center justify-between gap-4 mb-5">
@@ -186,16 +218,16 @@ export default function PaymentSuccessPage() {
               </span>
             </div>
             <dl className="space-y-3.5 text-sm">
-              <Row label="Order ID" value={localOrder.reference} mono />
-              <Row label="Order placed" value={formatWhen(localOrder.createdAt)} />
+              <Row label="Order ID" value={waOrder.reference} mono />
+              <Row label="Order placed" value={formatWhen(waOrder.createdAt)} />
               <Row label="Order method" value="WhatsApp" />
-              <Row label="Amount" value={formatINR(localOrder.total)} strong />
+              <Row label="Amount" value={formatINR(waOrder.total)} strong />
             </dl>
 
             <div className="mt-6 pt-5 border-t border-ink/10">
               <h3 className="text-sm font-semibold mb-3">Items</h3>
               <ul className="space-y-2 text-sm">
-                {localOrder.items.map((item, i) => (
+                {waOrder.items.map((item, i) => (
                   <li key={`${item.name}-${item.color}-${item.size}-${i}`} className="flex justify-between gap-4">
                     <span className="text-ink/70">
                       {item.name} · {item.color} · {item.size} · Qty {item.qty}
@@ -205,24 +237,24 @@ export default function PaymentSuccessPage() {
                 ))}
               </ul>
               <dl className="space-y-2 text-sm mt-4 pt-4 border-t border-ink/10">
-                <Row label="Subtotal" value={formatINR(localOrder.subtotal)} />
-                <Row label="Shipping" value={localOrder.shipping === 0 ? 'Free' : formatINR(localOrder.shipping)} />
-                {localOrder.discount > 0 && <Row label="Discount" value={`−${formatINR(localOrder.discount)}`} />}
-                <Row label="Total" value={formatINR(localOrder.total)} strong />
+                <Row label="Subtotal" value={formatINR(waOrder.subtotal)} />
+                <Row label="Shipping" value={waOrder.shipping === 0 ? 'Free' : formatINR(waOrder.shipping)} />
+                {waOrder.discount > 0 && <Row label="Discount" value={`−${formatINR(waOrder.discount)}`} />}
+                <Row label="Total" value={formatINR(waOrder.total)} strong />
               </dl>
             </div>
 
-            {localOrder.imageUrl && (
+            {waOrder.imageUrl && (
               <div className="mt-6 pt-5 border-t border-ink/10">
                 <h3 className="text-sm font-semibold mb-3">The order we sent you</h3>
                 <img
-                  src={localOrder.imageUrl}
-                  alt={`Order ${localOrder.reference}`}
+                  src={waOrder.imageUrl}
+                  alt={`Order ${waOrder.reference}`}
                   className="w-full max-w-sm rounded-xl border border-ink/10"
                 />
                 <a
-                  href={localOrder.imageUrl}
-                  download={`${localOrder.reference}.png`}
+                  href={waOrder.imageUrl}
+                  download={`${waOrder.reference}.png`}
                   className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-ink/60 hover:text-ink transition"
                 >
                   <Download size={14} /> Save the order picture

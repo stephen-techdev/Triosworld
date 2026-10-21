@@ -12,7 +12,7 @@ import { freeShippingLabel, shippingFor, useStoreSettings } from '@/lib/storeSet
 import SEO from '@/components/SEO';
 import { whatsappLink } from '@/components/WhatsApp';
 import { renderOrderImage } from '@/lib/orderImage';
-import { uploadOrderImage } from '@/lib/orderImageUpload';
+import { uploadOrderImage, orderImageUrl } from '@/lib/orderImageUpload';
 import { saveWhatsAppOrder, setWhatsAppOrderImage } from '@/lib/whatsappOrders';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
@@ -80,9 +80,7 @@ export default function CheckoutPage() {
    *  - "sent"    → confirmed on the website; the team takes it from here
    *  - "error"   → something went wrong; the customer can try again
    */
-  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'waiting' | 'verify' | 'sent' | 'error'>('idle');
-  /** The reference of the WhatsApp order being placed, e.g. TW-482913. */
-  const [waReference, setWaReference] = useState<string | null>(null);
+  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -130,6 +128,14 @@ export default function CheckoutPage() {
   };
 
   /**
+   * The greeting that goes with the order.
+   *
+   * It is the first line of the message the customer sends, and it is printed
+   * on the picture too, so the message reads the same whoever opens it.
+   */
+  const GREETING = 'Hi TriosWorld, I want to place an order.';
+
+  /**
    * The order as a picture.
    *
    * The details are drawn on the customer's own device, so they are fixed at
@@ -166,10 +172,11 @@ export default function CheckoutPage() {
       dateLabel: new Date().toLocaleString('en-IN', {
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
       }),
+      greeting: GREETING,
       lines,
-      // The QR in the picture opens our WhatsApp chat with this order's
-      // reference already written, so one scan is all it takes.
-      qrPayload: whatsappLink(`Hi TriosWorld, this is my order ${reference}.`),
+      // The QR in the picture opens the picture of the order itself, so the
+      // store can scan it and read the order straight away.
+      qrPayload: orderImageUrl(reference),
       footnote: 'This picture is the order exactly as placed on triosworld.com',
     });
   };
@@ -203,7 +210,6 @@ export default function CheckoutPage() {
     setWaStage('sending');
 
     const reference = `TW-${Date.now().toString().slice(-6)}`;
-    setWaReference(reference);
 
     // On a phone the picture goes to WhatsApp as an attachment. Detect that
     // before anything asynchronous happens, so the share still counts as part
@@ -236,6 +242,7 @@ export default function CheckoutPage() {
         reference,
         createdAt: new Date().toISOString(),
         imageUrl: null,
+        confirmedAt: null,
         items: cart.map(i => {
           const p = resolveProduct(i.productId);
           return {
@@ -267,7 +274,7 @@ export default function CheckoutPage() {
         await navigator.share({
           files: [file],
           title: `TriosWorld order ${reference}`,
-          text: `New order ${reference}`,
+          text: GREETING,
         });
       } else {
         const url = await upload;
@@ -276,10 +283,11 @@ export default function CheckoutPage() {
           setWaStage('error');
           return;
         }
+        // The message is the greeting plus the picture of the order.
         if (tab) {
-          tab.location.href = whatsappLink(url);
+          tab.location.href = whatsappLink(`${GREETING}\n${url}`);
         } else {
-          window.open(whatsappLink(url), '_blank', 'noopener');
+          window.open(whatsappLink(`${GREETING}\n${url}`), '_blank', 'noopener');
         }
       }
     } catch {
@@ -289,25 +297,9 @@ export default function CheckoutPage() {
       return;
     }
 
-    setWaStage('waiting');
-
-    // Coming back to this tab is the signal that the message went out: they
-    // only come back once the message is sent in WhatsApp. The website then
-    // asks them to confirm it here before the order counts as confirmed.
-    const openedAt = Date.now();
-    const onReturn = () => {
-      // Ignore the blur/focus pair that happens the instant the new tab opens.
-      if (Date.now() - openedAt < 1500) return;
-      if (document.visibilityState === 'hidden') return;
-      cleanup();
-      setWaStage('verify');
-    };
-    const cleanup = () => {
-      window.removeEventListener('focus', onReturn);
-      document.removeEventListener('visibilitychange', onReturn);
-    };
-    window.addEventListener('focus', onReturn);
-    document.addEventListener('visibilitychange', onReturn);
+    // The message is away. The customer lands on the order page, where the
+    // order number, the picture of the order and the confirmation live.
+    navigate(`/order/${reference}`);
   };
 
   const handlePay = async () => {
@@ -494,39 +486,6 @@ export default function CheckoutPage() {
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
                   Thank you — your order is confirmed. <strong>Our team will meet you soon</strong> and
                   message you on WhatsApp with the payment details.
-                </p>
-              </div>
-            ) : waStage === 'verify' ? (
-              <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <ShieldCheck size={16} className="text-lime" /> Confirm your order
-                </p>
-                <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  Please confirm that you have sent the order on WhatsApp. Once you confirm, our team
-                  will meet you soon and message you with the payment details.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWaStage('sent');
-                    // The order is confirmed — take the customer to the order
-                    // page, where the order number, the picture of the order
-                    // and the totals are all in one place.
-                    if (waReference) navigate(`/order/${waReference}`);
-                  }}
-                  className="mt-3 w-full py-3.5 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
-                >
-                  <Check size={16} /> Yes, I sent the order
-                </button>
-              </div>
-            ) : waStage === 'waiting' ? (
-              <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <Loader2 size={16} className="animate-spin" /> Finish it in WhatsApp
-                </p>
-                <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  Your order is ready as a picture in WhatsApp — press <strong>Send</strong> there to
-                  place it. Come back here and we will confirm it.
                 </p>
               </div>
             ) : waStage === 'error' ? (

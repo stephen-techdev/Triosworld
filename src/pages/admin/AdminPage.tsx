@@ -35,7 +35,7 @@ import {
   type AdminSession, type Overview, type ProductColor,
 } from '@/lib/admin';
 
-type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'coupons' | 'settings';
+type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -146,7 +146,7 @@ export default function AdminPage() {
                 <ArrowLeft size={17} /> Back to store
               </Link>
             </div>
-          <av>
+          </nav>
         </aside>
 
         <main className="flex-1 min-w-0">
@@ -163,7 +163,7 @@ export default function AdminPage() {
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
               {tab === 'content' && <ContentSection onAuthFail={signOut} />}
-              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}        {tab === 'coupons' && <CouponsSection />}
+              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
               {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
             </motion.div>
           </AnimatePresence>

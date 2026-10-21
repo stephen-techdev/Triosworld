@@ -13,6 +13,7 @@ import SEO from '@/components/SEO';
 import { whatsappLink } from '@/components/WhatsApp';
 import { renderOrderImage } from '@/lib/orderImage';
 import { uploadOrderImage } from '@/lib/orderImageUpload';
+import { saveWhatsAppOrder, setWhatsAppOrderImage } from '@/lib/whatsappOrders';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
 } from '@/lib/payments';
@@ -80,6 +81,8 @@ export default function CheckoutPage() {
    *  - "error"   → something went wrong; the customer can try again
    */
   const [waStage, setWaStage] = useState<'idle' | 'sending' | 'waiting' | 'verify' | 'sent' | 'error'>('idle');
+  /** The reference of the WhatsApp order being placed, e.g. TW-482913. */
+  const [waReference, setWaReference] = useState<string | null>(null);
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -200,6 +203,7 @@ export default function CheckoutPage() {
     setWaStage('sending');
 
     const reference = `TW-${Date.now().toString().slice(-6)}`;
+    setWaReference(reference);
 
     // On a phone the picture goes to WhatsApp as an attachment. Detect that
     // before anything asynchronous happens, so the share still counts as part
@@ -219,6 +223,44 @@ export default function CheckoutPage() {
       const blob = await buildOrderImage(reference);
       const file = new File([blob], `${reference}.png`, { type: 'image/png' });
 
+      // The picture is stored so the order page can show the very same order
+      // later. On a phone it happens in the background — the share must not
+      // wait for the upload.
+      const upload = uploadOrderImage(blob, reference).then((url) => {
+        if (url) setWhatsAppOrderImage(reference, url);
+        return url;
+      });
+
+      // Keep the order on the device so /order/:reference can show it.
+      saveWhatsAppOrder({
+        reference,
+        createdAt: new Date().toISOString(),
+        imageUrl: null,
+        items: cart.map(i => {
+          const p = resolveProduct(i.productId);
+          return {
+            name: p?.name || i.productId,
+            color: i.color,
+            size: i.size,
+            qty: i.qty,
+            lineTotal: p ? p.price * i.qty : 0,
+          };
+        }),
+        subtotal,
+        shipping,
+        discount,
+        total,
+        customer: {
+          name: form.fullName.trim(),
+          mobile: form.mobile,
+          email: form.email.trim() || null,
+          address: form.address.trim(),
+          city: form.city.trim(),
+          state: form.state,
+          pincode: form.pincode,
+        },
+      });
+
       if (canShareFile) {
         // The share sheet opens with WhatsApp in it; the picture is attached
         // and the customer only has to press Send.
@@ -228,7 +270,7 @@ export default function CheckoutPage() {
           text: `New order ${reference}`,
         });
       } else {
-        const url = await uploadOrderImage(blob, reference);
+        const url = await upload;
         if (!url) {
           tab?.close();
           setWaStage('error');
@@ -465,7 +507,13 @@ export default function CheckoutPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setWaStage('sent')}
+                  onClick={() => {
+                    setWaStage('sent');
+                    // The order is confirmed — take the customer to the order
+                    // page, where the order number, the picture of the order
+                    // and the totals are all in one place.
+                    if (waReference) navigate(`/order/${waReference}`);
+                  }}
                   className="mt-3 w-full py-3.5 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
                 >
                   <Check size={16} /> Yes, I sent the order

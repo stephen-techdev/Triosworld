@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star, X, Maximize2 } from 'lucide-react';
@@ -36,6 +36,21 @@ export default function ProductPage() {
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'description' | 'care' | 'shipping'>('description');
+  /** The mobile photo strip — the one the customer swipes through. */
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Pick a photo.
+   *
+   * On a phone the photos live in one scrolling strip, so choosing a thumbnail
+   * scrolls that strip to the photo. There is no full-screen overlay on a
+   * phone: the page keeps scrolling the way the customer expects.
+   */
+  const selectImage = (i: number) => {
+    setImageIdx(i);
+    const strip = carouselRef.current;
+    if (strip) strip.scrollTo({ left: i * strip.clientWidth, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     setColorIdx(0); setImageIdx(0); setSize(null); setQty(1);
@@ -159,6 +174,8 @@ export default function ProductPage() {
     if (hasColorStock && colorSoldOut[i]) return;
     setColorIdx(i);
     setImageIdx(0);
+    // The phone strip starts at the first photo of the new colour.
+    carouselRef.current?.scrollTo({ left: 0, behavior: 'auto' });
   };
 
   return (
@@ -177,13 +194,34 @@ export default function ProductPage() {
         <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4">
           <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible no-scrollbar">
             {variant.images.map((img, i) => (
-              <button key={i} onClick={() => setImageIdx(i)}
+              <button key={i} onClick={() => selectImage(i)}
                 className={`shrink-0 w-20 h-24 rounded overflow-hidden border-2 ${imageIdx === i ? 'border-ink' : 'border-transparent'}`}>
                 <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
-          <div className="flex-1 relative overflow-hidden rounded-xl bg-stone/30 aspect-[3/4]">
+
+          {/* Phone: one strip of photos, swiped in place. The page scrolls
+              normally — nothing takes over the screen. */}
+          <div className="md:hidden -mx-4">
+            <div ref={carouselRef} className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+              {variant.images.map((img, i) => (
+                <img
+                  key={img + i}
+                  src={img}
+                  alt={`${product.name} ${i + 1}`}
+                  className="w-full shrink-0 snap-center aspect-[3/4] object-cover"
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                />
+              ))}
+            </div>
+            {variant.images.length > 1 && (
+              <p className="text-[11px] text-ink/40 text-center mt-2">Swipe for more photos</p>
+            )}
+          </div>
+
+          {/* Desktop: one photo at a time, tap for the full-screen viewer. */}
+          <div className="hidden md:block flex-1 relative overflow-hidden rounded-xl bg-stone/30 aspect-[3/4]">
             <AnimatePresence mode="wait">
               <motion.img
                 key={`${colorIdx}-${imageIdx}`}

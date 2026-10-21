@@ -14,6 +14,7 @@ import {
   takePendingOrder, type StatusResult,
 } from '@/lib/payments';
 import { downloadReceipt } from '@/lib/receipt';
+import { readWhatsAppOrder } from '@/lib/whatsappOrders';
 
 const POLL_MS = 5000;
 
@@ -155,6 +156,99 @@ export default function PaymentSuccessPage() {
       setDownloading(false);
     }
   };
+
+  // -------------------------------------------------------------------------
+  // A WhatsApp order: the picture was sent to the store and confirmed here, so
+  // there is no server record to poll. The order lives on this device.
+  // -------------------------------------------------------------------------
+  const localOrder = readWhatsAppOrder(orderNumber);
+  if (localOrder) {
+    return (
+      <div className="page-container py-12 md:py-16">
+        <SEO title={`Order ${localOrder.reference}`} noindex />
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-full bg-lime mx-auto flex items-center justify-center mb-5">
+              <Check size={32} strokeWidth={2.5} />
+            </div>
+            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">Order confirmed</h1>
+            <p className="text-sm text-ink/60">
+              Thank you — your order is confirmed. <strong className="text-ink">Our team will meet you soon</strong>{' '}
+              and message you on WhatsApp with the payment details.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-ink/10 bg-ivory p-6 md:p-7">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <h2 className="font-display text-lg font-semibold">Order details</h2>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-lime text-ink text-[11px] font-bold uppercase tracking-wide">
+                <Check size={11} /> Placed
+              </span>
+            </div>
+            <dl className="space-y-3.5 text-sm">
+              <Row label="Order ID" value={localOrder.reference} mono />
+              <Row label="Order placed" value={formatWhen(localOrder.createdAt)} />
+              <Row label="Order method" value="WhatsApp" />
+              <Row label="Amount" value={formatINR(localOrder.total)} strong />
+            </dl>
+
+            <div className="mt-6 pt-5 border-t border-ink/10">
+              <h3 className="text-sm font-semibold mb-3">Items</h3>
+              <ul className="space-y-2 text-sm">
+                {localOrder.items.map((item, i) => (
+                  <li key={`${item.name}-${item.color}-${item.size}-${i}`} className="flex justify-between gap-4">
+                    <span className="text-ink/70">
+                      {item.name} · {item.color} · {item.size} · Qty {item.qty}
+                    </span>
+                    <span className="font-medium">{formatINR(item.lineTotal)}</span>
+                  </li>
+                ))}
+              </ul>
+              <dl className="space-y-2 text-sm mt-4 pt-4 border-t border-ink/10">
+                <Row label="Subtotal" value={formatINR(localOrder.subtotal)} />
+                <Row label="Shipping" value={localOrder.shipping === 0 ? 'Free' : formatINR(localOrder.shipping)} />
+                {localOrder.discount > 0 && <Row label="Discount" value={`−${formatINR(localOrder.discount)}`} />}
+                <Row label="Total" value={formatINR(localOrder.total)} strong />
+              </dl>
+            </div>
+
+            {localOrder.imageUrl && (
+              <div className="mt-6 pt-5 border-t border-ink/10">
+                <h3 className="text-sm font-semibold mb-3">The order we sent you</h3>
+                <img
+                  src={localOrder.imageUrl}
+                  alt={`Order ${localOrder.reference}`}
+                  className="w-full max-w-sm rounded-xl border border-ink/10"
+                />
+                <a
+                  href={localOrder.imageUrl}
+                  download={`${localOrder.reference}.png`}
+                  className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-ink/60 hover:text-ink transition"
+                >
+                  <Download size={14} /> Save the order picture
+                </a>
+              </div>
+            )}
+
+            <div className="mt-7 pt-6 border-t border-ink/10 flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/shop/shop-all"
+                className="flex-1 text-center px-6 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition"
+              >
+                Continue shopping
+              </Link>
+              <Link
+                to="/contact"
+                className="flex-1 text-center px-6 py-3 rounded-full border border-ink/15 text-sm font-semibold hover:bg-stone/30 transition"
+              >
+                Contact us
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // -------------------------------------------------------------------------
   // The payment service is unreachable — do not imply the order is missing.

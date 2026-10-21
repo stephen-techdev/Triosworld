@@ -16,7 +16,8 @@ import { routePath } from "../_shared/http.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Type": "Content-Type",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";

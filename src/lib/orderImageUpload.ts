@@ -7,6 +7,7 @@
  * sent instead — WhatsApp renders it inline as the picture of the order.
  */
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export async function uploadOrderImage(blob: Blob, reference: string): Promise<string | null> {
   try {
@@ -25,7 +26,11 @@ export async function uploadOrderImage(blob: Blob, reference: string): Promise<s
 
     const res = await fetch(`${FUNCTIONS_URL}/trios-order-image/upload`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
       body: JSON.stringify({ data: base64, reference }),
     });
     if (!res.ok) return null;

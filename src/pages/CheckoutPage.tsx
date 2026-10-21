@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Lock, Tag, Check, ArrowLeft, ShieldCheck, Truck, Smartphone, Loader2, UserRound,
+  AlertTriangle,
 } from 'lucide-react';
 import { useStore, resolveProduct } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
@@ -11,6 +11,8 @@ import { formatINR } from '@/data/catalog';
 import { freeShippingLabel, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 import SEO from '@/components/SEO';
 import { whatsappLink } from '@/components/WhatsApp';
+import { renderOrderImage } from '@/lib/orderImage';
+import { uploadOrderImage } from '@/lib/orderImageUpload';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
 } from '@/lib/payments';
@@ -74,7 +76,7 @@ export default function CheckoutPage() {
    *                still has to press "send" there
    *  - "sent"    → the message went out, so the order is confirmed
    */
-  const [waStage, setWaStage] = useState<'idle' | 'waiting' | 'sent'>('idle');
+  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'waiting' | 'sent' | 'error'>('idle');
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -122,43 +124,123 @@ export default function CheckoutPage() {
   };
 
   /**
-   * Builds the WhatsApp message with the complete order — customer details,
-   * every line item, totals and the payment note — so nothing has to be
-   * typed on the other side.
+   * The order as a picture.
+   *
+   * The details are drawn on the customer's own device, so they are fixed at
+   * the moment the picture is made. WhatsApp then receives a picture, not
+   * editable text — a customer cannot quietly change the size, the quantity
+   * or the price before sending it.
    */
-  const whatsappOrderMessage = () => {
+  const buildOrderImage = async (reference: string) => {
     const items = cart.map(i => {
       const p = resolveProduct(i.productId);
-      return `- ${p?.name || i.productId} | Color: ${i.color} | Size: ${i.size} | Qty: ${i.qty} | Price: ${p ? formatINR(p.price * i.qty) : ''}`;
-    }).join('\n');
-    return `Hi TriosWorld, I want to place an order.\n\nCustomer Details:\nName: ${form.fullName}\nMobile: ${form.mobile}\nEmail: ${form.email || 'N/A'}\nAddress: ${form.address}, ${form.city}, ${form.state} - ${form.pincode}\n\nOrder Details:\n${items}\n\nSubtotal: ${formatINR(subtotal)}\nShipping: ${shipping === 0 ? 'Free' : formatINR(shipping)}\nDiscount: ${couponApplied ? '-'+formatINR(discount) : '₹0'}\nTotal: ${formatINR(total)}\n\nPayment: UPI/WhatsApp Order`;
+      return `- ${p?.name || i.productId}  |  ${i.color}  |  Size ${i.size}  |  Qty ${i.qty}  |  ${p ? formatINR(p.price * i.qty) : ''}`;
+    });
+
+    const lines = [
+      'CUSTOMER',
+      `Name: ${form.fullName.trim()}`,
+      `Mobile: ${form.mobile}`,
+      `Email: ${form.email.trim() || 'N/A'}`,
+      `Address: ${form.address.trim()}, ${form.city.trim()}, ${form.state} - ${form.pincode}`,
+      '',
+      'ITEMS',
+      ...items,
+      '',
+      `Subtotal: ${formatINR(subtotal)}`,
+      `Shipping: ${shipping === 0 ? 'Free' : formatINR(shipping)}`,
+      `Discount: ${couponApplied ? '-' + formatINR(discount) : formatINR(0)}`,
+      `TOTAL: ${formatINR(total)}`,
+      '',
+      'Payment: UPI / WhatsApp order',
+    ];
+
+    return renderOrderImage({
+      reference,
+      dateLabel: new Date().toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      }),
+      lines,
+      footnote: 'This picture is the order exactly as placed on triosworld.com',
+    });
   };
 
   /**
    * Order via WhatsApp.
    *
-   * The details must be complete before we hand the order over, so an
-   * incomplete form blocks the link and points the customer at the missing
+   * The customer never types the order: the checkout draws it as a picture and
+   * hands that picture to WhatsApp. On a phone the picture is attached
+   * straight to the WhatsApp chat; on a desktop it is sent as a link that
+   * WhatsApp renders inline.
+   *
+   * The details must be complete before the order is handed over, so an
+   * incomplete form blocks the order and points the customer at the missing
    * field.
    *
    * WhatsApp gives the page no way to know whether the customer actually
-   * pressed "send", so the confirmation is never shown up front. WhatsApp
-   * opens with the order filled in, and the order is confirmed only once the
-   * customer comes back to this page — that is, after they have sent the
-   * message. There is no manual "I've sent it" button: if they never send it,
-   * the order is never confirmed.
+   * pressed "send", so the confirmation is never shown up front. The order is
+   * confirmed only once the customer comes back to this page — that is, after
+   * they have sent the message. There is no manual "I've sent it" button: if
+   * they never send it, the order is never confirmed.
    */
-  const handleWhatsAppOrder = (e: MouseEvent<HTMLAnchorElement>) => {
+  const handleWhatsAppOrder = async () => {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      e.preventDefault();
       document.getElementById(Object.keys(errs)[0])?.focus();
       return;
     }
 
-    // The link opens WhatsApp with the prefilled message (target=_blank), so
-    // this page never redirects.
+    setWaStage('sending');
+
+    const reference = `TW-${Date.now().toString().slice(-6)}`;
+
+    // On a phone the picture goes to WhatsApp as an attachment. Detect that
+    // before anything asynchronous happens, so the share still counts as part
+    // of the customer's click.
+    const probe = new File([new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' })], 'order.png', { type: 'image/png' });
+    const canShareFile =
+      typeof navigator !== 'undefined' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [probe] });
+
+    // On a desktop the browser cannot attach a file, so a tab is opened right
+    // away (a click must open it) and pointed at WhatsApp once the picture is
+    // ready.
+    const tab = canShareFile ? null : window.open('', '_blank');
+
+    try {
+      const blob = await buildOrderImage(reference);
+      const file = new File([blob], `${reference}.png`, { type: 'image/png' });
+
+      if (canShareFile) {
+        // The share sheet opens with WhatsApp in it; the picture is attached
+        // and the customer only has to press Send.
+        await navigator.share({
+          files: [file],
+          title: `TriosWorld order ${reference}`,
+          text: `New order ${reference}`,
+        });
+      } else {
+        const url = await uploadOrderImage(blob, reference);
+        if (!url) {
+          tab?.close();
+          setWaStage('error');
+          return;
+        }
+        if (tab) {
+          tab.location.href = whatsappLink(url);
+        } else {
+          window.open(whatsappLink(url), '_blank', 'noopener');
+        }
+      }
+    } catch {
+      // The customer dismissed the share sheet, or the upload failed.
+      tab?.close();
+      setWaStage('idle');
+      return;
+    }
+
     setWaStage('waiting');
 
     // Coming back to this tab is the signal that the message went out: they
@@ -361,7 +443,7 @@ export default function CheckoutPage() {
                   <Check size={16} className="text-lime" /> Order confirmed
                 </p>
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  Your order details have been sent to us on WhatsApp. Our team will contact you soon
+                  Your order has been sent to us on WhatsApp as a picture. Our team will contact you soon
                   to confirm your order and share the payment details.
                 </p>
               </div>
@@ -371,23 +453,44 @@ export default function CheckoutPage() {
                   <Loader2 size={16} className="animate-spin" /> Finish it in WhatsApp
                 </p>
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  WhatsApp opened with your order details filled in — press <strong>Send</strong> there
-                  to place the order. Come back here and we will confirm it.
+                  Your order is ready as a picture in WhatsApp — press <strong>Send</strong> there to
+                  place it. Come back here and we will confirm it.
                 </p>
+              </div>
+            ) : waStage === 'error' ? (
+              <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <AlertTriangle size={16} className="text-burgundy" /> We couldn&rsquo;t send it
+                </p>
+                <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
+                  Something went wrong while sending your order. Please try again, or reach us on
+                  WhatsApp at <span className="font-semibold text-ink">+91 93451 25667</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleWhatsAppOrder}
+                  className="mt-3 w-full py-3 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition"
+                >
+                  Try again
+                </button>
               </div>
             ) : (
               <>
-                <a
-                  href={whatsappLink(whatsappOrderMessage())}
+                <button
+                  type="button"
                   onClick={handleWhatsAppOrder}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
+                  disabled={waStage === 'sending'}
+                  className="mt-3 w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition disabled:opacity-70 inline-flex items-center justify-center gap-2"
                 >
-                  <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
-                  Order via WhatsApp
-                </a>
+                  {waStage === 'sending'
+                    ? <><Loader2 size={18} className="animate-spin" /> Preparing your order…</>
+                    : <><svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
+                    Order via WhatsApp</>}
+                </button>
                 <p className="text-[11px] text-ink/40 mt-3 text-center">
+                  Your order goes to our WhatsApp as a picture — nothing to type, nothing to change.
+                </p>
+                <p className="text-[11px] text-ink/40 mt-1 text-center">
                   You’ll get a UPI QR on the next screen. Nothing is charged until you confirm the payment
                   in your UPI app.
                 </p>

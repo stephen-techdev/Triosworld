@@ -30,7 +30,6 @@ export interface WhatsAppOrder {
   items: WhatsAppOrderItem[];
   subtotal: number;
   shipping: number;
-  discount: number;
   total: number;
   customer: {
     name: string;

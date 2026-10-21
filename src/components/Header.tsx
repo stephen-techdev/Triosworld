@@ -97,7 +97,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               </button>
             </div>
             <Link to="/home" aria-label="TriosWorld home" className="text-xl text-ink transition-opacity hover:opacity-70 justify-self-center">
-              <img src="/logo.png" alt="TriosWorld" className="h-8 sm:h-10 w-auto" />
+              <img src="/logo.png" alt="TriosWorld" className="h-9 sm:h-11 w-auto" />
             </Link>
             <div className="flex items-center justify-end gap-0.5">
               <button onClick={onOpenSearch} aria-label="Search" className={iconBtn}>
@@ -124,7 +124,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
           <div className="hidden xl:flex items-center justify-between h-20">
             <div className="flex items-center flex-1">
               <Link to="/home" aria-label="TriosWorld home" className="text-2xl text-ink transition-opacity hover:opacity-70">
-                <img src="/logo.png" alt="TriosWorld" className="h-8 sm:h-10 w-auto" />
+                <img src="/logo.png" alt="TriosWorld" className="h-9 sm:h-11 w-auto" />
               </Link>
             </div>
 
@@ -232,7 +232,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               transition={{ type: 'spring', stiffness: 380, damping: 40 }}
               className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-ivory z-50 xl:hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-ink/10">
-                <span className="text-lg text-ink"><img src="/logo.png" alt="TriosWorld" className="h-7 w-auto" /></span>
+                <span className="text-lg text-ink"><img src="/logo.png" alt="TriosWorld" className="h-8 w-auto" /></span>
                 <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="-mr-1 p-2 rounded-full hover:bg-ink/5 transition-colors"><X size={22} /></button>
               </div>
               <motion.nav

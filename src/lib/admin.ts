@@ -460,26 +460,3 @@ export const saveSettings = (settings: {
     method: 'POST',
     body: JSON.stringify(settings),
   });
-
-
-export interface AdminCoupon { code: string; type: 'pct' | 'flat'; value: number; min: number; active: boolean; }
-
-/** Coupons are owned by the dashboard — the list, the save and the delete. */
-export async function getCoupons(): Promise<AdminCoupon[]> {
-  const res = await adminRequest<{ coupons: AdminCoupon[] }>('/coupons');
-  return Array.isArray(res.coupons) ? res.coupons : [];
-}
-
-export async function upsertCoupon(coupon: Partial<AdminCoupon> & { code: string }): Promise<{ ok: boolean }> {
-  return adminRequest<{ ok: boolean }>('/coupons', {
-    method: 'POST',
-    body: JSON.stringify(coupon),
-  });
-}
-
-export async function deleteCoupon(code: string): Promise<{ ok: boolean }> {
-  return adminRequest<{ ok: boolean }>('/coupons-delete', {
-    method: 'POST',
-    body: JSON.stringify({ code }),
-  });
-}

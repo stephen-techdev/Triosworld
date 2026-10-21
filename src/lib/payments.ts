@@ -28,8 +28,6 @@ export interface CreateOrderResult {
   amount: number;
   subtotal: number;
   shipping: number;
-  discount: number;
-  coupon: string | null;
   expires_at: string;
   items: { productId: string; name: string; color: string; size: string; qty: number; unitPrice: number; lineTotal: number }[];
   payment: {
@@ -178,7 +176,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function createOrder(input: {
   items: CartItem[];
   customer: CheckoutCustomer;
-  coupon?: string;
 }): Promise<CreateOrderResult> {
   return request<CreateOrderResult>('/create', {
     method: 'POST',
@@ -191,7 +188,6 @@ export async function createOrder(input: {
         qty: i.qty,
       })),
       customer: input.customer,
-      coupon: input.coupon ?? '',
     }),
   });
 }

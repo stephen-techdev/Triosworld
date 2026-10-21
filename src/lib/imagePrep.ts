@@ -10,8 +10,18 @@
  * roughly 150–350 KB and still looks sharp at the sizes the storefront renders
  * (cards are ~600px wide, the product page ~1200px).
  *
- * Failure is never fatal: if the browser cannot decode or re-encode the file,
- * the original bytes are returned unchanged and the upload proceeds as before.
+ * Two rules shape the implementation:
+ *
+ *   1. ANY file is accepted. The dashboard used to refuse anything outside
+ *      jpeg/png/webp, so a HEIC straight off an iPhone — or a file with no
+ *      MIME type at all — died with "file can't be read". Now the type is
+ *      never checked up front: whatever the browser can decode gets resized,
+ *      and whatever it cannot is sent through untouched. The picker is the
+ *      filter, not this function.
+ *
+ *   2. Failure is never fatal. If decoding or re-encoding throws for any
+ *      reason, the original bytes go up unchanged. A slow upload beats a
+ *      rejected photo.
  */
 
 /** Longest edge the stored image keeps. Comfortably above the PDP hero size. */
@@ -19,6 +29,9 @@ export const MAX_IMAGE_EDGE = 1600;
 
 /** Anything already smaller than this is passed through untouched. */
 const SKIP_UNDER_BYTES = 220 * 1024;
+
+/** Quality for the WebP re-encode. 0.82 is invisible on garment photography. */
+const QUALITY = 0.82;
 
 export interface PreparedImage {
   /** Base64 payload — no data-URL prefix, which is what the function expects. */
@@ -33,21 +46,15 @@ export interface PreparedImage {
   bytes: number;
 }
 
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(new Error('Could not read that file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function readAsBytes(file: File): Promise<ArrayBuffer> {
+function readAsBytes(file: Blob): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.onerror = () => reject(new Error('Could not read that file'));
-    reader.readAsDataURL(file);
+    // readAsArrayBuffer, not readAsDataURL: the caller wants raw bytes, and
+    // routing a 8 MB photo through a base64 string first is what used to make
+    // the fallback path crawl and then throw.
+    reader.readAsArrayBuffer(file);
   });
 }
 
@@ -69,25 +76,69 @@ function stripExtension(name: string): string {
   return name.replace(/\.[a-z0-9]+$/i, '') || 'product';
 }
 
+/**
+ * Decode a picked file to a bitmap.
+ *
+ * createImageBitmap reads the file straight off disk with no base64 detour,
+ * so a 12 MP photo is ready in a fraction of the time the old data-URL route
+ * took — this is the whole reason the compressor feels instant now. The
+ * HTMLImageElement path stays for browsers that cannot hand a File to
+ * createImageBitmap (older Safari), and covers types Safari decodes but
+ * createImageBitmap refuses.
+ */
+async function decode(file: File): Promise<{ bitmap: CanvasImageSource; width: number; height: number; release: () => void }> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return {
+        bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: () => bitmap.close(),
+      };
+    } catch {
+      /* fall through to the element path — the file may still be decodable */
+    }
+  }
+
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('decode failed'));
+      el.src = url;
+    });
+    return {
+      bitmap: img,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      release: () => URL.revokeObjectURL(url),
+    };
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+}
+
 /** Re-encode through a canvas; resolves to null when the browser cannot. */
 async function reencode(
   file: File,
   maxEdge: number,
-  preferred: 'image/webp' | 'image/jpeg' | 'image/png',
 ): Promise<{ dataUrl: string; contentType: string } | null> {
+  let decoded: Awaited<ReturnType<typeof decode>> | null = null;
   try {
-    const dataUrl = await readAsDataUrl(file);
-    const bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('decode failed'));
-      img.src = dataUrl;
-    });
+    decoded = await decode(file);
+    const { bitmap, width: naturalW, height: naturalH } = decoded;
 
-    const longest = Math.max(bitmap.naturalWidth, bitmap.naturalHeight);
+    // A zero-sized decode means the browser recognised the container but not
+    // the picture inside (a HEIC on Chrome, say). Send the original through.
+    if (!naturalW || !naturalH) return null;
+
+    const longest = Math.max(naturalW, naturalH);
     const scale = longest > maxEdge ? maxEdge / longest : 1;
-    const width = Math.max(1, Math.round(bitmap.naturalWidth * scale));
-    const height = Math.max(1, Math.round(bitmap.naturalHeight * scale));
+    const width = Math.max(1, Math.round(naturalW * scale));
+    const height = Math.max(1, Math.round(naturalH * scale));
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -105,8 +156,8 @@ async function reencode(
 
     // Prefer WebP (smallest at this quality); fall back to JPEG when the
     // browser writes WebP under a different type name.
-    let outType = preferred;
-    let encoded = canvas.toDataURL(outType, 0.82);
+    let outType = 'image/webp';
+    let encoded = canvas.toDataURL(outType, QUALITY);
     if (!encoded.startsWith(`data:${outType}`)) {
       outType = 'image/jpeg';
       encoded = canvas.toDataURL(outType, 0.86);
@@ -114,6 +165,10 @@ async function reencode(
     return { dataUrl: encoded, contentType: outType };
   } catch {
     return null;
+  } finally {
+    // Release the decoded pixels before the upload starts; a phone photo held
+    // at full size is the difference between a smooth flow and a tab reload.
+    decoded?.release();
   }
 }
 
@@ -125,11 +180,9 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   const originalBytes = file.size;
   const base = stripExtension(file.name);
 
-  // SVG/AFIV/unknown types are not safely re-encodable — send them as they are.
-  const reencodable = /^image\/(jpeg|jpg|png|webp)$/i.test(file.type);
-  if (reencodable && originalBytes > SKIP_UNDER_BYTES) {
-    const preferred = file.type === 'image/png' ? 'image/webp' : 'image/webp';
-    const done = await reencode(file, MAX_IMAGE_EDGE, preferred);
+  // Tiny files are not worth a decode round trip, and neither are empty ones.
+  if (originalBytes > SKIP_UNDER_BYTES) {
+    const done = await reencode(file, MAX_IMAGE_EDGE);
     if (done) {
       const data = base64FromDataUrl(done.dataUrl);
       const ext = done.contentType === 'image/jpeg' ? 'jpg' : done.contentType.split('/')[1];
@@ -146,11 +199,13 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
     }
   }
 
+  // Whatever could not be resized — an SVG, a RAW, a file the browser will not
+  // decode — still goes up, byte for byte.
   const buffer = await readAsBytes(file);
   return {
     data: bytesToBase64(buffer),
     contentType: file.type || 'image/jpeg',
-    filename: file.name,
+    filename: file.name || `${base}.jpg`,
     originalBytes,
     bytes: originalBytes,
   };

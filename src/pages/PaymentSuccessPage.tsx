@@ -57,6 +57,12 @@ export default function PaymentSuccessPage() {
   const [remaining, setRemaining] = useState(0);
   /** Bumped when the customer confirms a WhatsApp order, to re-read it. */
   const [confirmedTick, setConfirmedTick] = useState(0);
+  /**
+   * The order picture only lives for 48 hours. Once the cleanup has taken it,
+   * the URL answers 404 — so instead of a broken image the customer gets told
+   * what happened and where their order stands.
+   */
+  const [imageGone, setImageGone] = useState(false);
 
   const clearedRef = useRef(false);
 
@@ -88,6 +94,12 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // A new order starts with a fresh picture — the "gone" flag belongs to the
+  // previous reference only.
+  useEffect(() => {
+    setImageGone(false);
+  }, [orderNumber]);
 
   const isPending = result?.payment_status === 'pending';
 
@@ -193,6 +205,14 @@ export default function PaymentSuccessPage() {
                 </>
               )}
             </p>
+            {/* The order picture is kept for 48 hours and then deleted, so the
+                customer is told the window up front rather than meeting a dead
+                link later. */}
+            <p className="mt-3 text-xs text-ink/45">
+              For your privacy, the order picture we sent is deleted automatically{' '}
+              <strong className="text-ink/60 font-semibold">48 hours</strong> after the order —
+              save a copy if you want to keep it.
+            </p>
           </div>
 
           {!confirmed && (
@@ -239,7 +259,6 @@ export default function PaymentSuccessPage() {
               <dl className="space-y-2 text-sm mt-4 pt-4 border-t border-ink/10">
                 <Row label="Subtotal" value={formatINR(waOrder.subtotal)} />
                 <Row label="Shipping" value={waOrder.shipping === 0 ? 'Free' : formatINR(waOrder.shipping)} />
-                {waOrder.discount > 0 && <Row label="Discount" value={`−${formatINR(waOrder.discount)}`} />}
                 <Row label="Total" value={formatINR(waOrder.total)} strong />
               </dl>
             </div>
@@ -247,18 +266,31 @@ export default function PaymentSuccessPage() {
             {waOrder.imageUrl && (
               <div className="mt-6 pt-5 border-t border-ink/10">
                 <h3 className="text-sm font-semibold mb-3">The order we sent you</h3>
-                <img
-                  src={waOrder.imageUrl}
-                  alt={`Order ${waOrder.reference}`}
-                  className="w-full max-w-sm rounded-xl border border-ink/10"
-                />
-                <a
-                  href={waOrder.imageUrl}
-                  download={`${waOrder.reference}.png`}
-                  className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-ink/60 hover:text-ink transition"
-                >
-                  <Download size={14} /> Save the order picture
-                </a>
+                {imageGone ? (
+                  /* The 48-hour cleanup has already taken this one. The order
+                     details above are kept on this device, so the page still
+                     works — only the picture is gone. */
+                  <p className="text-xs text-ink/50 bg-stone/30 rounded-xl px-4 py-3">
+                    This order picture has passed its 48-hour window and been deleted.
+                    Your order details above are safe, and our team already has the order.
+                  </p>
+                ) : (
+                  <>
+                    <img
+                      src={waOrder.imageUrl}
+                      alt={`Order ${waOrder.reference}`}
+                      className="w-full max-w-sm rounded-xl border border-ink/10"
+                      onError={() => setImageGone(true)}
+                    />
+                    <a
+                      href={waOrder.imageUrl}
+                      download={`${waOrder.reference}.png`}
+                      className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-ink/60 hover:text-ink transition"
+                    >
+                      <Download size={14} /> Save the order picture
+                    </a>
+                  </>
+                )}
               </div>
             )}
 

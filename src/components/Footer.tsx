@@ -50,7 +50,7 @@ export default function Footer() {
         <Newsletter />
         <Reveal className="py-16 grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-12 md:gap-12">
           <div className="col-span-2 md:col-span-4 space-y-5">
-            <Link to="/home" className="inline-block text-2xl transition-opacity hover:opacity-80"><img src="/logo.png" alt="TriosWorld" className="h-10 w-auto" /></Link>
+            <Link to="/home" className="inline-block text-2xl transition-opacity hover:opacity-80"><img src="/logo-ivory.png" alt="TriosWorld" className="h-9 w-auto" /></Link>
             <p className="text-sm text-ivory/60 max-w-xs leading-relaxed">
               {footer.blurb}
             </p>

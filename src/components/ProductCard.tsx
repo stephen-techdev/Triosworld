@@ -45,7 +45,7 @@ export default function ProductCard({ product }: Props) {
       <div className="relative">
         <Link
           to={`/product/${product.slug}`}
-          className="block relative overflow-hidden bg-stone/50 aspect-[3/4] sm:aspect-[4/5]"
+          className="block relative overflow-hidden bg-stone/50 aspect-[3/4]"
         >
           {v.images.slice(0, 5).map((img, i) => (
             <img

@@ -201,7 +201,7 @@ const img = (id: number, w = 800, h = 1000) =>
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   announcement: [
     'New drops every week. Three vibes, one world.',
-    'Use code TRIO10 for 10% off your first order.',
+    'Free shipping on prepaid orders over ₹1,499.',
   ],
 
   newsletter: {

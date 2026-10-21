@@ -83,51 +83,6 @@ async function loadShippingRule(): Promise<ShippingRule> {
 }
 const PAYMENT_WINDOW_MINUTES = 15;
 
-// Coupons are validated server-side and must be defined by the admin in
-// Admin -> Settings (store_settings.content.coupons). Only admin-created
-// active codes are accepted. No built-in/fallback codes.
-interface Coupon {
-  type: "pct" | "flat";
-  value: number;
-  /** Minimum subtotal the code applies to. 0 = no minimum. */
-  min: number;
-}
-
-async function loadCoupons(): Promise<Record<string, Coupon>> {
-  try {
-    const { data } = await supabase
-      .from("store_settings")
-      .select("content")
-      .maybeSingle();
-
-    const doc = (data?.content ?? null) as Record<string, unknown> | null;
-    // Only admin-defined coupons are accepted. If none configured, empty.
-    if (!doc || !("coupons" in doc)) return {};
-
-    const raw = doc.coupons;
-    if (!Array.isArray(raw)) return {};
-
-    const out: Record<string, Coupon> = {};
-    for (const c of raw) {
-      if (!c || typeof c !== "object") continue;
-      const o = c as Record<string, unknown>;
-      if (o.active === false) continue;
-      const code = String(o.code ?? "").trim().toUpperCase();
-      const value = Number(o.value);
-      if (!code || !Number.isFinite(value) || value <= 0) continue;
-      if (!/^[A-Z0-9_-]+$/.test(code) || code.length > 24) continue;
-      const type = o.type === "flat" ? "flat" : "pct";
-      if (type === "pct" && value > 100) continue;
-      const min = Number(o.min);
-      out[code] = { type, value, min: Number.isFinite(min) && min > 0 ? Math.floor(min) : 0 };
-    }
-    return out;
-  } catch {
-    // On read failure, do not fall back to built-ins - only admin-defined count.
-    return {};
-  }
-}
-
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -166,7 +121,6 @@ interface OrderRecord {
   total: number;
   subtotal: number;
   shipping: number;
-  discount: number;
   status: string;
   created_at: string;
   payment_status: string;
@@ -416,12 +370,7 @@ function gstForLine(unitPrice: number, lineTotal: number) {
   return { rate, tax, cgst, sgst: tax - cgst };
 }
 
-function totalsFor(
-  lines: PricedLine[],
-  couponCode: string,
-  shipping: ShippingRule,
-  coupons: Record<string, Coupon>,
-) {
+function totalsFor(lines: PricedLine[], shipping: ShippingRule) {
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
   // A threshold of 0 means every order ships free.
   const shippingAmount =
@@ -429,30 +378,10 @@ function totalsFor(
       ? 0
       : shipping.flatShipping;
 
-  // A code the customer typed is checked hard: an unknown, retired or
-  // under-minimum code is refused with a clear message rather than quietly
-  // charging full price and letting the customer discover it on the receipt.
-  const applied = couponCode.trim().toUpperCase();
-  let discount = 0;
-
-  if (applied) {
-    const coupon = coupons[applied];
-    if (!coupon) throw new PayloadError("That coupon code is not valid.");
-    if (subtotal < coupon.min) {
-      throw new PayloadError(
-        `Coupon ${applied} needs a minimum order of Rs. ${coupon.min}.`,
-      );
-    }
-    discount =
-      coupon.type === "flat"
-        ? Math.min(Math.round(coupon.value), subtotal)
-        : Math.round((subtotal * coupon.value) / 100);
-  }
-
-  const total = Math.max(0, subtotal + shippingAmount - discount);
+  const total = Math.max(0, subtotal + shippingAmount);
   const tax = lines.reduce((s, l) => s + gstForLine(l.unitPrice, l.lineTotal).tax, 0);
 
-  return { subtotal, shipping: shippingAmount, discount, total, tax, couponApplied: applied || null };
+  return { subtotal, shipping: shippingAmount, total, tax };
 }
 
 /** Basic-auth REST call against Razorpay. Never throws; returns { ok, data }. */
@@ -676,7 +605,6 @@ Deno.serve(async (req: Request) => {
     if (path === "/create" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const customer = (body.customer ?? {}) as Partial<Customer>;
-      const couponCode = typeof body.coupon === "string" ? body.coupon : "";
 
       // --- requirement: collect name, mobile and delivery address ---
       if (isBlank(customer.name)) return json({ error: "Full name is required" }, 400);
@@ -718,16 +646,7 @@ Deno.serve(async (req: Request) => {
         throw error;
       }
 
-      let totals;
-      try {
-        const coupons = await loadCoupons();
-        totals = totalsFor(lines, couponCode, shippingRule, coupons);
-      } catch (error) {
-        // Invalid/expired coupon codes are a customer mistake, not a server
-        // fault, so they come back as a plain 400 with the reason.
-        if (error instanceof PayloadError) return json({ error: error.message }, 400);
-        throw error;
-      }
+      const totals = totalsFor(lines, shippingRule);
 
       // --- link the order to an account when the customer is signed in ---
       let userId: string | null = null;
@@ -757,7 +676,6 @@ Deno.serve(async (req: Request) => {
             items: lines,
             subtotal: totals.subtotal,
             shipping: totals.shipping,
-            discount: totals.discount,
             total: totals.total,
             status: "placed",
             payment_method: "upi",
@@ -795,7 +713,6 @@ Deno.serve(async (req: Request) => {
       await recordEvent(order.id, "created", {
         total: totals.total,
         items: lines.length,
-        coupon: totals.couponApplied,
         demo: demoMode,
       });
 
@@ -867,8 +784,6 @@ Deno.serve(async (req: Request) => {
         amount: totals.total,
         subtotal: totals.subtotal,
         shipping: totals.shipping,
-        discount: totals.discount,
-        coupon: totals.couponApplied,
         expires_at: expiresAt,
         items: lines,
         payment,
@@ -1073,7 +988,6 @@ Deno.serve(async (req: Request) => {
           items: gstLines,
           subtotal: order.subtotal,
           shipping: order.shipping,
-          discount: order.discount,
           total: order.total,
           tax_included: taxTotal,
         },

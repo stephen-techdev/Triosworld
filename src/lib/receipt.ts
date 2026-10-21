@@ -262,7 +262,6 @@ export function buildReceipt(payload: ReceiptPayload): jsPDF {
 
   totalRow('Subtotal', rs(payload.subtotal));
   if (payload.shipping > 0) totalRow('Shipping', rs(payload.shipping));
-  if (payload.discount > 0) totalRow('Discount', `- ${rs(payload.discount)}`);
   totalRow('Total paid', rs(payload.amount_paid ?? payload.total), true);
 
   y += 1;

@@ -54,9 +54,6 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const { settings } = useStoreSettings();
 
-  const [coupon, setCoupon] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({
     fullName: '', email: '', mobile: '', pincode: '', address: '', city: '', state: '',
   });
@@ -93,18 +90,7 @@ export default function CheckoutPage() {
   }, [user]);
 
   const shipping = shippingFor(settings, subtotal);
-  const discount = couponApplied ? Math.round(subtotal * 0.1) : 0;
-  const total = subtotal + shipping - discount;
-
-  const applyCoupon = () => {
-    if (coupon.trim().toUpperCase() === 'TRIO10') {
-      setCouponApplied(true);
-      setCouponError(null);
-    } else {
-      setCouponError('That code is not valid.');
-      setCouponApplied(false);
-    }
-  };
+  const total = subtotal + shipping;
 
   const updateField = (key: keyof FormState, value: string) => {
     setForm(f => ({ ...f, [key]: value }));
@@ -161,7 +147,6 @@ export default function CheckoutPage() {
       '',
       `Subtotal: ${formatINR(subtotal)}`,
       `Shipping: ${shipping === 0 ? 'Free' : formatINR(shipping)}`,
-      `Discount: ${couponApplied ? '-' + formatINR(discount) : formatINR(0)}`,
       `TOTAL: ${formatINR(total)}`,
       '',
       'Payment: UPI / WhatsApp order',
@@ -249,7 +234,6 @@ export default function CheckoutPage() {
         }),
         subtotal,
         shipping,
-        discount,
         total,
         customer: {
           name: form.fullName.trim(),
@@ -302,7 +286,6 @@ export default function CheckoutPage() {
           city: form.city.trim(),
           state: form.state,
         },
-        coupon: couponApplied ? coupon.trim().toUpperCase() : '',
       });
 
       // Keep the receipt token (the guest's credential) and remember which order
@@ -528,38 +511,12 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mt-5 pt-5 border-t border-ink/10">
-              <div className="flex gap-2 mb-4">
-                <div className="relative flex-1">
-                  <Tag size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
-                  <input value={coupon}
-                    onChange={e => { setCoupon(e.target.value); setCouponError(null); }}
-                    placeholder="Coupon code"
-                    className="w-full text-sm border border-ink/15 rounded-full pl-9 pr-3 py-2.5 focus:outline-none focus:border-ink uppercase"
-                    aria-label="Coupon code" />
-                </div>
-                <button onClick={applyCoupon} className="px-4 py-2.5 rounded-full bg-ink text-ivory text-sm font-medium hover:bg-ink/80">
-                  Apply
-                </button>
-              </div>
-              {couponApplied && (
-                <p className="text-xs text-lime bg-ink px-3 py-1.5 rounded-full inline-flex items-center gap-1 mb-3">
-                  <Check size={12} /> TRIO10 applied — 10% off
-                </p>
-              )}
-              {couponError && <p className="text-xs text-red-600 mb-3">{couponError}</p>}
-              <p className="text-[11px] text-ink/40 mb-4">
-                Try code <span className="font-semibold">TRIO10</span> for 10% off.
-              </p>
-
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-ink/60">Subtotal</span><span>{formatINR(subtotal)}</span></div>
                 <div className="flex justify-between">
                   <span className="text-ink/60">Shipping</span>
                   <span>{shipping === 0 ? 'Free' : formatINR(shipping)}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-lime"><span>Discount</span><span>−{formatINR(discount)}</span></div>
-                )}
                 <div className="flex justify-between font-semibold text-base pt-2 border-t border-ink/10">
                   <span>Total</span><span>{formatINR(total)}</span>
                 </div>

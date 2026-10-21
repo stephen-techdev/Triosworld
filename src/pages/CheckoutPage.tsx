@@ -13,6 +13,7 @@ import SEO from '@/components/SEO';
 import { whatsappLink } from '@/components/WhatsApp';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
+  type CreateOrderResult,
 } from '@/lib/payments';
 
 const INDIAN_STATES = [
@@ -47,7 +48,7 @@ type FormErrors = Partial<Record<keyof FormState, string>>;
  */
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, subtotal } = useStore();
+  const { cart, subtotal, clearCart } = useStore();
   const { user } = useAuth();
   const { settings } = useStoreSettings();
 
@@ -68,6 +69,8 @@ export default function CheckoutPage() {
    * them our team will take it from there.
    */
   const [waOrderSent, setWaOrderSent] = useState(false);
+  /** The server-side record of a WhatsApp order, once it has been written. */
+  const [waOrder, setWaOrder] = useState<CreateOrderResult | null>(null);
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -82,6 +85,40 @@ export default function CheckoutPage() {
   const shipping = shippingFor(settings, subtotal);
   const discount = couponApplied ? Math.round(subtotal * 0.1) : 0;
   const total = subtotal + shipping - discount;
+
+  /**
+   * The summary shows the live bag — except after a WhatsApp order, when the
+   * bag is emptied and the placed order takes its place.
+   */
+  const summaryItems = waOrder
+    ? waOrder.items.map(i => ({
+        productId: i.productId,
+        name: i.name,
+        color: i.color,
+        size: i.size,
+        qty: i.qty,
+        total: i.lineTotal,
+      }))
+    : cart
+        .map(i => {
+          const p = resolveProduct(i.productId);
+          return p
+            ? {
+                productId: i.productId,
+                name: p.name,
+                color: i.color,
+                size: i.size,
+                qty: i.qty,
+                total: p.price * i.qty,
+              }
+            : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+  const shownSubtotal = waOrder ? waOrder.subtotal : subtotal;
+  const shownShipping = waOrder ? waOrder.shipping : shipping;
+  const shownDiscount = waOrder ? waOrder.discount : discount;
+  const shownTotal = waOrder ? waOrder.amount : total;
 
   const applyCoupon = () => {
     if (coupon.trim().toUpperCase() === 'TRIO10') {
@@ -143,6 +180,40 @@ export default function CheckoutPage() {
     // The link still opens (target=_blank) — WhatsApp gets the prefilled
     // message — and the panel below flips to the confirmation state.
     setWaOrderSent(true);
+
+    // The WhatsApp message is the order of record, but the order is written
+    // server-side too: repriced from the catalogue, stock checked, and listed
+    // in the dashboard so the team can act on it.
+    void (async () => {
+      try {
+        const order = await createOrder({
+          items: cart.filter(i => resolveProduct(i.productId)),
+          customer: {
+            name: form.fullName.trim(),
+            mobile: form.mobile,
+            email: form.email.trim() || undefined,
+            pincode: form.pincode,
+            address: form.address.trim(),
+            city: form.city.trim(),
+            state: form.state,
+          },
+          coupon: couponApplied ? coupon.trim().toUpperCase() : '',
+          channel: 'whatsapp',
+        });
+        rememberOrder({
+          orderNumber: order.order_number,
+          token: order.receipt_token,
+          total: order.amount,
+          createdAt: new Date().toISOString(),
+        });
+        setWaOrder(order);
+        // The order is placed — the bag has done its job.
+        clearCart();
+      } catch {
+        // The customer already has the full details in WhatsApp, so a failed
+        // write must never block the order.
+      }
+    })();
   };
 
   const handlePay = async () => {
@@ -196,7 +267,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (cart.length === 0) {
+  if (cart.length === 0 && !waOrderSent) {
     return (
       <div className="page-container py-24 text-center">
         <SEO title="Empty Bag" noindex />
@@ -291,38 +362,8 @@ export default function CheckoutPage() {
               <h2 className="font-display text-lg font-semibold">Payment</h2>
             </div>
 
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-ink bg-ivory">
-              <input type="radio" checked readOnly className="accent-ink mt-1" aria-label="UPI" />
-              <Smartphone size={20} className="text-ink/60 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold">UPI · Online payment</p>
-                <p className="text-xs text-ink/50 mt-0.5">
-                  Pay by scanning a secure QR with Google Pay, PhonePe, Paytm, BHIM or any UPI app.
-                  We confirm your payment with the bank before your order is placed.
-                </p>
-              </div>
-            </div>
-
-            {serverError && (
-              <div className="mt-4" role="alert">
-                <p className="text-sm text-red-600">{serverError}</p>
-              </div>
-            )}
-
-            <motion.button
-              type="button"
-              onClick={handlePay}
-              disabled={submitting}
-              whileTap={{ scale: 0.99 }}
-              className="mt-5 w-full py-4 rounded-full bg-ink text-ivory font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
-            >
-              {submitting
-                ? <><Loader2 size={18} className="animate-spin" /> Starting secure payment…</>
-                : <>Pay securely · {formatINR(total)}</>}
-            </motion.button>
-
             {waOrderSent ? (
-              <div className="mt-3 rounded-xl border border-lime/40 bg-lime/10 p-4">
+              <div className="rounded-xl border border-lime/40 bg-lime/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-ink">
                   <Check size={16} className="text-lime" /> Order confirmed
                 </p>
@@ -330,9 +371,50 @@ export default function CheckoutPage() {
                   Your order details have been sent to us on WhatsApp. Our team will contact you soon
                   to confirm your order and share the payment details.
                 </p>
+                {waOrder && (
+                  <p className="text-xs text-ink/50 mt-2">
+                    Order number <span className="font-semibold text-ink">{waOrder.order_number}</span>
+                  </p>
+                )}
+                <Link
+                  to="/shop/shop-all"
+                  className="mt-4 inline-block bg-ink text-ivory px-5 py-2.5 rounded-full text-xs font-medium hover:bg-ink/80"
+                >
+                  Continue shopping
+                </Link>
               </div>
             ) : (
               <>
+                <div className="flex items-start gap-3 p-4 rounded-lg border border-ink bg-ivory">
+                  <input type="radio" checked readOnly className="accent-ink mt-1" aria-label="UPI" />
+                  <Smartphone size={20} className="text-ink/60 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold">UPI · Online payment</p>
+                    <p className="text-xs text-ink/50 mt-0.5">
+                      Pay by scanning a secure QR with Google Pay, PhonePe, Paytm, BHIM or any UPI app.
+                      We confirm your payment with the bank before your order is placed.
+                    </p>
+                  </div>
+                </div>
+
+                {serverError && (
+                  <div className="mt-4" role="alert">
+                    <p className="text-sm text-red-600">{serverError}</p>
+                  </div>
+                )}
+
+                <motion.button
+                  type="button"
+                  onClick={handlePay}
+                  disabled={submitting}
+                  whileTap={{ scale: 0.99 }}
+                  className="mt-5 w-full py-4 rounded-full bg-ink text-ivory font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  {submitting
+                    ? <><Loader2 size={18} className="animate-spin" /> Starting secure payment…</>
+                    : <>Pay securely · {formatINR(total)}</>}
+                </motion.button>
+
                 <a
                   href={whatsappLink(whatsappOrderMessage())}
                   onClick={handleWhatsAppOrder}
@@ -356,24 +438,25 @@ export default function CheckoutPage() {
           <div className="p-6 rounded-xl border border-ink/10 bg-ivory lg:sticky lg:top-24">
             <h2 className="font-display text-lg font-semibold mb-4">Order summary</h2>
             <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
-              {cart.map(item => {
+              {summaryItems.map(item => {
                 const p = resolveProduct(item.productId);
-                if (!p) return null;
-                const v = p.variants.find(x => x.color === item.color);
+                const v = p?.variants.find(x => x.color === item.color);
                 return (
                   <div key={`${item.productId}-${item.color}-${item.size}`} className="flex gap-3">
-                    <img src={v?.images[0]} alt={p.name} className="w-14 h-16 object-cover rounded" loading="lazy" />
+                    <img src={v?.images[0]} alt={item.name} className="w-14 h-16 object-cover rounded" loading="lazy" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{p.name}</p>
+                      <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-ink/50">{item.color} · {item.size} · Qty {item.qty}</p>
                     </div>
-                    <span className="text-sm font-semibold">{formatINR(p.price * item.qty)}</span>
+                    <span className="text-sm font-semibold">{formatINR(item.total)}</span>
                   </div>
                 );
               })}
             </div>
 
             <div className="mt-5 pt-5 border-t border-ink/10">
+              {!waOrderSent && (
+                <>
               <div className="flex gap-2 mb-4">
                 <div className="relative flex-1">
                   <Tag size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
@@ -396,18 +479,20 @@ export default function CheckoutPage() {
               <p className="text-[11px] text-ink/40 mb-4">
                 Try code <span className="font-semibold">TRIO10</span> for 10% off.
               </p>
+                </>
+              )}
 
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-ink/60">Subtotal</span><span>{formatINR(subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-ink/60">Subtotal</span><span>{formatINR(shownSubtotal)}</span></div>
                 <div className="flex justify-between">
                   <span className="text-ink/60">Shipping</span>
-                  <span>{shipping === 0 ? 'Free' : formatINR(shipping)}</span>
+                  <span>{shownShipping === 0 ? 'Free' : formatINR(shownShipping)}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-lime"><span>Discount</span><span>−{formatINR(discount)}</span></div>
+                {shownDiscount > 0 && (
+                  <div className="flex justify-between text-lime"><span>Discount</span><span>−{formatINR(shownDiscount)}</span></div>
                 )}
                 <div className="flex justify-between font-semibold text-base pt-2 border-t border-ink/10">
-                  <span>Total</span><span>{formatINR(total)}</span>
+                  <span>Total</span><span>{formatINR(shownTotal)}</span>
                 </div>
                 <p className="text-[11px] text-ink/40 pt-1">Inclusive of all taxes</p>
               </div>

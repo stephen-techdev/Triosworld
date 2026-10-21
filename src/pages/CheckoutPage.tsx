@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Lock, Tag, Check, ArrowLeft, ShieldCheck, Truck, Smartphone, Loader2, UserRound,
-  AlertTriangle,
 } from 'lucide-react';
 import { useStore, resolveProduct } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
 import { formatINR } from '@/data/catalog';
 import { freeShippingLabel, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 import SEO from '@/components/SEO';
-import { sendWhatsappOrder } from '@/lib/whatsappOrder';
+import { whatsappLink } from '@/components/WhatsApp';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
 } from '@/lib/payments';
@@ -70,11 +70,11 @@ export default function CheckoutPage() {
   /**
    * WhatsApp ordering:
    *  - "idle"    → the green "Order via WhatsApp" button
-   *  - "sending" → the order is on its way to the store's WhatsApp inbox
-   *  - "sent"    → the store's WhatsApp has it, so the order is confirmed
-   *  - "error"   → WhatsApp did not accept it; the customer can try again
+   *  - "waiting" → WhatsApp is open with the order filled in; the customer
+   *                still has to press "send" there
+   *  - "sent"    → the message went out, so the order is confirmed
    */
-  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [waStage, setWaStage] = useState<'idle' | 'waiting' | 'sent'>('idle');
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -137,37 +137,44 @@ export default function CheckoutPage() {
   /**
    * Order via WhatsApp.
    *
-   * The customer never leaves the site: the finished order is posted to the
-   * server, which delivers it straight into the store's WhatsApp inbox. There
-   * is no wa.me link and no WhatsApp app to jump into — the customer stays
-   * here, and the only thing they see afterwards is the confirmation.
-   *
-   * The details must be complete before the order is handed over, so an
-   * incomplete form is caught here and the customer is pointed at the missing
+   * The details must be complete before we hand the order over, so an
+   * incomplete form blocks the link and points the customer at the missing
    * field.
+   *
+   * WhatsApp gives the page no way to know whether the customer actually
+   * pressed "send", so the confirmation is never shown up front. The panel
+   * first waits for the message to be sent: WhatsApp opens with the order
+   * filled in, and the moment the customer comes back (that is, after they
+   * have sent it) the panel turns into "Order confirmed". A manual button
+   * covers the case where they keep the WhatsApp tab open.
    */
-  const handleWhatsappOrder = async () => {
+  const handleWhatsAppOrder = (e: MouseEvent<HTMLAnchorElement>) => {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
+      e.preventDefault();
       document.getElementById(Object.keys(errs)[0])?.focus();
       return;
     }
 
-    setWaStage('sending');
+    // The link opens WhatsApp with the prefilled message (target=_blank), so
+    // this page never redirects.
+    setWaStage('waiting');
 
-    const items = cart.map(i => {
-      const p = resolveProduct(i.productId);
-      return `- ${p?.name || i.productId} | Color: ${i.color} | Size: ${i.size} | Qty: ${i.qty}`;
-    }).join('\n');
-
-    const result = await sendWhatsappOrder(whatsappOrderMessage(), [
-      form.fullName.trim(),
-      items,
-      formatINR(total),
-    ]);
-
-    setWaStage(result.ok ? 'sent' : 'error');
+    // Coming back to this tab is the signal that the message went out.
+    const openedAt = Date.now();
+    const onReturn = () => {
+      // Ignore the blur/focus pair that happens the instant the new tab opens.
+      if (Date.now() - openedAt < 1500) return;
+      cleanup();
+      setWaStage('sent');
+    };
+    const cleanup = () => {
+      window.removeEventListener('focus', onReturn);
+      document.removeEventListener('visibilitychange', onReturn);
+    };
+    window.addEventListener('focus', onReturn);
+    document.addEventListener('visibilitychange', onReturn);
   };
 
   const handlePay = async () => {
@@ -356,40 +363,37 @@ export default function CheckoutPage() {
                   to confirm your order and share the payment details.
                 </p>
               </div>
-            ) : waStage === 'error' ? (
+            ) : waStage === 'waiting' ? (
               <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <AlertTriangle size={16} className="text-burgundy" /> We couldn&rsquo;t send it yet
+                  <Loader2 size={16} className="animate-spin" /> Finish it in WhatsApp
                 </p>
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  Our WhatsApp didn&rsquo;t accept the order just now. Please try again in a moment, or
-                  reach us on WhatsApp at <span className="font-semibold text-ink">+91 93451 25667</span>.
+                  WhatsApp opened with your order details filled in — press <strong>Send</strong> there
+                  to place the order. Come back here and we will confirm it.
                 </p>
                 <button
                   type="button"
-                  onClick={handleWhatsappOrder}
+                  onClick={() => setWaStage('sent')}
                   className="mt-3 w-full py-3 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
                 >
-                  Try again
+                  <svg width="18" height="18" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
+                  I’ve sent the order
                 </button>
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={handleWhatsappOrder}
-                  disabled={waStage === 'sending'}
-                  className="mt-3 w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition disabled:opacity-70 inline-flex items-center justify-center gap-2"
+                <a
+                  href={whatsappLink(whatsappOrderMessage())}
+                  onClick={handleWhatsAppOrder}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 w-full py-4 rounded-full bg-[#25d366] text-white font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
                 >
-                  {waStage === 'sending'
-                    ? <><Loader2 size={18} className="animate-spin" /> Sending your order…</>
-                    : <><svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
-                    Order via WhatsApp</>}
-                </button>
+                  <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
+                  Order via WhatsApp
+                </a>
                 <p className="text-[11px] text-ink/40 mt-3 text-center">
-                  Your order details go straight to our WhatsApp inbox — you stay on this page.
-                </p>
-                <p className="text-[11px] text-ink/40 mt-1 text-center">
                   You’ll get a UPI QR on the next screen. Nothing is charged until you confirm the payment
                   in your UPI app.
                 </p>

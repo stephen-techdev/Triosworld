@@ -72,11 +72,14 @@ export default function CheckoutPage() {
   /**
    * WhatsApp ordering:
    *  - "idle"    → the green "Order via WhatsApp" button
-   *  - "waiting" → WhatsApp is open with the order filled in; the customer
-   *                still has to press "send" there
-   *  - "sent"    → the message went out, so the order is confirmed
+   *  - "sending" → the order picture is being prepared
+   *  - "waiting" → WhatsApp is open with the picture; the customer still has
+   *                to press Send there
+   *  - "verify"  → the customer is back; the website asks them to confirm
+   *  - "sent"    → confirmed on the website; the team takes it from here
+   *  - "error"   → something went wrong; the customer can try again
    */
-  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'waiting' | 'sent' | 'error'>('idle');
+  const [waStage, setWaStage] = useState<'idle' | 'sending' | 'waiting' | 'verify' | 'sent' | 'error'>('idle');
 
   // Prefill from the signed-in profile — optional, never required.
   useEffect(() => {
@@ -247,14 +250,15 @@ export default function CheckoutPage() {
     setWaStage('waiting');
 
     // Coming back to this tab is the signal that the message went out: they
-    // only come back once the message is sent in WhatsApp.
+    // only come back once the message is sent in WhatsApp. The website then
+    // asks them to confirm it here before the order counts as confirmed.
     const openedAt = Date.now();
     const onReturn = () => {
       // Ignore the blur/focus pair that happens the instant the new tab opens.
       if (Date.now() - openedAt < 1500) return;
       if (document.visibilityState === 'hidden') return;
       cleanup();
-      setWaStage('sent');
+      setWaStage('verify');
     };
     const cleanup = () => {
       window.removeEventListener('focus', onReturn);
@@ -446,9 +450,26 @@ export default function CheckoutPage() {
                   <Check size={16} className="text-lime" /> Order confirmed
                 </p>
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
-                  Your order has been sent to us on WhatsApp as a picture. Our team will contact you soon
-                  to confirm your order and share the payment details.
+                  Thank you — your order is confirmed. <strong>Our team will meet you soon</strong> and
+                  message you on WhatsApp with the payment details.
                 </p>
+              </div>
+            ) : waStage === 'verify' ? (
+              <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <ShieldCheck size={16} className="text-lime" /> Confirm your order
+                </p>
+                <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
+                  Please confirm that you have sent the order on WhatsApp. Once you confirm, our team
+                  will meet you soon and message you with the payment details.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWaStage('sent')}
+                  className="mt-3 w-full py-3.5 rounded-full bg-[#25d366] text-white text-sm font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2"
+                >
+                  <Check size={16} /> Yes, I sent the order
+                </button>
               </div>
             ) : waStage === 'waiting' ? (
               <div className="mt-3 rounded-xl border border-ink/15 bg-ivory p-4">

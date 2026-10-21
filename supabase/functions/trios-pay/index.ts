@@ -642,14 +642,13 @@ function paymentInfo(order: OrderRecord) {
   const expiresAt = new Date(
     new Date(order.created_at).getTime() + PAYMENT_WINDOW_MINUTES * 60 * 1000,
   ).toISOString();
-  const whatsappOrder = order.payment_method === "whatsapp";
 
   return {
     mode: demoMode ? 'demo' : 'live',
     demo: demoMode,
-    provider: whatsappOrder ? 'whatsapp' : demoMode ? 'demo' : 'razorpay',
+    provider: demoMode ? 'demo' : 'razorpay',
     expires_at: expiresAt,
-    upi_intent: whatsappOrder ? null : upiIntentFor(order.order_number, order.total),
+    upi_intent: upiIntentFor(order.order_number, order.total),
     qr_image_url: meta.qr_image_url ?? null,
     qr_id: meta.qr_id ?? null,
   };
@@ -678,12 +677,6 @@ Deno.serve(async (req: Request) => {
       const body = await req.json().catch(() => ({}));
       const customer = (body.customer ?? {}) as Partial<Customer>;
       const couponCode = typeof body.coupon === "string" ? body.coupon : "";
-      // "upi" is the default flow. "whatsapp" means the customer is placing the
-      // order over WhatsApp: the order is still recorded server-side (repriced
-      // from the catalogue, stock checked, logged in the dashboard) but no
-      // gateway intent or QR is created — payment happens offline.
-      const channel = body.channel === "whatsapp" ? "whatsapp" : "upi";
-      const whatsappOrder = channel === "whatsapp";
 
       // --- requirement: collect name, mobile and delivery address ---
       if (isBlank(customer.name)) return json({ error: "Full name is required" }, 400);
@@ -767,9 +760,9 @@ Deno.serve(async (req: Request) => {
             discount: totals.discount,
             total: totals.total,
             status: "placed",
-            payment_method: whatsappOrder ? "whatsapp" : "upi",
+            payment_method: "upi",
             payment_status: "pending",
-            payment_provider: whatsappOrder ? "whatsapp" : demoMode ? "demo" : "razorpay",
+            payment_provider: demoMode ? "demo" : "razorpay",
             shipping_address: {
               fullName: customer.name,
               mobile,
@@ -810,12 +803,12 @@ Deno.serve(async (req: Request) => {
       const payment: Record<string, unknown> = {
         mode: demoMode ? "demo" : "live",
         demo: demoMode,
-        provider: whatsappOrder ? "whatsapp" : demoMode ? "demo" : "razorpay",
+        provider: demoMode ? "demo" : "razorpay",
         expires_at: expiresAt,
-        upi_intent: whatsappOrder ? null : upiIntentFor(order.order_number, totals.total),
+        upi_intent: upiIntentFor(order.order_number, totals.total),
       };
 
-      if (!demoMode && !whatsappOrder) {
+      if (!demoMode) {
         const rzpOrder = await rzp("/orders", {
           method: "POST",
           body: JSON.stringify({
@@ -895,18 +888,6 @@ Deno.serve(async (req: Request) => {
         return json({
           payment_status: order.payment_status,
           verified: order.payment_status === "paid",
-          order: publicOrder(order),
-          payment: paymentInfo(order),
-        });
-      }
-
-      // A WhatsApp order is settled offline — the team confirms the money by
-      // hand, so it stays pending (and is never auto-expired) until an admin
-      // updates it in the dashboard.
-      if (order.payment_method === "whatsapp") {
-        return json({
-          payment_status: "pending",
-          verified: false,
           order: publicOrder(order),
           payment: paymentInfo(order),
         });

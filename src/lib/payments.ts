@@ -179,8 +179,6 @@ export async function createOrder(input: {
   items: CartItem[];
   customer: CheckoutCustomer;
   coupon?: string;
-  /** "whatsapp" records the order without creating a gateway intent or QR. */
-  channel?: 'upi' | 'whatsapp';
 }): Promise<CreateOrderResult> {
   return request<CreateOrderResult>('/create', {
     method: 'POST',
@@ -194,7 +192,6 @@ export async function createOrder(input: {
       })),
       customer: input.customer,
       coupon: input.coupon ?? '',
-      channel: input.channel ?? 'upi',
     }),
   });
 }

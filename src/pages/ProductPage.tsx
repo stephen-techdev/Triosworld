@@ -51,7 +51,6 @@ export default function ProductPage() {
     const strip = carouselRef.current;
     if (strip) strip.scrollTo({ left: i * strip.clientWidth, behavior: 'smooth' });
   };
-
   useEffect(() => {
     setColorIdx(0); setImageIdx(0); setSize(null); setQty(1);
     setAdded(false); setError(null); setActiveTab('description'); setViewerIdx(null);
@@ -71,14 +70,28 @@ export default function ProductPage() {
    * unreachable — so the colour's photo is shown first, the rest follow, and
    * the customer can step through the lot without bouncing back to the swatch.
    */
-  const colorImages = product?.variants[colorIdx]?.images ?? [];
   const allImages = product?.variants.flatMap(v => v.images) ?? [];
-  // Selected colour's photos first, then anything not already listed.
-  const viewerImages = [
-    ...colorImages,
-    ...allImages.filter(src => !colorImages.includes(src)),
-  ];
+  /**
+   * Every photo of the product, in one fixed order.
+   *
+   * The strip on the left, the swipe strip on a phone and the full-screen
+   * viewer on a desktop all show this same gallery, and it never reorders —
+   * so the photo on screen only changes when the customer asks for it.
+   */
+  const viewerImages = allImages.filter((src, i) => allImages.indexOf(src) === i);
   const viewerCount = viewerImages.length;
+
+  /**
+   * The photo that belongs to a colour.
+   *
+   * The operator uploads one photo per colour, so touching a swatch has to
+   * swap the t-shirt on screen — that is the whole point of the swatches.
+   */
+  const photoIndexForColor = (i: number) => {
+    const first = product?.variants[i]?.images?.[0];
+    const at = first ? viewerImages.indexOf(first) : -1;
+    return at >= 0 ? at : 0;
+  };
 
   useEffect(() => {
     if (viewerIdx === null) return;
@@ -173,7 +186,8 @@ export default function ProductPage() {
     // A sold-out colour cannot be selected, so its photo is never shown.
     if (hasColorStock && colorSoldOut[i]) return;
     setColorIdx(i);
-    setImageIdx(0);
+    // Touching a swatch swaps the t-shirt on screen to that colour's photo.
+    setImageIdx(photoIndexForColor(i));
     // The phone strip starts at the first photo of the new colour.
     carouselRef.current?.scrollTo({ left: 0, behavior: 'auto' });
   };
@@ -192,11 +206,13 @@ export default function ProductPage() {
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
         {/* Gallery */}
         <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4">
+          {/* Left column: every photo of the product, so the t-shirt can be
+              seen from every angle without leaving the page. */}
           <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible no-scrollbar">
-            {variant.images.map((img, i) => (
-              <button key={i} onClick={() => selectImage(i)}
-                className={`shrink-0 w-20 h-24 rounded overflow-hidden border-2 ${imageIdx === i ? 'border-ink' : 'border-transparent'}`}>
-                <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
+            {viewerImages.map((img, i) => (
+              <button key={img + i} onClick={() => selectImage(i)}
+                className={`shrink-0 w-20 h-24 rounded overflow-hidden border-2 transition ${imageIdx === i ? 'border-ink' : 'border-transparent hover:border-ink/30'}`}>
+                <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
               </button>
             ))}
           </div>
@@ -205,7 +221,7 @@ export default function ProductPage() {
               normally — nothing takes over the screen. */}
           <div className="md:hidden -mx-4">
             <div ref={carouselRef} className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
-              {variant.images.map((img, i) => (
+              {viewerImages.map((img, i) => (
                 <img
                   key={img + i}
                   src={img}
@@ -215,7 +231,7 @@ export default function ProductPage() {
                 />
               ))}
             </div>
-            {variant.images.length > 1 && (
+            {viewerCount > 1 && (
               <p className="text-[11px] text-ink/40 text-center mt-2">Swipe for more photos</p>
             )}
           </div>
@@ -225,7 +241,7 @@ export default function ProductPage() {
             <AnimatePresence mode="wait">
               <motion.img
                 key={`${colorIdx}-${imageIdx}`}
-                src={variant.images[imageIdx]}
+                src={viewerImages[imageIdx] ?? variant.images[0]}
                 alt={product.name}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
                 className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"

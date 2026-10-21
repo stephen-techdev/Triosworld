@@ -4,16 +4,23 @@
  * The customer never leaves the site: the checkout posts the finished order
  * here and this function delivers it to the store's own WhatsApp number.
  *
- * Two transports are supported, tried in this order:
+ * Transports, tried in this order (the first one that is configured wins):
  *
- *  1. WhatsApp Cloud API (Meta) — needs WHATSAPP_PHONE_NUMBER_ID and
+ *  1. WhatsApp Cloud API (Meta) — WHATSAPP_PHONE_NUMBER_ID and
  *     WHATSAPP_ACCESS_TOKEN. If WHATSAPP_TEMPLATE_NAME is set the message is
  *     sent as an approved template (the only reliable way for a business to
  *     message a number that has not written to it first); otherwise it is sent
  *     as a plain text message, which Meta only allows inside a 24-hour
  *     customer-service window.
  *
- *  2. A relay webhook (WHATSAPP_RELAY_URL) — the payload is POSTed as JSON to
+ *  2. Green API — WHATSAPP_GREEN_API_ID_TOKEN. The store links its own
+ *     WhatsApp once by scanning a QR, and every order is then delivered from
+ *     that number with no template and no extra signup.
+ *
+ *  3. A plain API-key provider — WHATSAPP_API_BASE_URL and WHATSAPP_API_KEY.
+ *     The body is { api_key, to, text }.
+ *
+ *  4. A relay webhook (WHATSAPP_RELAY_URL) — the payload is POSTed as JSON to
  *     any automation tool (Make, Zapier, n8n…) that is already connected to
  *     WhatsApp. A 2xx answer means the order went out.
  *
@@ -129,6 +136,70 @@ async function sendViaCloudApi(message: string, params: string[]): Promise<
   return { ok: true, mode, id };
 }
 
+/** Send through Green API — the store's own WhatsApp, linked by a QR scan. */
+async function sendViaGreenApi(message: string): Promise<
+  { ok: true; mode: "greenapi"; id: string } | { ok: false; detail: string }
+> {
+  const idToken = Deno.env.get("WHATSAPP_GREEN_API_ID_TOKEN") ?? "";
+  if (!idToken) return { ok: false, detail: "greenapi_not_configured" };
+
+  const to = withCountryCode(
+    Deno.env.get("WHATSAPP_ORDER_TO_NUMBER") ?? "919345125667",
+  );
+
+  const res = await fetch(
+    `https://api.green-api.com/whatsapp/SendMessage/${idToken}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: `${to}@c.us`, message, notify: false }),
+    },
+  );
+
+  const text = await res.text();
+  if (!res.ok) return { ok: false, detail: text.slice(0, 300) };
+
+  let id = "";
+  try {
+    const parsed = JSON.parse(text) as { idMessage?: string };
+    id = parsed.idMessage ?? "";
+  } catch {
+    // id is optional
+  }
+  return { ok: true, mode: "greenapi", id };
+}
+
+/** Send through a plain API-key provider ({ api_key, to, text }). */
+async function sendViaApiKeyProvider(message: string): Promise<
+  { ok: true; mode: "api"; id: string } | { ok: false; detail: string }
+> {
+  const baseUrl = (Deno.env.get("WHATSAPP_API_BASE_URL") ?? "").replace(/\/$/, "");
+  const apiKey = Deno.env.get("WHATSAPP_API_KEY") ?? "";
+  if (!baseUrl || !apiKey) return { ok: false, detail: "api_not_configured" };
+
+  const to = withCountryCode(
+    Deno.env.get("WHATSAPP_ORDER_TO_NUMBER") ?? "919345125667",
+  );
+
+  const res = await fetch(`${baseUrl}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey, to, text: message, message }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) return { ok: false, detail: text.slice(0, 300) };
+
+  let id = "";
+  try {
+    const parsed = JSON.parse(text) as { id?: string; message_id?: string };
+    id = parsed.id ?? parsed.message_id ?? "";
+  } catch {
+    // id is optional
+  }
+  return { ok: true, mode: "api", id };
+}
+
 /** Hand the order to a relay (Make/Zapier/n8n…) that owns the WhatsApp app. */
 async function sendViaRelay(message: string, reference: string): Promise<
   { ok: true; mode: "relay"; id: string } | { ok: false; detail: string }
@@ -165,8 +236,14 @@ Deno.serve(async (req: Request) => {
     if (path === "/" && req.method === "GET") {
       return json({
         ok: true,
-        cloud_api: Boolean(Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") && Deno.env.get("WHATSAPP_ACCESS_TOKEN")),
+        cloud_api: Boolean(
+          Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") && Deno.env.get("WHATSAPP_ACCESS_TOKEN"),
+        ),
         template: Deno.env.get("WHATSAPP_TEMPLATE_NAME") ?? null,
+        green_api: Boolean(Deno.env.get("WHATSAPP_GREEN_API_ID_TOKEN")),
+        api_key_provider: Boolean(
+          Deno.env.get("WHATSAPP_API_BASE_URL") && Deno.env.get("WHATSAPP_API_KEY"),
+        ),
         relay: Boolean(Deno.env.get("WHATSAPP_RELAY_URL")),
         to: withCountryCode(Deno.env.get("WHATSAPP_ORDER_TO_NUMBER") ?? "919345125667"),
       });
@@ -186,12 +263,22 @@ Deno.serve(async (req: Request) => {
         return json({ ok: true, mode: cloud.mode, id: cloud.id, reference });
       }
 
+      const green = await sendViaGreenApi(message);
+      if (green.ok) {
+        return json({ ok: true, mode: green.mode, id: green.id, reference });
+      }
+
+      const apiKeyProvider = await sendViaApiKeyProvider(message);
+      if (apiKeyProvider.ok) {
+        return json({ ok: true, mode: apiKeyProvider.mode, id: apiKeyProvider.id, reference });
+      }
+
       const relay = await sendViaRelay(message, reference);
       if (relay.ok) {
         return json({ ok: true, mode: relay.mode, id: relay.id, reference });
       }
 
-      // Nothing could deliver it — the caller falls back to the wa.me link.
+      // Nothing could deliver it — the caller tells the customer to try again.
       return json(
         { ok: false, error: "whatsapp_not_configured", detail: cloud.detail },
         503,

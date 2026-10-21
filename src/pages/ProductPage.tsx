@@ -39,18 +39,6 @@ export default function ProductPage() {
   /** The mobile photo strip — the one the customer swipes through. */
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Pick a photo.
-   *
-   * On a phone the photos live in one scrolling strip, so choosing a thumbnail
-   * scrolls that strip to the photo. There is no full-screen overlay on a
-   * phone: the page keeps scrolling the way the customer expects.
-   */
-  const selectImage = (i: number) => {
-    setImageIdx(i);
-    const strip = carouselRef.current;
-    if (strip) strip.scrollTo({ left: i * strip.clientWidth, behavior: 'smooth' });
-  };
   useEffect(() => {
     setColorIdx(0); setImageIdx(0); setSize(null); setQty(1);
     setAdded(false); setError(null); setActiveTab('description'); setViewerIdx(null);
@@ -182,16 +170,70 @@ export default function ProductPage() {
     setTimeout(() => setAdded(false), 2200);
   };
 
-  const selectColor = (i: number) => {
+  /**
+   * Move to a colour.
+   *
+   * Shared by every way a colour gets picked — a swatch, a thumbnail or a
+   * swipe of the photo strip — so the swatch, the photo and the size list
+   * always land together.
+   */
+  const applyColor = (i: number) => {
+    if (i === colorIdx) return;
     // A sold-out colour cannot be selected, so its photo is never shown.
     if (hasColorStock && colorSoldOut[i]) return;
     setColorIdx(i);
-    // Touching a swatch swaps the t-shirt on screen to that colour's photo.
-    const photo = photoIndexForColor(i);
-    setImageIdx(photo);
-    // The phone strip jumps to the same photo.
+    // The size picked for the old colour may be sold out on the new one, in
+    // which case it cannot stay selected.
+    const sold = product.variants[i]?.sizes.find((s) => s.size === size);
+    if (size && (!sold || sold.stock === 0)) { setSize(null); setError(null); }
+  };
+
+  /**
+   * Pick a photo.
+   *
+   * The photos sit in the same order as the colours, so a photo IS a colour:
+   * picking photo two lights up the black swatch and shows the black sizes,
+   * whether the customer got there by swiping the strip, tapping a thumbnail
+   * or opening the full-screen viewer. A photo that belongs to no colour
+   * (a product with more shots than colours) leaves the swatch where it is.
+   *
+   * On a phone the photos live in one scrolling strip, so picking a thumbnail
+   * scrolls that strip to the photo. There is no full-screen overlay on a
+   * phone: the page keeps scrolling the way the customer expects.
+   */
+  const selectImage = (i: number) => {
+    setImageIdx(i);
+    const src = viewerImages[i];
+    const color = src ? product.variants.findIndex((v) => v.images.includes(src)) : -1;
+    if (color >= 0) applyColor(color);
     const strip = carouselRef.current;
-    if (strip) strip.scrollTo({ left: photo * strip.clientWidth, behavior: 'smooth' });
+    if (strip) strip.scrollTo({ left: i * strip.clientWidth, behavior: 'smooth' });
+  };
+
+  const selectColor = (i: number) => {
+    // A sold-out colour cannot be selected, so its photo is never shown.
+    if (hasColorStock && colorSoldOut[i]) return;
+    // Touching a swatch swaps the t-shirt on screen to that colour's photo.
+    selectImage(photoIndexForColor(i));
+  };
+
+  /**
+   * Keep the swatch in step with the strip.
+   *
+   * The customer swipes the photos the way they read a book, so the swatch
+   * has to follow along: swipe to photo two and the swatch that photo belongs
+   * to lights up, with its own sizes underneath. Whatever the customer does —
+   * tap a swatch, tap a thumbnail or swipe — picture, swatch and sizes agree.
+   */
+  const onStripScroll = () => {
+    const strip = carouselRef.current;
+    if (!strip || !viewerCount) return;
+    const i = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));
+    if (i < 0 || i >= viewerCount || i === imageIdx) return;
+    setImageIdx(i);
+    const src = viewerImages[i];
+    const color = src ? product.variants.findIndex((v) => v.images.includes(src)) : -1;
+    if (color >= 0) applyColor(color);
   };
 
   return (
@@ -222,7 +264,11 @@ export default function ProductPage() {
           {/* Phone: one strip of photos, swiped in place. The page scrolls
               normally — nothing takes over the screen. */}
           <div className="md:hidden -mx-4">
-            <div ref={carouselRef} className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+            <div
+              ref={carouselRef}
+              onScroll={onStripScroll}
+              className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+            >
               {viewerImages.map((img, i) => (
                 <img
                   key={img + i}

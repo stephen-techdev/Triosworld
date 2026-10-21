@@ -17,7 +17,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-Client-Info, Apikey",
+    "Content-Type, Authorization, X-Client-Info, Apikey, X-Cleanup-Secret",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -73,6 +73,38 @@ Deno.serve(async (req: Request) => {
 
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
       return json({ ok: true, url: pub.publicUrl });
+    }
+
+    /**
+     * Housekeeping: the picture of a WhatsApp order is only kept for 48
+     * hours. A scheduled job calls this once an hour; anything older than the
+     * window is deleted, so the bucket never fills up with order pictures.
+     */
+    if (path === "/cleanup" && req.method === "POST") {
+      const expected = Deno.env.get("ORDER_CLEANUP_SECRET") ?? "";
+      const given = req.headers.get("x-cleanup-secret") ?? "";
+      if (!expected || given !== expected) return json({ error: "Not allowed" }, 401);
+
+      const hours = Number(Deno.env.get("ORDER_IMAGE_TTL_HOURS") ?? "48");
+      const cutoff = Date.now() - hours * 60 * 60 * 1000;
+
+      const { data: files, error: listError } = await supabase.storage
+        .from(BUCKET)
+        .list("orders", { limit: 1000 });
+      if (listError) return json({ error: listError.message }, 500);
+
+      const expired = (files ?? []).filter((f) => {
+        const created = Date.parse(f.created_at ?? f.updated_at ?? "");
+        return Number.isFinite(created) && created < cutoff;
+      });
+
+      let removed = 0;
+      for (const file of expired) {
+        const { error } = await supabase.storage.from(BUCKET).remove([`orders/${file.name}`]);
+        if (!error) removed += 1;
+      }
+
+      return json({ ok: true, checked: (files ?? []).length, removed, ttl_hours: hours });
     }
 
     return json({ error: "Not found" }, 404);

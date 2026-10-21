@@ -27,6 +27,8 @@ interface OrderImageInput {
   lines: string[];
   /** Printed in the footer. */
   footnote: string;
+  /** What the QR code in the message box opens — our WhatsApp chat. */
+  qrPayload: string;
 }
 
 function roundRect(
@@ -84,8 +86,9 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
   const headerHeight = 190;
   const bodyLineHeight = 38;
   const bodyHeight = bodyLines.length * bodyLineHeight + 60;
+  const messageBoxHeight = 260;
   const footerHeight = 120;
-  const height = headerHeight + bodyHeight + footerHeight;
+  const height = headerHeight + bodyHeight + messageBoxHeight + footerHeight;
 
   canvas.width = WIDTH;
   canvas.height = height;
@@ -138,6 +141,44 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
     }
   }
 
+  // --- message box: the QR code and "this is my order" ---
+  const boxTop = headerHeight + bodyHeight;
+  const boxX = PAD;
+  const boxW = WIDTH - PAD * 2;
+  const boxY = boxTop + 12;
+
+  ctx.fillStyle = '#ffffff';
+  roundRect(ctx, boxX, boxY, boxW, messageBoxHeight - 24, 22);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(23,23,23,0.14)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, boxX, boxY, boxW, messageBoxHeight - 24, 22);
+  ctx.stroke();
+
+  const qrSize = 180;
+  const qrX = boxX + 32;
+  const qrY = boxY + 24;
+  const qr = await renderQr(input.qrPayload, qrSize);
+  if (qr) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 16);
+    ctx.drawImage(qr, qrX, qrY, qrSize, qrSize);
+  }
+
+  const textX = qrX + qrSize + 40;
+  ctx.fillStyle = INK;
+  ctx.font = '700 30px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.fillText('This is my order', textX, qrY + 46);
+
+  ctx.fillStyle = MUTED;
+  ctx.font = '400 22px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.fillText('Scan the QR to open our WhatsApp chat', textX, qrY + 88);
+  ctx.fillText('with this order attached.', textX, qrY + 120);
+
+  ctx.fillStyle = INK;
+  ctx.font = '600 22px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.fillText(`Reference: ${input.reference}`, textX, qrY + 162);
+
   // --- footer ---
   const footerTop = height - footerHeight + 20;
   ctx.strokeStyle = 'rgba(23,23,23,0.12)';
@@ -171,4 +212,24 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
       else reject(new Error('Could not render the order image'));
     }, 'image/png');
   });
+}
+
+/**
+ * Renders the QR code. The library is loaded on demand — the picture is only
+ * drawn when a customer actually orders, so it never sits in the first paint.
+ */
+async function renderQr(payload: string, size: number): Promise<HTMLCanvasElement | null> {
+  try {
+    const { default: QRCode } = await import('qrcode');
+    const canvas = document.createElement('canvas');
+    await QRCode.toCanvas(canvas, payload, {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#171717', light: '#ffffff' },
+    });
+    return canvas;
+  } catch {
+    return null;
+  }
 }

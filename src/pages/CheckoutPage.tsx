@@ -161,6 +161,9 @@ export default function CheckoutPage() {
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
       }),
       lines,
+      // The QR in the picture opens our WhatsApp chat with this order's
+      // reference already written, so one scan is all it takes.
+      qrPayload: whatsappLink(`Hi TriosWorld, this is my order ${reference}.`),
       footnote: 'This picture is the order exactly as placed on triosworld.com',
     });
   };

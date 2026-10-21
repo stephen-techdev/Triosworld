@@ -464,8 +464,22 @@ export const saveSettings = (settings: {
 
 export interface AdminCoupon { code: string; type: 'pct' | 'flat'; value: number; min: number; active: boolean; }
 
-export async function getCoupons(): Promise<AdminCoupon[]> { const res = await adminFetch('/coupons'); const json = await res.json().catch(function(){return {};}); return Array.isArray(json.coupons) ? json.coupons : []; }
+/** Coupons are owned by the dashboard — the list, the save and the delete. */
+export async function getCoupons(): Promise<AdminCoupon[]> {
+  const res = await adminRequest<{ coupons: AdminCoupon[] }>('/coupons');
+  return Array.isArray(res.coupons) ? res.coupons : [];
+}
 
-export async function upsertCoupon(coupon: Partial<AdminCoupon> & { code: string }): Promise<{ok:boolean}> { const res = await adminFetch('/coupons', { method: 'POST', body: JSON.stringify(coupon) }); if(!res.ok){ const j = await res.json().catch(function(){return {};}); throw new Error(j.error || 'Failed to save coupon'); } return res.json(); }
+export async function upsertCoupon(coupon: Partial<AdminCoupon> & { code: string }): Promise<{ ok: boolean }> {
+  return adminRequest<{ ok: boolean }>('/coupons', {
+    method: 'POST',
+    body: JSON.stringify(coupon),
+  });
+}
 
-export async function deleteCoupon(code: string): Promise<{ok:boolean}> { const res = await adminFetch('/coupons-delete', { method: 'POST', body: JSON.stringify({code:code}) }); if(!res.ok){ const j = await res.json().catch(function(){return {};}); throw new Error(j.error || 'Failed to delete coupon'); } return res.json(); }
+export async function deleteCoupon(code: string): Promise<{ ok: boolean }> {
+  return adminRequest<{ ok: boolean }>('/coupons-delete', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}

@@ -187,9 +187,11 @@ export default function ProductPage() {
     if (hasColorStock && colorSoldOut[i]) return;
     setColorIdx(i);
     // Touching a swatch swaps the t-shirt on screen to that colour's photo.
-    setImageIdx(photoIndexForColor(i));
-    // The phone strip starts at the first photo of the new colour.
-    carouselRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+    const photo = photoIndexForColor(i);
+    setImageIdx(photo);
+    // The phone strip jumps to the same photo.
+    const strip = carouselRef.current;
+    if (strip) strip.scrollTo({ left: photo * strip.clientWidth, behavior: 'smooth' });
   };
 
   return (

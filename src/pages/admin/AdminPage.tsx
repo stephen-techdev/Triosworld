@@ -1266,29 +1266,6 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
           </label>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-ink/50">Stock per size</span>
-            <span className="text-[11px] text-ink/50">
-              <strong className="text-ink">
-                {Object.values(stock).reduce((s, v) => s + (Number(v) || 0), 0)}
-              </strong>{' '}
-              total
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5 mt-1">
-            {Object.entries(stock).map(([size, value]) => (
-              <label key={size} className="block">
-                <span className="text-[10px] text-ink/40">{size}</span>
-                <input
-                  type="number" min={0} value={value}
-                  onChange={e => setStock(s => ({ ...s, [size]: e.target.value }))}
-                  className="w-full rounded-md border border-ink/15 px-2 py-1.5 text-xs focus:outline-none focus:border-ink"
-                />
-              </label>
-            ))}
-          </div>
-        </div>
 
         {product.source === 'runtime' && (
           <div>
@@ -2201,19 +2178,6 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
             onDetectedColor={(name, hex) => setColors(prev => (prev.some(c => c.name.trim()) ? prev : [{ name, hex }]))}
           />
 
-          <div>
-            <span className="text-[11px] text-ink/50">Stock per size</span>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mt-1">
-              {Object.entries(stock).map(([size, value]) => (
-                <label key={size} className="block">
-                  <span className="text-[10px] text-ink/40">{size}</span>
-                  <input type="number" min={0} value={value}
-                    onChange={e => setStock(s => ({ ...s, [size]: e.target.value }))}
-                    className="mt-0.5 w-full rounded-lg border border-ink/15 px-2 py-1.5 text-sm focus:outline-none focus:border-ink" />
-                </label>
-              ))}
-            </div>
-          </div>
 
           <div className="flex flex-wrap gap-4 pt-1">
             <label className="flex items-center gap-2 text-xs text-ink/70">
@@ -2464,19 +2428,6 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         onDetectedColor={(name, hex) => setColors(prev => (prev.some(c => c.name.trim()) ? prev : [{ name, hex }]))}
       />
 
-      <div>
-        <span className="text-[11px] text-ink/50">Stock per size</span>
-        <div className="grid grid-cols-3 gap-1.5 mt-1">
-          {Object.entries(stock).map(([size, value]) => (
-            <label key={size} className="block">
-              <span className="text-[10px] text-ink/40">{size}</span>
-              <input type="number" min={0} value={value}
-                onChange={e => setStock(s => ({ ...s, [size]: e.target.value }))}
-                className="mt-0.5 w-full rounded-lg border border-ink/15 px-2 py-1.5 text-sm focus:outline-none focus:border-ink" />
-            </label>
-          ))}
-        </div>
-      </div>
 
       <button type="submit" disabled={saving}
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50">

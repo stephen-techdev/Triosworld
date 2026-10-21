@@ -484,7 +484,7 @@ export default function ProductPage() {
             <motion.div
               key={viewerIdx}
               className="flex-1 relative overflow-hidden"
-              drag={viewerCount > 1 ? 'x' : false}
+              drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.18}
               onDragEnd={(_, info) => {

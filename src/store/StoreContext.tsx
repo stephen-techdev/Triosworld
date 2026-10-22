@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import type { Product } from '@/data/catalog';
 import { liveProductById, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { maxUnitsPerLine } from '@/lib/stock';
@@ -132,6 +132,9 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { cart: [], wishlist: [] });
+  // Persisting before the saved bag has been read would overwrite it with an
+  // empty cart on every hard load. The flag keeps that first render read-only.
+  const [hydrated, setHydrated] = useState(false);
 
   // Prices live in the database, so the subtotal has to wait for the catalog.
   // Without this the total read zero for every dashboard product and a customer
@@ -148,6 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     }
+    setHydrated(true);
   }, []);
 
   // A bag can outlive an admin stock change. As soon as the live catalog is
@@ -158,12 +162,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [ready, products.length]);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // ignore
     }
-  }, [state]);
+  }, [state, hydrated]);
 
   const value = useMemo<StoreContextValue>(() => {
     const cartCount = state.cart.filter(i => liveProductById(i.productId)).reduce((s, i) => s + i.qty, 0);

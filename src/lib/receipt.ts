@@ -106,7 +106,7 @@ export function buildReceipt(payload: ReceiptPayload): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(190, 190, 190);
-  doc.text('triosworld.com  |  +91 63838 83727', PAGE_W - MARGIN, 21, { align: 'right' });
+  doc.text('www.triosworld.in  |  +91 63838 83727', PAGE_W - MARGIN, 21, { align: 'right' });
 
   y = 44;
 

@@ -22,7 +22,7 @@ export default function CollectionsPage() {
   return (
     <div className="page-container py-10 md:py-16">
       <SEO title="Collections" description="Browse all TriosWorld collections — oversized tees, graphic tees, essentials, streetwear and more." />
-      <p className="text-xs tracking-widest uppercase text-ink/40 mb-3">Browse</p>
+      <p className="text-xs tracking-widest uppercase text-ink/65 mb-3">Browse</p>
       <h1 className="font-display text-4xl md:text-6xl font-semibold mb-4">Collections</h1>
       <p className="text-ink/60 max-w-xl mb-12">From everyday essentials to statement graphics and street-ready fits — find the world that matches your vibe.</p>
 
@@ -48,7 +48,7 @@ export default function CollectionsPage() {
           {builtins.map(c => (
             <Link key={c.slug} to={`/shop/${c.slug}`} className="group rounded-2xl border border-ink/10 p-5 hover:border-ink/30 hover:shadow-soft transition-all duration-300">
               <h3 className="font-display font-semibold">{c.name}</h3>
-              <p className="text-ink/50 text-xs mt-1 line-clamp-2">{c.blurb}</p>
+              <p className="text-ink/65 text-xs mt-1 line-clamp-2">{c.blurb}</p>
               <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-ink/60 group-hover:text-ink transition-colors">Shop <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" /></span>
             </Link>
           ))}

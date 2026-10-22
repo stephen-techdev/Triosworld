@@ -103,7 +103,7 @@ export default function RegisterPage() {
           </Link>
 
           <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">JOIN TRIOSWORLD.</h1>
-          <p className="text-ink/50 text-sm mb-8">Create your account in seconds</p>
+          <p className="text-ink/65 text-sm mb-8">Create your account in seconds</p>
 
           {error && (
             <div className="mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700" role="alert">
@@ -129,7 +129,7 @@ export default function RegisterPage() {
             <div>
               <label htmlFor="regMobile" className="text-xs font-medium text-ink/60">Mobile Number <span className="text-burgundy">*</span></label>
               <div className="mt-1.5 flex items-center rounded-lg border border-ink/15 focus-within:border-ink overflow-hidden">
-                <span className="px-3 py-3 text-sm text-ink/50 border-r border-ink/10 bg-stone/20 select-none">+91</span>
+                <span className="px-3 py-3 text-sm text-ink/65 border-r border-ink/10 bg-stone/20 select-none">+91</span>
                 <input
                   id="regMobile"
                   type="tel"
@@ -178,7 +178,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowPwd(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/40 hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/65 hover:text-ink"
                   aria-label={showPwd ? 'Hide password' : 'Show password'}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -194,7 +194,7 @@ export default function RegisterPage() {
                       />
                     ))}
                   </div>
-                  <p className="text-xs text-ink/40 mt-1">{strength.label}</p>
+                  <p className="text-xs text-ink/65 mt-1">{strength.label}</p>
                 </div>
               )}
             </div>
@@ -215,7 +215,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/40 hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/65 hover:text-ink"
                   aria-label={showConfirm ? 'Hide password' : 'Show password'}
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -238,7 +238,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-ink/50">
+          <p className="mt-8 text-center text-sm text-ink/65">
             Already have an account?{' '}
             <Link to="/login" className="text-ink font-medium hover:text-ink/70 underline">
               Sign In

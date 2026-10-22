@@ -416,7 +416,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     terms: {
       title: 'Terms & Conditions',
       body: [
-        { p: 'By using triosworld.com you agree to these terms. Prices are listed in INR and inclusive of all taxes.' },
+        { p: 'By using triosworld.in you agree to these terms. Prices are listed in INR and inclusive of all taxes.' },
         { h: 'Orders', p: 'All orders are subject to availability and confirmation. We reserve the right to cancel orders that appear fraudulent.' },
         { h: 'Content', p: 'All product imagery, designs and copy are the property of TriosWorld and may not be reproduced without permission.' },
       ],

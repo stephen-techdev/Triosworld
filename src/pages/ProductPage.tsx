@@ -239,7 +239,7 @@ export default function ProductPage() {
   return (
     <div className="page-container py-6 md:py-10 pb-24 md:pb-10">
       <SEO title={product.name} description={product.description} jsonLd={[jsonLd, bcJsonLd]} />
-      <nav className="flex items-center gap-1.5 text-xs text-ink/50 mb-6 flex-wrap">
+      <nav className="flex items-center gap-1.5 text-xs text-ink/65 mb-6 flex-wrap">
         <Link to="/home" className="hover:text-ink">Home</Link>
         <ChevronRight size={12} />
         <Link to={`/shop/${product.categories[0]}`} className="hover:text-ink capitalize">{product.categories[0].replace('-', ' ')}</Link>
@@ -286,7 +286,7 @@ export default function ProductPage() {
               ))}
             </div>
             {viewerCount > 1 && (
-              <p className="text-[11px] text-ink/40 text-center mt-2">Swipe for more photos</p>
+              <p className="text-[11px] text-ink/65 text-center mt-2">Swipe for more photos</p>
             )}
           </div>
 
@@ -320,7 +320,7 @@ export default function ProductPage() {
                 <Maximize2 size={13} />
                 Full screen
                 {viewerCount > 1 && (
-                  <span className="text-ink/50">
+                  <span className="text-ink/65">
                     {viewerCount} photos
                   </span>
                 )}
@@ -338,7 +338,7 @@ export default function ProductPage() {
             {/* Fit and fabric are operator-supplied, so an unset field is hidden
                 rather than rendering an empty "Fit ·" line. */}
             {(product.fit || product.fabric) && (
-              <span className="text-xs text-ink/50 capitalize">
+              <span className="text-xs text-ink/65 capitalize">
                 {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
               </span>
             )}
@@ -346,9 +346,9 @@ export default function ProductPage() {
           <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold leading-tight">{product.name}</h1>
           <div className="mt-4 flex items-center gap-3">
             <span className="text-2xl font-semibold">{formatINR(product.price)}</span>
-            {hasDiscount && <><span className="text-ink/40 line-through">{formatINR(product.mrp)}</span><span className="text-sm font-semibold text-lime bg-ink px-2 py-0.5 rounded">{discountPercent(product)}% off</span></>}
+            {hasDiscount && <><span className="text-ink/65 line-through">{formatINR(product.mrp)}</span><span className="text-sm font-semibold text-lime bg-ink px-2 py-0.5 rounded">{discountPercent(product)}% off</span></>}
           </div>
-          <p className="text-xs text-ink/50 mt-1">MRP inclusive of all taxes</p>
+          <p className="text-xs text-ink/65 mt-1">MRP inclusive of all taxes</p>
 
           {/* Rating + stock — the score is the average of the operator's own
               published reviews; with none, only stock state shows. */}
@@ -374,7 +374,7 @@ export default function ProductPage() {
 
           {/* Delivery estimate */}
           <div className="mt-3 flex items-center gap-2 text-xs text-ink/60">
-            <Truck size={16} className="text-ink/40" />
+            <Truck size={16} className="text-ink/65" />
             <span>Estimated delivery by <span className="font-medium text-ink">{deliveryStr}</span> — {freeShippingLabel(settings, formatINR)}</span>
           </div>
 
@@ -475,7 +475,7 @@ export default function ProductPage() {
             <div className="flex gap-5 mb-4">
               {(['description', 'care', 'shipping'] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
-                  className={`text-sm font-medium capitalize border-b-2 pb-1 transition ${activeTab === t ? 'border-ink' : 'border-transparent text-ink/50 hover:text-ink'}`}>
+                  className={`text-sm font-medium capitalize border-b-2 pb-1 transition ${activeTab === t ? 'border-ink' : 'border-transparent text-ink/65 hover:text-ink'}`}>
                   {t === 'shipping' ? 'Delivery & Returns' : t === 'care' ? 'Fabric & Care' : 'Description'}
                 </button>
               ))}
@@ -494,7 +494,7 @@ export default function ProductPage() {
                   {product.fabric && <p><span className="font-medium text-ink">Fabric:</span> {product.fabric}</p>}
                   {product.care
                     ? <p><span className="font-medium text-ink">Care:</span> {product.care}</p>
-                    : <p className="text-ink/50">Care instructions have not been added for this piece yet.</p>}
+                    : <p className="text-ink/65">Care instructions have not been added for this piece yet.</p>}
                 </div>
               )}
               {activeTab === 'shipping' && (
@@ -514,7 +514,7 @@ export default function ProductPage() {
         <section className="mt-16 border-t border-ink/10 pt-10">
           <div className="flex items-baseline gap-3 mb-6">
             <h2 className="font-display text-xl md:text-2xl font-semibold">Customer Reviews</h2>
-            <span className="text-sm text-ink/50">{reviewScore.toFixed(1)} / 5 · {reviews.length}</span>
+            <span className="text-sm text-ink/65">{reviewScore.toFixed(1)} / 5 · {reviews.length}</span>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
             {reviews.map((r, i) => (
@@ -525,7 +525,7 @@ export default function ProductPage() {
                   ))}
                 </div>
                 <p className="text-sm text-ink/70 leading-relaxed">{r.text}</p>
-                <p className="text-xs text-ink/40 mt-3">{r.name} · Verified purchase</p>
+                <p className="text-xs text-ink/65 mt-3">{r.name} · Verified purchase</p>
               </div>
             ))}
           </div>
@@ -553,7 +553,7 @@ export default function ProductPage() {
               <table className="w-full text-sm">
                 <tbody>
                   {sizeGuide.map((row, i) => (
-                    <tr key={i} className={i === 0 ? 'text-ink/50 text-xs uppercase' : 'border-t border-ink/5'}>
+                    <tr key={i} className={i === 0 ? 'text-ink/65 text-xs uppercase' : 'border-t border-ink/5'}>
                       {row.map((cell, j) => <td key={j} className={j === 0 ? 'font-medium py-2' : 'py-2'}>{cell}</td>)}
                     </tr>
                   ))}

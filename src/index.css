@@ -136,7 +136,9 @@
   padding: 0 18px 0 14px;
   border-radius: 999px;
   background: #25d366;
-  color: #fff;
+  /* White on WhatsApp green is only 1.98:1. Dark forest green clears AA
+     (6.9:1) while keeping the brand colour of the pill itself. */
+  color: #07351f;
   display: inline-flex;
   align-items: center;
   gap: 8px;

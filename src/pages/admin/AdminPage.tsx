@@ -84,14 +84,14 @@ export default function AdminPage() {
             <Link to="/" className="text-lg shrink-0">
               <Wordmark variant="chrome" />
             </Link>
-            <span className="hidden sm:inline text-[11px] uppercase tracking-widest text-ivory/40 border border-ivory/20 rounded-full px-2.5 py-1">
+            <span className="hidden sm:inline text-[11px] uppercase tracking-widest text-ivory/60 border border-ivory/20 rounded-full px-2.5 py-1">
               Admin
             </span>
           </div>
           <div className="flex items-center gap-3 min-w-0">
             <div className="hidden sm:block text-right min-w-0">
               <p className="text-xs font-medium truncate">{session.admin.name}</p>
-              <p className="text-[11px] text-ivory/40 truncate">{session.admin.email}</p>
+              <p className="text-[11px] text-ivory/60 truncate">{session.admin.email}</p>
             </div>
             <button
               type="button"
@@ -141,7 +141,7 @@ export default function AdminPage() {
             <div className="pt-4">
               <Link
                 to="/"
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-medium text-ink/50 hover:bg-stone/50 hover:text-ink transition"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-medium text-ink/65 hover:bg-stone/50 hover:text-ink transition"
               >
                 <ArrowLeft size={17} /> Back to store
               </Link>
@@ -184,7 +184,7 @@ function SectionHead({ title, subtitle, onRefresh, loading }: {
     <div className="flex items-start justify-between gap-4 mb-5">
       <div>
         <h1 className="font-display text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-xs text-ink/50 mt-1">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-ink/65 mt-1">{subtitle}</p>}
       </div>
       {onRefresh && (
         <button
@@ -217,7 +217,7 @@ function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div className="py-24 grid place-items-center text-ink/40">{children}</div>;
+  return <div className="py-24 grid place-items-center text-ink/65">{children}</div>;
 }
 
 function PaymentChip({ status }: { status: string }) {
@@ -290,7 +290,7 @@ function OverviewSection() {
           {cards.map(c => (
             <div key={c.label} className={`rounded-xl border p-4 ${c.accent ? 'bg-ink text-ivory border-ink' : 'bg-ivory border-ink/10'}`}>
               <div className="flex items-center justify-between mb-3">
-                <span className={`text-[11px] uppercase tracking-wide ${c.accent ? 'text-ivory/50' : 'text-ink/45'}`}>
+                <span className={`text-[11px] uppercase tracking-wide ${c.accent ? 'text-ivory/50' : 'text-ink/65'}`}>
                   {c.label}
                 </span>
                 <c.icon size={15} className={c.accent ? 'text-lime' : 'text-ink/30'} />
@@ -383,7 +383,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
           ))}
         </div>
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/65" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -394,7 +394,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-[11px] text-ink/50">Clear:</span>
+        <span className="text-[11px] text-ink/65">Clear:</span>
         <button type="button" disabled={clearing} onClick={() => doClear('guests')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Guest orders</button>
         <button type="button" disabled={clearing} onClick={() => doClear('pending')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Pending</button>
         <button type="button" disabled={clearing} onClick={() => doClear('failed')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Failed</button>
@@ -409,7 +409,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
       {data && data.length === 0 && (
         <div className="rounded-xl border border-ink/10 bg-ivory p-12 text-center">
           <ShoppingBag size={26} className="mx-auto text-ink/30 mb-3" />
-          <p className="text-sm text-ink/50">No orders match this view yet.</p>
+          <p className="text-sm text-ink/65">No orders match this view yet.</p>
         </div>
       )}
 
@@ -427,22 +427,22 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="font-mono text-xs font-semibold">{order.order_number}</span>
                     <PaymentChip status={order.payment_status} />
-                    <span className="text-[11px] text-ink/40 capitalize">{order.status}</span>
+                    <span className="text-[11px] text-ink/65 capitalize">{order.status}</span>
                     {!order.user_id && (
-                      <span className="text-[10px] uppercase tracking-wide text-ink/40 border border-ink/15 rounded-full px-2 py-0.5">
+                      <span className="text-[10px] uppercase tracking-wide text-ink/65 border border-ink/15 rounded-full px-2 py-0.5">
                         Guest
                       </span>
                     )}
                   </div>
                   <p className="text-sm font-medium truncate">
                     {order.customer_name ?? 'Customer'}
-                    {order.customer_mobile && <span className="text-ink/40 font-normal"> · {order.customer_mobile}</span>}
+                    {order.customer_mobile && <span className="text-ink/65 font-normal"> · {order.customer_mobile}</span>}
                   </p>
-                  <p className="text-[11px] text-ink/40 mt-0.5">{shortDate(order.created_at)}</p>
+                  <p className="text-[11px] text-ink/65 mt-0.5">{shortDate(order.created_at)}</p>
                 </div>
                 <div className="text-right shrink-0 flex items-center gap-2">
                   <p className="font-semibold text-sm">{formatINR(order.amount_paid ?? order.total)}</p>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeOrder(order); }} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete order">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeOrder(order); }} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete order">
                     <Trash2 size={14} />
                   </button>
                   <ChevronDown size={16} className={`text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -492,13 +492,13 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Items */}
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-ink/45 mb-2">Items</p>
+          <p className="text-[11px] uppercase tracking-wide text-ink/65 mb-2">Items</p>
           <div className="space-y-2">
             {(order.items ?? []).map((item, i) => (
               <div key={i} className="flex justify-between gap-3 text-sm">
                 <span className="min-w-0">
                   <span className="font-medium">{item.name}</span>
-                  <span className="text-ink/45"> · {item.color} · {item.size} · ×{item.qty}</span>
+                  <span className="text-ink/65"> · {item.color} · {item.size} · ×{item.qty}</span>
                 </span>
                 <span className="font-medium shrink-0">{formatINR(item.lineTotal)}</span>
               </div>
@@ -515,7 +515,7 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
         {/* Customer + payment */}
         <div className="space-y-4">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-ink/45 mb-2">Delivery</p>
+            <p className="text-[11px] uppercase tracking-wide text-ink/65 mb-2">Delivery</p>
             <p className="text-sm font-medium">{addr.fullName ?? order.customer_name}</p>
             <p className="text-xs text-ink/60 mt-0.5">{addr.mobile ?? order.customer_mobile}</p>
             {(addr.email ?? order.customer_email) && (
@@ -528,12 +528,12 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
           </div>
 
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-ink/45 mb-2">Payment</p>
+            <p className="text-[11px] uppercase tracking-wide text-ink/65 mb-2">Payment</p>
             <dl className="text-xs space-y-1">
-              <div className="flex justify-between gap-3"><dt className="text-ink/50">Method</dt><dd className="font-medium uppercase">{order.payment_method}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-ink/50">Provider</dt><dd className="font-medium">{order.payment_provider ?? '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-ink/50">Txn ref</dt><dd className="font-mono break-all text-right">{order.payment_id ?? '—'}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-ink/50">Paid at</dt><dd className="font-medium">{shortDate(order.paid_at)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink/65">Method</dt><dd className="font-medium uppercase">{order.payment_method}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink/65">Provider</dt><dd className="font-medium">{order.payment_provider ?? '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink/65">Txn ref</dt><dd className="font-mono break-all text-right">{order.payment_id ?? '—'}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-ink/65">Paid at</dt><dd className="font-medium">{shortDate(order.paid_at)}</dd></div>
             </dl>
           </div>
         </div>
@@ -541,7 +541,7 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
 
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <span className="text-[11px] uppercase tracking-wide text-ink/45 mr-1">Fulfilment</span>
+        <span className="text-[11px] uppercase tracking-wide text-ink/65 mr-1">Fulfilment</span>
         {FULFILMENT.map(s => (
           <button
             key={s}
@@ -557,7 +557,7 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] uppercase tracking-wide text-ink/45 mr-1">Payment</span>
+        <span className="text-[11px] uppercase tracking-wide text-ink/65 mr-1">Payment</span>
         <button type="button" onClick={() => onPatch({ payment_status: 'paid' })}
           className="px-3 py-1.5 rounded-full text-xs font-medium bg-lime text-ink hover:brightness-95 transition">
           Mark paid
@@ -583,9 +583,9 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
               {events.map(e => (
                 <li key={e.id} className="text-xs">
                   <span className="font-mono font-semibold">{e.event}</span>
-                  <span className="text-ink/40"> · {shortDate(e.created_at)}</span>
+                  <span className="text-ink/65"> · {shortDate(e.created_at)}</span>
                   {e.detail != null && (
-                    <p className="text-[11px] text-ink/45 font-mono break-all mt-0.5">
+                    <p className="text-[11px] text-ink/65 font-mono break-all mt-0.5">
                       {JSON.stringify(e.detail)}
                     </p>
                   )}
@@ -593,7 +593,7 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-ink/45">No events recorded.</p>
+            <p className="text-xs text-ink/65">No events recorded.</p>
           )}
         </div>
       )}
@@ -639,7 +639,7 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
       <SectionHead title="Customers" subtitle="Registered accounts and guest buyers" onRefresh={reload} loading={loading} />
 
       <div className="relative mb-4">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/65" />
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -659,7 +659,7 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
       {data && filtered.length === 0 && (
         <div className="rounded-xl border border-ink/10 bg-ivory p-12 text-center">
           <Users size={26} className="mx-auto text-ink/30 mb-3" />
-          <p className="text-sm text-ink/50">No customers yet.</p>
+          <p className="text-sm text-ink/65">No customers yet.</p>
         </div>
       )}
 
@@ -709,7 +709,7 @@ function CustomerRow({ customer: c, onChanged, onView }: {
     <div className="rounded-xl border border-ink/10 bg-ivory p-4">
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="w-10 h-10 rounded-full bg-stone grid place-items-center shrink-0">
-          <UserRound size={17} className="text-ink/50" />
+          <UserRound size={17} className="text-ink/65" />
         </div>
 
         <button onClick={onView} className="flex-1 min-w-0 text-left">
@@ -721,15 +721,15 @@ function CustomerRow({ customer: c, onChanged, onView }: {
               {c.type}
             </span>
           </div>
-          <p className="text-xs text-ink/50 mt-0.5 truncate">
+          <p className="text-xs text-ink/65 mt-0.5 truncate">
             +91 {c.mobile}
-            {c.email && <span className="text-ink/40"> · {c.email}</span>}
+            {c.email && <span className="text-ink/65"> · {c.email}</span>}
           </p>
         </button>
 
         <div className="text-right shrink-0 hidden sm:block">
           <p className="text-sm font-semibold">{formatINR(c.spent)}</p>
-          <p className="text-[11px] text-ink/45">
+          <p className="text-[11px] text-ink/65">
             {c.orders} order{c.orders === 1 ? '' : 's'}
           </p>
         </div>
@@ -737,7 +737,7 @@ function CustomerRow({ customer: c, onChanged, onView }: {
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={onView}
-            className="p-2 rounded-lg text-ink/50 hover:bg-stone/60 hover:text-ink transition"
+            className="p-2 rounded-lg text-ink/65 hover:bg-stone/60 hover:text-ink transition"
             aria-label={`View profile for ${c.name}`}
             title="View profile"
           >
@@ -891,8 +891,8 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
                   )}
                 </div>
                 <p className="text-sm text-ink/60">+91 {data.mobile}</p>
-                {data.email && <p className="text-sm text-ink/50 break-all">{data.email}</p>}
-                {data.gender && <p className="text-sm text-ink/50 capitalize">{data.gender}</p>}
+                {data.email && <p className="text-sm text-ink/65 break-all">{data.email}</p>}
+                {data.gender && <p className="text-sm text-ink/65 capitalize">{data.gender}</p>}
                 {data.muted_reason && data.is_muted && (
                   <p className="text-xs text-amber-700 mt-2">Reason: {data.muted_reason}</p>
                 )}
@@ -905,13 +905,13 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
                   { label: 'Spent', value: formatINR(data.stats.total_spent) },
                 ].map(s => (
                   <div key={s.label} className="rounded-lg border border-ink/10 p-3 text-center">
-                    <p className="text-[10px] uppercase tracking-wide text-ink/45">{s.label}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-ink/65">{s.label}</p>
                     <p className="font-display text-lg font-bold mt-0.5">{s.value}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="text-xs text-ink/50 space-y-1">
+              <div className="text-xs text-ink/65 space-y-1">
                 <p>Type: {data.has_account ? 'Registered account' : 'Guest (no account)'}</p>
                 {data.joined_at && <p>Joined: {shortDate(data.joined_at)}</p>}
                 {data.google_id && <p>Linked Google ID: <span className="font-mono text-[10px]">{data.google_id}</span></p>}
@@ -933,11 +933,11 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
               )}
 
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/65 mb-2">
                   Orders ({data.orders.length})
                 </h4>
                 {data.orders.length === 0 ? (
-                  <p className="text-xs text-ink/45">No orders yet.</p>
+                  <p className="text-xs text-ink/65">No orders yet.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {data.orders.map(o => (
@@ -945,7 +945,7 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
                         <span className="font-medium">{o.order_number}</span>
                         <span className="flex items-center gap-2">
                           <PaymentChip status={o.payment_status} />
-                          <span className="text-ink/45">{shortDate(o.created_at)}</span>
+                          <span className="text-ink/65">{shortDate(o.created_at)}</span>
                           <span className="font-semibold">{formatINR(o.total)}</span>
                         </span>
                       </div>
@@ -956,7 +956,7 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
 
               {data.addresses.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/65 mb-2">
                     Saved addresses ({data.addresses.length})
                   </h4>
                   <div className="space-y-1.5">
@@ -974,13 +974,13 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
 
               {data.feedback.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/45 mb-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-ink/65 mb-2">
                     Feedback ({data.feedback.length})
                   </h4>
                   <div className="space-y-1.5">
                     {data.feedback.map(f => (
                       <div key={f.id} className="text-xs border border-ink/10 rounded-lg px-3 py-2">
-                        <span className="text-ink/50">{f.category}</span>
+                        <span className="text-ink/65">{f.category}</span>
                         <span className="block">{f.message}</span>
                       </div>
                     ))}
@@ -1078,9 +1078,10 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
 }) {
   const [price, setPrice] = useState(String(product.price));
   const [mrp, setMrp] = useState(String(product.mrp));
-  const [stock, setStock] = useState<Record<string, string>>(
-    () => Object.fromEntries(Object.entries(product.stock).map(([k, v]) => [k, String(v)])),
-  );
+  // Per-size stock now lives inside each colour (colors[].sizes). The legacy
+  // `stock` column is carried through on save unchanged, but there is nothing
+  // to edit on this card — the old state object had a setter nobody called.
+  const stock = product.stock;
   const [active, setActive] = useState(product.is_active);
   const [colors, setColors] = useState<ProductColor[]>(() => normalizeProductColors(product.colors));
   const [saving, setSaving] = useState(false);
@@ -1121,8 +1122,7 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
     mrp !== String(product.mrp) ||
     active !== product.is_active ||
     colors.map(c => `${c.name.trim()}|${c.hex}`).join(',') !==
-      normalizeProductColors(product.colors).map(c => `${c.name.trim()}|${c.hex}`).join(',') ||
-    Object.entries(stock).some(([k, v]) => v !== String(product.stock[k] ?? ''));
+      normalizeProductColors(product.colors).map(c => `${c.name.trim()}|${c.hex}`).join(',');
 
   const save = async () => {
     setSaving(true);
@@ -1249,7 +1249,7 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="text-[11px] text-ink/50">Selling price (₹)</span>
+            <span className="text-[11px] text-ink/65">Selling price (₹)</span>
             <input
               type="number" min={0} value={price}
               onChange={e => setPrice(e.target.value)}
@@ -1257,7 +1257,7 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
             />
           </label>
           <label className="block">
-            <span className="text-[11px] text-ink/50">MRP (₹)</span>
+            <span className="text-[11px] text-ink/65">MRP (₹)</span>
             <input
               type="number" min={0} value={mrp}
               onChange={e => setMrp(e.target.value)}
@@ -1269,11 +1269,11 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
 
         {product.source === 'runtime' && (
           <div>
-            <span className="text-[11px] text-ink/50">Colours — name + swatch</span>
+            <span className="text-[11px] text-ink/65">Colours — name + swatch</span>
             <div className="mt-1.5">
               <ColorRows rows={colors} onChange={setColors} compact />
             </div>
-            <span className="mt-1 block text-[10px] text-ink/40 leading-relaxed">
+            <span className="mt-1 block text-[10px] text-ink/65 leading-relaxed">
               These paint the card swatches and the shop's colour filter.
             </span>
           </div>
@@ -1329,7 +1329,7 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
               </button>
             )
           ) : (
-            <p className="text-[10px] text-ink/40 text-center">
+            <p className="text-[10px] text-ink/65 text-center">
               Catalog product — price, stock and visibility only.
             </p>
           )}
@@ -1414,7 +1414,7 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
       {data && data.length === 0 && (
         <div className="rounded-xl border border-ink/10 bg-ivory p-12 text-center">
           <MessageSquare size={26} className="mx-auto text-ink/30 mb-3" />
-          <p className="text-sm text-ink/50">No feedback here yet.</p>
+          <p className="text-sm text-ink/65">No feedback here yet.</p>
         </div>
       )}
 
@@ -1430,7 +1430,7 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
                     ))}
                   </span>
                 ) : (
-                  <span className="text-[11px] text-ink/40">No rating</span>
+                  <span className="text-[11px] text-ink/65">No rating</span>
                 )}
                 <span className="text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 bg-stone text-ink/60">
                   {f.category}
@@ -1441,19 +1441,19 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
                   {f.status}
                 </span>
               </div>
-              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
+              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
                 <Trash2 size={13} />
               </button>
-              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/40 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
+              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
                 <Trash2 size={13} />
               </button>
-              <span className="text-[11px] text-ink/40 shrink-0">{shortDate(f.created_at)}</span>
+              <span className="text-[11px] text-ink/65 shrink-0">{shortDate(f.created_at)}</span>
             </div>
 
             <p className="text-sm text-ink/85 whitespace-pre-wrap">{f.message}</p>
 
             <div className="flex items-center justify-between gap-4 mt-3 flex-wrap">
-              <p className="text-[11px] text-ink/45">
+              <p className="text-[11px] text-ink/65">
                 {f.name ?? 'Anonymous'}
                 {f.mobile && <> · +91 {f.mobile}</>}
                 {f.email && <> · {f.email}</>}
@@ -1591,7 +1591,7 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Truck size={16} /> Shipping &amp; announcements
           </div>
-          <p className="text-xs text-ink/50">
+          <p className="text-xs text-ink/65">
             These drive the announcement bar, cart, checkout, product page and shipping policy.
             Nothing about shipping is hardcoded, so the storefront cannot quote a
             different figure from the one you set here.
@@ -1608,14 +1608,14 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
               <input type="number" min={0} step={1} inputMode="numeric" value={fee}
                 onChange={e => setFee(e.target.value)} disabled={shopState === 'loading'}
                 className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink disabled:opacity-50" />
-              <span className="text-[11px] text-ink/40">Charged when the order is below the threshold.</span>
+              <span className="text-[11px] text-ink/65">Charged when the order is below the threshold.</span>
             </label>
             <label className="block">
               <span className="text-xs text-ink/60">Free shipping over (₹)</span>
               <input type="number" min={0} step={1} inputMode="numeric" value={threshold}
                 onChange={e => setThreshold(e.target.value)} disabled={shopState === 'loading'}
                 className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink disabled:opacity-50" />
-              <span className="text-[11px] text-ink/40">Set 0 for free shipping on every order.</span>
+              <span className="text-[11px] text-ink/65">Set 0 for free shipping on every order.</span>
             </label>
           </div>
 
@@ -1624,7 +1624,7 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
             <input type="text" maxLength={200} value={announcement}
               onChange={e => setAnnouncement(e.target.value)} placeholder="Leave blank to show the free-shipping line"
               className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
-            <span className="text-[11px] text-ink/40">
+            <span className="text-[11px] text-ink/65">
               Rotates in the top bar. Leave it blank and the bar shows
               {' '}<em>Free shipping over {formatINR(Number(threshold) || 0)}</em> automatically, which
               keeps up with the threshold above.
@@ -1638,7 +1638,7 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
           </button>
 
           {lastSaved && (
-            <p className="text-[11px] text-ink/40 text-center">
+            <p className="text-[11px] text-ink/65 text-center">
               Last saved {new Date(lastSaved).toLocaleString('en-IN')}
             </p>
           )}
@@ -1666,7 +1666,7 @@ function SettingsSection({ onAuthFail }: { onAuthFail: () => void }) {
             <input type="password" value={next} onChange={e => setNext(e.target.value)} required
               autoComplete="new-password" minLength={10}
               className="mt-1.5 w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
-            <span className="text-[11px] text-ink/40">At least 10 characters, with a letter and a number.</span>
+            <span className="text-[11px] text-ink/65">At least 10 characters, with a letter and a number.</span>
           </label>
           <label className="block">
             <span className="text-xs text-ink/60">Confirm new password</span>
@@ -1757,14 +1757,14 @@ function ColorRows({ rows, onChange, compact = false }: {
                 aria-label={`Colour ${i + 1} name`}
                 className="w-full rounded-lg border border-ink/15 px-2 py-1 text-xs focus:outline-none focus:border-ink"
               />
-              <span className="font-mono text-[9px] text-ink/40 hidden sm:inline">{row.hex}</span>
+              <span className="font-mono text-[9px] text-ink/65 hidden sm:inline">{row.hex}</span>
             </div>
 
             {/* Per-colour stock inputs to the right of the colour label */}
             <div className="flex items-center gap-1 flex-wrap ml-2">
               {SIZES.map(s => (
                 <label key={s} className="flex items-center gap-0.5">
-                  <span className="text-[9px] text-ink/40 uppercase">{s}</span>
+                  <span className="text-[9px] text-ink/65 uppercase">{s}</span>
                   <input
                     type="number"
                     min={0}
@@ -1779,14 +1779,14 @@ function ColorRows({ rows, onChange, compact = false }: {
             </div>
 
             {total !== null && (
-              <span className="text-[10px] text-ink/50 whitespace-nowrap ml-1" title="Total stock for this colour">Count: {total}</span>
+              <span className="text-[10px] text-ink/65 whitespace-nowrap ml-1" title="Total stock for this colour">Count: {total}</span>
             )}
 
             <button
               type="button"
               onClick={() => onChange(rows.filter((_, k) => k !== i))}
               aria-label={`Remove colour ${row.name || i + 1}`}
-              className="shrink-0 w-6 h-6 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 hover:border-red-200 transition grid place-items-center ml-auto"
+              className="shrink-0 w-6 h-6 rounded-full border border-ink/10 text-ink/65 hover:text-red-600 hover:border-red-200 transition grid place-items-center ml-auto"
             >
               <X size={12} />
             </button>
@@ -1932,10 +1932,10 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] text-ink/50">
+        <span className="text-[11px] text-ink/65">
           Photos — up to {max}. Compressed in your browser before upload, so pages stay fast.
         </span>
-        <span className="text-[11px] text-ink/40 shrink-0">{images.length}/{max}</span>
+        <span className="text-[11px] text-ink/65 shrink-0">{images.length}/{max}</span>
       </div>
 
       {images.length > 0 && (
@@ -2045,7 +2045,8 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
   const [bestseller, setBestseller] = useState(Boolean(product.bestseller));
   const [newArrival, setNewArrival] = useState(Boolean(product.new_arrival));
   const [active, setActive] = useState(product.is_active);
-  const [stock, setStock] = useState<Record<string, string>>(
+  // Read-only legacy column; real stock is edited per colour below.
+  const [stock] = useState<Record<string, string>>(
     () => Object.fromEntries(Object.entries(product.stock).map(([k, v]) => [k, String(v)])),
   );
   const [saving, setSaving] = useState(false);
@@ -2125,19 +2126,19 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
 
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block sm:col-span-2">
-              <span className="text-[11px] text-ink/50">Product name</span>
+              <span className="text-[11px] text-ink/65">Product name</span>
               <input value={name} onChange={e => setName(e.target.value)} maxLength={120}
                 className={`mt-1 ${input}`} />
             </label>
 
             <label className="block">
-              <span className="text-[11px] text-ink/50">Selling price (₹)</span>
+              <span className="text-[11px] text-ink/65">Selling price (₹)</span>
               <input type="number" min={0} value={price} onChange={e => setPrice(e.target.value)}
                 className={`mt-1 ${input}`} />
             </label>
 
             <label className="block">
-              <span className="text-[11px] text-ink/50">MRP (₹)</span>
+              <span className="text-[11px] text-ink/65">MRP (₹)</span>
               <input type="number" min={0} value={mrp} onChange={e => setMrp(e.target.value)}
                 className={`mt-1 ${input}`} />
             </label>
@@ -2188,24 +2189,24 @@ function ProductEditor({ product, onClose, onSaved, onAuthFail }: {
             />
 
             <label className="block sm:col-span-2">
-              <span className="text-[11px] text-ink/50">Description</span>
+              <span className="text-[11px] text-ink/65">Description</span>
               <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
                 className={`mt-1 ${input} resize-y`} />
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-[11px] text-ink/50">Care instructions</span>
+              <span className="text-[11px] text-ink/65">Care instructions</span>
               <input value={care} onChange={e => setCare(e.target.value)}
                 className={`mt-1 ${input}`} />
             </label>
           </div>
 
           <div className="block">
-            <span className="text-[11px] text-ink/50">Colours — name + swatch</span>
+            <span className="text-[11px] text-ink/65">Colours — name + swatch</span>
             <div className="mt-1.5">
               <ColorRows rows={colors} onChange={setColors} />
             </div>
-            <span className="mt-1.5 block text-[10px] text-ink/40 leading-relaxed">
+            <span className="mt-1.5 block text-[10px] text-ink/65 leading-relaxed">
               Type a colour name and its swatch fills in automatically — “Red” turns red on the
               card, the shop filter and the product page.
             </span>
@@ -2274,7 +2275,7 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
   const [care, setCare] = useState('');
   const [bestseller, setBestseller] = useState(false);
   const [newArrival, setNewArrival] = useState(true);
-  const [stock, setStock] = useState<Record<string, string>>(
+  const [stock] = useState<Record<string, string>>(
     () => Object.fromEntries(SIZES.map(s => [s, '10'])),
   );
   const [images, setImages] = useState<{ url: string; name: string }[]>([]);
@@ -2324,7 +2325,7 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         <Package size={16} /> Add a product
       </div>
 
-      <p className="text-xs text-ink/50">
+      <p className="text-xs text-ink/65">
         Everything on the card is set here. Leave a field blank and it stays blank on the
         storefront — nothing is filled in for you.
       </p>
@@ -2334,19 +2335,19 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
 
       <div className="grid sm:grid-cols-2 gap-3">
         <label className="block sm:col-span-2">
-          <span className="text-[11px] text-ink/50">Product name</span>
+          <span className="text-[11px] text-ink/65">Product name</span>
           <input value={name} onChange={e => setName(e.target.value)} required placeholder="Midnight Oversized Tee"
             className={`mt-1 ${input}`} />
         </label>
 
         <label className="block">
-          <span className="text-[11px] text-ink/50">Selling price (₹)</span>
+          <span className="text-[11px] text-ink/65">Selling price (₹)</span>
           <input type="number" min={0} value={price} onChange={e => setPrice(e.target.value)} required
             className={`mt-1 ${input}`} />
         </label>
 
         <label className="block">
-          <span className="text-[11px] text-ink/50">MRP (₹)</span>
+          <span className="text-[11px] text-ink/65">MRP (₹)</span>
           <input type="number" min={0} value={mrp} onChange={e => setMrp(e.target.value)}
             placeholder="Defaults to the selling price" className={`mt-1 ${input}`} />
         </label>
@@ -2356,7 +2357,12 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
           const p = Number(price) || 0;
           const m = Number(mrp) || p;
           const off = m > p && m > 0 ? Math.round(((m - p) / m) * 100) : 0;
-          const totalStock = Object.values(stock).reduce((s, v) => s + (Number(v) || 0), 0);
+          // Real availability is per colour, per size. This used to sum the
+          // legacy `stock` column, which no longer reflects what a customer can
+          // buy — the operator saw a number the storefront never used.
+          const stockEntries = colors.flatMap(c => Object.entries(c.sizes ?? {}));
+          const totalStock = stockEntries.reduce((s, [, v]) => s + (Number(v) || 0), 0);
+          const stockedSizes = new Set(stockEntries.filter(([, v]) => Number(v) > 0).map(([k]) => k));
           return (
             <div className="sm:col-span-2 rounded-lg bg-stone/40 px-3 py-2 text-[11px] text-ink/60 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>Card will show <strong className="text-ink">{formatINR(p)}</strong></span>
@@ -2366,8 +2372,8 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
                   <strong className="text-green-700">{off}% off</strong>
                 </>
               )}
-              <span className="text-ink/40">|</span>
-              <span>{totalStock} units in stock across {Object.values(stock).filter(v => Number(v) > 0).length} sizes</span>
+              <span className="text-ink/65">|</span>
+              <span>{totalStock} units in stock across {stockedSizes.size} sizes</span>
               {m > 0 && m < p && (
                 <strong className="text-red-600">MRP is below the selling price</strong>
               )}
@@ -2391,13 +2397,13 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         </div>
 
         <div className="block sm:col-span-2">
-          <span className="text-[11px] text-ink/50">
+          <span className="text-[11px] text-ink/65">
             Colours — name + swatch
           </span>
           <div className="mt-1.5">
             <ColorRows rows={colors} onChange={setColors} />
           </div>
-          <span className="mt-1.5 block text-[10px] text-ink/40 leading-relaxed">
+          <span className="mt-1.5 block text-[10px] text-ink/65 leading-relaxed">
             The name shows on the product page; the swatch paints the card, the shop's colour
             filter and the selector on the product page. Leave the list empty and the card
             still renders with a neutral swatch.
@@ -2446,14 +2452,14 @@ function AddProductForm({ onCreated, onAuthFail }: { onCreated: () => void; onAu
         </div>
 
         <label className="block sm:col-span-2">
-          <span className="text-[11px] text-ink/50">Description</span>
+          <span className="text-[11px] text-ink/65">Description</span>
           <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
             placeholder="What makes this piece worth buying?"
             className={`mt-1 ${input} resize-y`} />
         </label>
 
         <label className="block sm:col-span-2">
-          <span className="text-[11px] text-ink/50">Care instructions</span>
+          <span className="text-[11px] text-ink/65">Care instructions</span>
           <input value={care} onChange={e => setCare(e.target.value)}
             placeholder="Machine wash cold, inside out. Do not bleach."
             className={`mt-1 ${input}`} />

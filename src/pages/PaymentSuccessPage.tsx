@@ -208,7 +208,7 @@ export default function PaymentSuccessPage() {
             {/* The order picture is kept for 48 hours and then deleted, so the
                 customer is told the window up front rather than meeting a dead
                 link later. */}
-            <p className="mt-3 text-xs text-ink/45">
+            <p className="mt-3 text-xs text-ink/65">
               For your privacy, the order picture we sent is deleted automatically{' '}
               <strong className="text-ink/60 font-semibold">48 hours</strong> after the order —
               save a copy if you want to keep it.
@@ -270,7 +270,7 @@ export default function PaymentSuccessPage() {
                   /* The 48-hour cleanup has already taken this one. The order
                      details above are kept on this device, so the page still
                      works — only the picture is gone. */
-                  <p className="text-xs text-ink/50 bg-stone/30 rounded-xl px-4 py-3">
+                  <p className="text-xs text-ink/65 bg-stone/30 rounded-xl px-4 py-3">
                     This order picture has passed its 48-hour window and been deleted.
                     Your order details above are safe, and our team already has the order.
                   </p>
@@ -322,7 +322,7 @@ export default function PaymentSuccessPage() {
       <div className="page-container py-20 md:py-28 max-w-lg text-center">
         <SEO title="Order" noindex />
         <div className="w-14 h-14 rounded-full bg-stone mx-auto flex items-center justify-center mb-5">
-          <Clock size={26} className="text-ink/50" />
+          <Clock size={26} className="text-ink/65" />
         </div>
         <h1 className="font-display text-2xl md:text-3xl font-bold mb-3">
           We can’t reach the payment service
@@ -355,7 +355,7 @@ export default function PaymentSuccessPage() {
       <div className="page-container py-20 md:py-28 max-w-lg text-center">
         <SEO title="Order" noindex />
         <div className="w-14 h-14 rounded-full bg-stone mx-auto flex items-center justify-center mb-5">
-          <AlertTriangle size={26} className="text-ink/50" />
+          <AlertTriangle size={26} className="text-ink/65" />
         </div>
         <h1 className="font-display text-2xl md:text-3xl font-bold mb-3">We can’t open this order</h1>
         <p className="text-sm text-ink/60 mb-8">{error ?? 'This order link is incomplete.'}</p>
@@ -375,8 +375,8 @@ export default function PaymentSuccessPage() {
     return (
       <div className="page-container py-28 text-center">
         <SEO title="Confirming payment" noindex />
-        <Loader2 size={32} className="animate-spin mx-auto text-ink/40 mb-4" />
-        <p className="text-sm text-ink/50">Confirming your payment with the bank…</p>
+        <Loader2 size={32} className="animate-spin mx-auto text-ink/65 mb-4" />
+        <p className="text-sm text-ink/65">Confirming your payment with the bank…</p>
       </div>
     );
   }
@@ -465,7 +465,7 @@ export default function PaymentSuccessPage() {
                 {receiptError && (
                   <p className="text-xs text-red-600 mt-3" role="alert">{receiptError}</p>
                 )}
-                <p className="text-[11px] text-ink/40 mt-4 text-center">
+                <p className="text-[11px] text-ink/65 mt-4 text-center">
                   A PDF receipt is available right here — no account needed. Keep this page’s link to
                   come back to it later.
                 </p>
@@ -502,18 +502,18 @@ export default function PaymentSuccessPage() {
                       ) : qrDataUrl ? (
                         <img src={qrDataUrl} alt="UPI payment QR code" className="w-full h-full object-contain" />
                       ) : (
-                        <p className="text-xs text-ink/40 text-center px-4">
+                        <p className="text-xs text-ink/65 text-center px-4">
                           QR is being prepared…
                         </p>
                       )}
                     </div>
-                    <p className="text-[11px] text-ink/45 text-center mt-3">
+                    <p className="text-[11px] text-ink/65 text-center mt-3">
                       Scan with any UPI app
                     </p>
                   </div>
 
                   <div className="flex-1 text-center md:text-left">
-                    <p className="text-xs uppercase tracking-widest text-ink/45 mb-2">Amount to pay</p>
+                    <p className="text-xs uppercase tracking-widest text-ink/65 mb-2">Amount to pay</p>
                     <p className="font-display text-4xl font-bold mb-5">{formatINR(order.total)}</p>
 
                     {payment.mode === 'live' ? (
@@ -558,7 +558,7 @@ export default function PaymentSuccessPage() {
                   </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-ink/10 flex items-center justify-center gap-2 text-xs text-ink/50">
+                <div className="mt-8 pt-6 border-t border-ink/10 flex items-center justify-center gap-2 text-xs text-ink/65">
                   <Clock size={14} />
                   {remaining > 0 ? (
                     <span>
@@ -570,7 +570,7 @@ export default function PaymentSuccessPage() {
                   )}
                 </div>
 
-                <p className="text-[11px] text-ink/40 mt-3 text-center">
+                <p className="text-[11px] text-ink/65 mt-3 text-center">
                   We never mark an order paid from this page. Status is confirmed by our server
                   against the payment gateway (or a signed webhook).
                 </p>
@@ -594,7 +594,7 @@ export default function PaymentSuccessPage() {
               <div className="w-16 h-16 rounded-full bg-stone mx-auto flex items-center justify-center mb-6">
                 {paymentStatus === 'failed'
                   ? <X size={30} className="text-red-500" />
-                  : <Clock size={28} className="text-ink/50" />}
+                  : <Clock size={28} className="text-ink/65" />}
               </div>
               <h1 className="font-display text-3xl md:text-4xl font-bold mb-3">
                 {paymentStatus === 'failed' ? 'Payment didn’t go through' : 'Payment window closed'}
@@ -604,7 +604,7 @@ export default function PaymentSuccessPage() {
                   ? 'The bank did not confirm this payment. Nothing has been charged to your account.'
                   : 'This order expired before the payment was completed. No money has been taken.'}
               </p>
-              <p className="text-xs text-ink/45 mb-8">
+              <p className="text-xs text-ink/65 mb-8">
                 Order {order.order_number} · {formatINR(order.total)}
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
@@ -632,7 +632,7 @@ export default function PaymentSuccessPage() {
 function Row({ label, value, strong, mono }: { label: string; value: React.ReactNode; strong?: boolean; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-6">
-      <dt className="text-ink/50 shrink-0">{label}</dt>
+      <dt className="text-ink/65 shrink-0">{label}</dt>
       <dd className={`text-right ${strong ? 'font-bold text-base' : 'font-medium'} ${mono ? 'font-mono text-xs break-all' : ''}`}>
         {value}
       </dd>

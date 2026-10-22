@@ -206,7 +206,7 @@ export async function renderOrderImage(input: OrderImageInput): Promise<Blob> {
 
   ctx.fillStyle = INK;
   ctx.font = '600 22px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-  ctx.fillText('triosworld.com', PAD, footerTop + 84);
+  ctx.fillText('www.triosworld.in', PAD, footerTop + 84);
 
   // A small badge so a cropped screenshot still looks like an order.
   ctx.fillStyle = INK;

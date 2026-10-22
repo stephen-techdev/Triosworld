@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Lock, Tag, Check, ArrowLeft, ShieldCheck, Truck, Smartphone, Loader2, UserRound,
+  Lock, Check, ArrowLeft, ShieldCheck, Truck, Smartphone, Loader2, UserRound,
   AlertTriangle,
 } from 'lucide-react';
 import { useStore, resolveProduct } from '@/store/StoreContext';
@@ -60,7 +60,6 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [serviceDown, setServiceDown] = useState(false);
   /**
    * WhatsApp ordering. We open WhatsApp with the full order details so the
    * customer only has to press "send". We cannot read their chat, so the
@@ -162,7 +161,7 @@ export default function CheckoutPage() {
       // The QR in the picture opens the picture of the order itself, so the
       // store can scan it and read the order straight away.
       qrPayload: orderImageUrl(reference),
-      footnote: 'This picture is the order exactly as placed on triosworld.com',
+      footnote: 'This picture is the order exactly as placed on triosworld.in',
     });
   };
 
@@ -272,7 +271,6 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     setServerError(null);
-    setServiceDown(false);
 
     try {
       const order = await createOrder({
@@ -301,7 +299,6 @@ export default function CheckoutPage() {
       navigate(`/order/${order.order_number}?token=${order.receipt_token}`);
     } catch (err) {
       if (err instanceof PaymentServiceUnavailableError) {
-        setServiceDown(true);
         setServerError(
           'Online payment is not available at the moment. Your bag is saved — you can order on WhatsApp and we will take it from there.',
         );
@@ -317,7 +314,7 @@ export default function CheckoutPage() {
       <div className="page-container py-24 text-center">
         <SEO title="Empty Bag" noindex />
         <h1 className="font-display text-3xl mb-3">Your bag is empty</h1>
-        <p className="text-ink/50 text-sm mb-6">Add some tees before heading to checkout.</p>
+        <p className="text-ink/65 text-sm mb-6">Add some tees before heading to checkout.</p>
         <Link to="/shop/shop-all" className="bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80">
           Browse products
         </Link>
@@ -336,7 +333,7 @@ export default function CheckoutPage() {
       <div className="grid lg:grid-cols-12 gap-10">
         <div className="lg:col-span-7 space-y-8">
           {/* Trust badges */}
-          <div className="flex flex-wrap gap-4 text-xs text-ink/50">
+          <div className="flex flex-wrap gap-4 text-xs text-ink/65">
             <span className="flex items-center gap-1.5"><ShieldCheck size={16} /> Secure checkout</span>
             <span className="flex items-center gap-1.5"><Truck size={16} /> {freeShippingLabel(settings, formatINR)}</span>
             <span className="flex items-center gap-1.5"><Lock size={16} /> Your data is encrypted</span>
@@ -353,7 +350,7 @@ export default function CheckoutPage() {
               <p className="text-sm text-ink/70">
                 Checking out as a guest — <span className="font-medium text-ink">no account needed</span>.
               </p>
-              <p className="text-xs text-ink/50 mt-1.5">
+              <p className="text-xs text-ink/65 mt-1.5">
                 Already with us?{' '}
                 <Link to="/login" className="underline text-ink hover:text-ink/70">Sign in</Link>
                 {' '}to save this order to your account, or{' '}
@@ -412,7 +409,7 @@ export default function CheckoutPage() {
               <Smartphone size={20} className="text-ink/60 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold">UPI · Online payment</p>
-                <p className="text-xs text-ink/50 mt-0.5">
+                <p className="text-xs text-ink/65 mt-0.5">
                   Pay by scanning a secure QR with Google Pay, PhonePe, Paytm, BHIM or any UPI app.
                   We confirm your payment with the bank before your order is placed.
                 </p>
@@ -477,10 +474,10 @@ export default function CheckoutPage() {
                     : <><svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16.04 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.26.59 4.46 1.72 6.41L3.2 28.8l6.55-1.72a12.79 12.79 0 0 0 6.29 1.6h.01c7.06 0 12.8-5.74 12.8-12.8S23.1 3.2 16.04 3.2Zm0 23.53c-2.02 0-4-.53-5.7-1.53l-.41-.24-4.22 1.11 1.13-4.11-.27-.42a10.53 10.53 0 0 1-1.62-5.6c0-5.83 4.75-10.58 10.59-10.58 2.83 0 5.49 1.1 7.49 3.11a10.52 10.52 0 0 1 3.1 7.48c0 5.84-4.75 10.58-10.59 10.58Zm5.83-7.92c-.32-.16-1.88-.93-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.82 1.03-1 1.24-.19.21-.37.24-.69.08-.32-.16-1.34-.5-2.56-1.58a9.4 9.4 0 0 1-1.76-2.21c-.18-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.72-.98-2.35-.26-.62-.53-.54-.72-.55h-.62c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.56 1.14 3.07 1.3 3.28.16.21 2.24 3.42 5.42 4.8.75.32 1.34.52 1.8.66.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.14-.29-.21-.61-.37Z" /></svg>
                     Order via WhatsApp</>}
                 </button>
-                <p className="text-[11px] text-ink/40 mt-3 text-center">
+                <p className="text-[11px] text-ink/65 mt-3 text-center">
                   Your order goes to our WhatsApp as a picture — nothing to type, nothing to change.
                 </p>
-                <p className="text-[11px] text-ink/40 mt-1 text-center">
+                <p className="text-[11px] text-ink/65 mt-1 text-center">
                   You’ll get a UPI QR on the next screen. Nothing is charged until you confirm the payment
                   in your UPI app.
                 </p>
@@ -502,7 +499,7 @@ export default function CheckoutPage() {
                     <img src={v?.images[0]} alt={p.name} className="w-14 h-16 object-cover rounded" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p.name}</p>
-                      <p className="text-xs text-ink/50">{item.color} · {item.size} · Qty {item.qty}</p>
+                      <p className="text-xs text-ink/65">{item.color} · {item.size} · Qty {item.qty}</p>
                     </div>
                     <span className="text-sm font-semibold">{formatINR(p.price * item.qty)}</span>
                   </div>
@@ -520,7 +517,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between font-semibold text-base pt-2 border-t border-ink/10">
                   <span>Total</span><span>{formatINR(total)}</span>
                 </div>
-                <p className="text-[11px] text-ink/40 pt-1">Inclusive of all taxes</p>
+                <p className="text-[11px] text-ink/65 pt-1">Inclusive of all taxes</p>
               </div>
             </div>
           </div>

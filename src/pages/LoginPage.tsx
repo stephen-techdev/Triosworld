@@ -68,7 +68,7 @@ await signInWithMobile(mobile, password, remember);
           <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
             WELCOME BACK.
           </h1>
-          <p className="text-ink/50 text-sm mb-8">
+          <p className="text-ink/65 text-sm mb-8">
             Sign in to your TriosWorld account
           </p>
 
@@ -84,7 +84,7 @@ await signInWithMobile(mobile, password, remember);
                 Mobile Number
               </label>
               <div className="mt-1.5 flex items-center rounded-lg border border-ink/15 focus-within:border-ink overflow-hidden">
-                <span className="px-3 py-3 text-sm text-ink/50 border-r border-ink/10 bg-stone/20 select-none">+91</span>
+                <span className="px-3 py-3 text-sm text-ink/65 border-r border-ink/10 bg-stone/20 select-none">+91</span>
                 <input
                   id="identifier"
                   type="tel"
@@ -116,7 +116,7 @@ await signInWithMobile(mobile, password, remember);
                 <button
                   type="button"
                   onClick={() => setShowPwd(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/40 hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink/65 hover:text-ink"
                   aria-label={showPwd ? 'Hide password' : 'Show password'}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -150,7 +150,7 @@ await signInWithMobile(mobile, password, remember);
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-ink/50">
+          <p className="mt-8 text-center text-sm text-ink/65">
             New to TriosWorld?{' '}
             <Link to="/register" className="text-ink font-medium hover:text-ink/70 underline">
               Create Account

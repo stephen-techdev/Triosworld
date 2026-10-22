@@ -91,7 +91,7 @@ export default function HomePage() {
         <Reveal className="flex items-end justify-between mb-10">
           <div>
             <h2 className="font-display fluid-h2 font-semibold">{content.categoriesHeading.title}</h2>
-            <p className="text-ink/50 text-sm mt-2">{content.categoriesHeading.sub}</p>
+            <p className="text-ink/65 text-sm mt-2">{content.categoriesHeading.sub}</p>
           </div>
           <Link to="/shop/shop-all" className="link-underline text-sm font-medium text-ink/70 hover:text-ink hidden sm:inline-flex items-center gap-1">View all <ArrowRight size={16} /></Link>
         </Reveal>
@@ -162,7 +162,7 @@ export default function HomePage() {
             <img src={content.story.image} alt="TriosWorld men's community" className="w-full h-full object-cover" loading="lazy" />
           </Reveal>
           <Reveal y={30} delay={0.1}>
-            <p className="text-xs tracking-widest uppercase text-ink/40 mb-3">{content.story.kicker}</p>
+            <p className="text-xs tracking-widest uppercase text-ink/65 mb-3">{content.story.kicker}</p>
             <h2 className="font-display fluid-h2 font-semibold leading-tight">{lines(content.story.titleLines)}</h2>
             <div className="mt-6 space-y-4 text-ink/70 leading-relaxed">
               {content.story.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
@@ -182,7 +182,7 @@ export default function HomePage() {
                 <div className="group flex flex-col items-center text-center p-6 rounded-2xl border border-ink/10 bg-ivory shadow-soft transition-all duration-500 ease-smooth hover:-translate-y-1 hover:shadow-card h-full">
                   <Icon size={26} className="text-ink mb-3 transition-transform duration-500 ease-smooth group-hover:-translate-y-0.5" />
                   <h3 className="font-medium text-sm">{b.title}</h3>
-                  <p className="text-xs text-ink/50 mt-1">{b.text}</p>
+                  <p className="text-xs text-ink/65 mt-1">{b.text}</p>
                 </div>
               </StaggerItem>
             );

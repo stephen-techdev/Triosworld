@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
           <p className="text-2xl flex justify-center">
             <Wordmark variant="chrome" />
           </p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-ivory/40 mt-2">Operator access</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-ivory/60 mt-2">Operator access</p>
         </div>
 
         <form onSubmit={submit} className="bg-ivory rounded-2xl p-6 md:p-7 shadow-2xl space-y-5">
@@ -125,7 +125,7 @@ export default function AdminLoginPage() {
                 onClick={() => setShowPwd(s => !s)}
                 aria-label={showPwd ? 'Hide password' : 'Show password'}
                 aria-pressed={showPwd}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-ink/40 hover:text-ink"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-ink/65 hover:text-ink"
               >
                 {showPwd ? 'Hide' : 'Show'}
               </button>
@@ -140,7 +140,7 @@ export default function AdminLoginPage() {
             {loading ? <Loader2 size={17} className="animate-spin" /> : 'Sign in'}
           </button>
 
-          <p className="text-[11px] text-ink/40 text-center">
+          <p className="text-[11px] text-ink/65 text-center">
             Not an operator?{' '}
             <Link to="/login" className="underline hover:text-ink/70">Customer sign in</Link>
           </p>

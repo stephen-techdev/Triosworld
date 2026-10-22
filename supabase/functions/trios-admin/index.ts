@@ -429,7 +429,7 @@ Deno.serve(async (req: Request) => {
       try {
         if (scope === "guests") {
           const { data: guestOrders } = await supabase.from("orders").select("id").is("user_id", null);
-          const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
+          const ids = (guestOrders ?? []).map((o) => o.id).filter(Boolean);
           if (ids.length) {
             await supabase.from("order_events").delete().in("order_id", ids);
             const { error } = await supabase.from("orders").delete().in("id", ids);
@@ -446,7 +446,7 @@ Deno.serve(async (req: Request) => {
           return json({ ok: true, deleted: 0 });
         } else {
           const { data: rows } = await supabase.from("orders").select("id").eq("payment_status", scope);
-          const ids = (rows ?? []).map((o: any) => o.id).filter(Boolean);
+          const ids = (rows ?? []).map((o) => o.id).filter(Boolean);
           if (ids.length) {
             await supabase.from("order_events").delete().in("order_id", ids);
             const { error } = await supabase.from("orders").delete().in("id", ids);
@@ -1103,7 +1103,7 @@ function storageKeyFromUrl(url: string): string | null {
           .from("orders")
           .select("id")
           .is("user_id", null);
-        const ids = (guestOrders ?? []).map((o: any) => o.id).filter(Boolean);
+        const ids = (guestOrders ?? []).map((o) => o.id).filter(Boolean);
         if (ids.length) {
           await supabase.from("order_events").delete().in("order_id", ids);
           const { error } = await supabase.from("orders").delete().in("id", ids);

@@ -25,7 +25,6 @@ export default function ProductCard({ product }: Props) {
   const wished = isWishlisted(product.id);
   const v = product.variants[0];
   const hasDiscount = product.mrp > product.price;
-  const hasSecondImage = v.images.length > 1;
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addedSize, setAddedSize] = useState<string | null>(null);
@@ -88,12 +87,12 @@ export default function ProductCard({ product }: Props) {
                 <div className="mb-2 flex items-start justify-between gap-2 px-0.5">
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink">Select size</p>
-                    <p className="truncate text-[10px] uppercase tracking-[0.04em] text-ink/45">{product.name}</p>
+                    <p className="truncate text-[10px] uppercase tracking-[0.04em] text-ink/65">{product.name}</p>
                   </div>
                   <button
                     onClick={() => setSheetOpen(false)}
                     aria-label="Close size picker"
-                    className="shrink-0 text-ink/40 transition-colors hover:text-ink"
+                    className="shrink-0 text-ink/65 transition-colors hover:text-ink"
                   >
                     <X size={14} />
                   </button>
@@ -172,7 +171,7 @@ export default function ProductCard({ product }: Props) {
       <div className="pt-3">
         <Link to={`/product/${product.slug}`} className="block group/text">
           {product.categories[0] && (
-            <span className="mb-1 block text-[9px] font-semibold uppercase leading-none tracking-[0.18em] text-ink/45 transition-colors group-hover/text:text-ink/75">
+            <span className="mb-1 block text-[9px] font-semibold uppercase leading-none tracking-[0.18em] text-ink/65 transition-colors group-hover/text:text-ink/75">
               {product.categories[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
             </span>
           )}
@@ -184,15 +183,15 @@ export default function ProductCard({ product }: Props) {
           <span className="text-[13px] font-bold text-ink">{formatINR(product.price)}</span>
           {hasDiscount && (
             <>
-              <span className="text-xs text-ink/40 line-through">{formatINR(product.mrp)}</span>
-              <span className="text-[10px] font-bold tracking-wide text-ink/55">
+              <span className="text-xs text-ink/65 line-through">{formatINR(product.mrp)}</span>
+              <span className="text-[10px] font-bold tracking-wide text-ink/65">
                 {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
               </span>
             </>
           )}
         </div>
         {(product.fit || product.fabric) && (
-          <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.08em] text-ink/45">
+          <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.08em] text-ink/65">
             {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
           </p>
         )}
@@ -206,7 +205,7 @@ export default function ProductCard({ product }: Props) {
             />
           ))}
           {product.variants.length > 1 && (
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink/50">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink/65">
               {product.variants.length} colors
             </span>
           )}

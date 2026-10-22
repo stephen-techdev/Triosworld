@@ -29,7 +29,7 @@ import {
 
 const input =
   'w-full rounded-lg border border-ink/15 px-3 py-2 text-sm bg-ivory focus:outline-none focus:border-ink';
-const labelCls = 'block text-[11px] font-medium text-ink/50 mb-1';
+const labelCls = 'block text-[11px] font-medium text-ink/65 mb-1';
 
 const BENEFIT_ICON_KEYS: BenefitIconKey[] = [
   'shield', 'badge', 'truck', 'headphones', 'refresh', 'lock', 'star', 'globe', 'heart', 'zap',
@@ -51,7 +51,7 @@ function Field({ label, value, onChange, placeholder, hint, type = 'text' }: {
     <label className="block">
       <span className={labelCls}>{label}</span>
       <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} className={input} />
-      {hint && <span className="mt-1 block text-[10px] text-ink/40 leading-relaxed">{hint}</span>}
+      {hint && <span className="mt-1 block text-[10px] text-ink/65 leading-relaxed">{hint}</span>}
     </label>
   );
 }
@@ -67,7 +67,7 @@ function Area({ label, value, onChange, rows = 3, hint }: {
     <label className="block">
       <span className={labelCls}>{label}</span>
       <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)} className={`${input} leading-relaxed`} />
-      {hint && <span className="mt-1 block text-[10px] text-ink/40 leading-relaxed">{hint}</span>}
+      {hint && <span className="mt-1 block text-[10px] text-ink/65 leading-relaxed">{hint}</span>}
     </label>
   );
 }
@@ -89,7 +89,7 @@ function LinesField({ label, value, onChange, hint, rows = 3 }: {
         onChange={e => onChange(e.target.value.split('\n'))}
         className={`${input} leading-relaxed`}
       />
-      <span className="mt-1 block text-[10px] text-ink/40 leading-relaxed">{hint}</span>
+      <span className="mt-1 block text-[10px] text-ink/65 leading-relaxed">{hint}</span>
     </label>
   );
 }
@@ -188,9 +188,9 @@ function Group({ icon: Icon, title, hint, defaultOpen = false, children }: {
         <span className="w-8 h-8 rounded-lg bg-ink text-lime grid place-items-center shrink-0"><Icon size={15} /></span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{title}</span>
-          {hint && <span className="block text-[11px] text-ink/45 truncate">{hint}</span>}
+          {hint && <span className="block text-[11px] text-ink/65 truncate">{hint}</span>}
         </span>
-        <span className={`text-ink/40 transition-transform duration-200 ${open ? 'rotate-45' : ''}`}><Plus size={16} /></span>
+        <span className={`text-ink/65 transition-transform duration-200 ${open ? 'rotate-45' : ''}`}><Plus size={16} /></span>
       </button>
       {open && <div className="px-4 md:px-5 pb-5 pt-1 space-y-4 border-t border-ink/8">{children}</div>}
     </section>
@@ -278,7 +278,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
 
   if (!content) {
     return (
-      <div className="py-20 grid place-items-center text-ink/40">
+      <div className="py-20 grid place-items-center text-ink/65">
         {error ? (
           <div className="text-center space-y-3">
             <p className="text-sm text-red-600">{error}</p>
@@ -300,13 +300,13 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-semibold">Content</h2>
-          <p className="text-sm text-ink/55 mt-1">
+          <p className="text-sm text-ink/65 mt-1">
             Everything the storefront says and shows — hero, offers, categories, reviews, footer, pages.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {lastSaved && (
-            <span className="text-[11px] text-ink/40">
+            <span className="text-[11px] text-ink/65">
               Saved {new Date(lastSaved).toLocaleTimeString('en-IN')}
             </span>
           )}
@@ -376,7 +376,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
             <div />
           </div>
         </div>
-        <p className="text-[10px] text-ink/40">
+        <p className="text-[10px] text-ink/65">
           “Goes to” accepts site paths (/shop/new-arrivals) or full URLs (https://…).
         </p>
       </Group>
@@ -388,8 +388,8 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           {c.heroSlides.map((s, i) => (
             <ListRow key={i} onRemove={() => setC(p => ({ ...p, heroSlides: p.heroSlides.filter((_, k) => k !== i) }))}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold text-ink/50 uppercase tracking-wider">Slide {i + 1}</span>
-                <span className="text-[10px] text-ink/40">Shows for {s.seconds}s</span>
+                <span className="text-[11px] font-semibold text-ink/65 uppercase tracking-wider">Slide {i + 1}</span>
+                <span className="text-[10px] text-ink/65">Shows for {s.seconds}s</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <Field label="Eyebrow" value={s.eyebrow}
@@ -425,7 +425,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
             image: c.hero.image, seconds: 6,
           }] }))} />
         </div>
-        <p className="text-[10px] text-ink/40">
+        <p className="text-[10px] text-ink/65">
           Slides rotate in order and can be swiped. The first slide is the one most visitors see first.
         </p>
       </Group>
@@ -515,7 +515,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           <AddRow label="Add menu link" onClick={() => setC(p => ({ ...p, header: { ...p.header, nav: [...p.header.nav, { label: '', to: '/shop/shop-all' }] } }))} />
         </div>
         <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-ink/8">
-          <p className="text-[10px] text-ink/40 sm:col-span-2">
+          <p className="text-[10px] text-ink/65 sm:col-span-2">
             These links appear in the header on desktop and in the mobile menu.
           </p>
         </div>
@@ -535,7 +535,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Editorial split</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Editorial split</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Kicker" value={c.editorial.kicker}
               onChange={v => setC(p => ({ ...p, editorial: { ...p.editorial, kicker: v } }))} />
@@ -555,7 +555,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Brand story</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Brand story</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Kicker" value={c.story.kicker}
               onChange={v => setC(p => ({ ...p, story: { ...p.story, kicker: v } }))} />
@@ -577,7 +577,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Benefit tiles</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Benefit tiles</p>
           <div className="space-y-3">
             {c.benefits.map((b, i) => (
               <ListRow key={i} onRemove={() => setC(p => ({ ...p, benefits: p.benefits.filter((_, k) => k !== i) }))}>
@@ -602,8 +602,8 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
       {/* ── Product page ────────────────────────────────────────── */}
       <Group icon={PackageCheck} title="Product page" hint="Size guide, reviews, promises, returns line">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Size guide (3 columns)</p>
-          <p className="text-[10px] text-ink/40 -mt-2">First row is the header. Delete every row to hide the size guide.</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Size guide (3 columns)</p>
+          <p className="text-[10px] text-ink/65 -mt-2">First row is the header. Delete every row to hide the size guide.</p>
           {c.pdp.sizeGuide.map((row, i) => (
             <div key={i} className="flex items-center gap-2">
               {[0, 1, 2].map(j => (
@@ -625,7 +625,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
               ))}
               <button type="button" aria-label="Remove row"
                 onClick={() => setC(p => ({ ...p, pdp: { ...p.pdp, sizeGuide: p.pdp.sizeGuide.filter((_, k) => k !== i) } }))}
-                className="shrink-0 w-8 h-8 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 grid place-items-center">
+                className="shrink-0 w-8 h-8 rounded-full border border-ink/10 text-ink/65 hover:text-red-600 grid place-items-center">
                 <X size={13} />
               </button>
             </div>
@@ -634,10 +634,10 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">
             Reviews — the rating on the page is the average of these
           </p>
-          <p className="text-[10px] text-ink/40 -mt-2">With no reviews saved, the product page shows no rating at all.</p>
+          <p className="text-[10px] text-ink/65 -mt-2">With no reviews saved, the product page shows no rating at all.</p>
           {c.pdp.reviews.map((r, i) => (
             <ListRow key={i} onRemove={() => setC(p => ({ ...p, pdp: { ...p.pdp, reviews: p.pdp.reviews.filter((_, k) => k !== i) } }))}>
               <div className="grid sm:grid-cols-3 gap-3">
@@ -688,7 +688,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Link columns</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Link columns</p>
           <div className="space-y-3">
             {c.footer.columns.map((col, i) => (
               <ListRow key={i} onRemove={() => setC(p => ({ ...p, footer: { ...p.footer, columns: p.footer.columns.filter((_, k) => k !== i) } }))}>
@@ -702,7 +702,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
                       onChange={e => setC(p => ({ ...p, footer: { ...p.footer, columns: p.footer.columns.map((x, k) => k === i ? { ...x, links: x.links.map((y, n) => n === j ? { ...y, to: e.target.value } : y) } : x) } }))} className={input} />
                     <button type="button" aria-label="Remove link"
                       onClick={() => setC(p => ({ ...p, footer: { ...p.footer, columns: p.footer.columns.map((x, k) => k === i ? { ...x, links: x.links.filter((_, n) => n !== j) } : x) } }))}
-                      className="shrink-0 w-8 h-8 rounded-full border border-ink/10 text-ink/40 hover:text-red-600 grid place-items-center">
+                      className="shrink-0 w-8 h-8 rounded-full border border-ink/10 text-ink/65 hover:text-red-600 grid place-items-center">
                       <X size={13} />
                     </button>
                   </div>
@@ -723,7 +723,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
 
         <div className="pt-2 border-t border-ink/8 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Social icons</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Social icons</p>
           <div className="space-y-3">
             {c.footer.socials.map((s, i) => (
               <ListRow key={i} onRemove={() => setC(p => ({ ...p, footer: { ...p.footer, socials: p.footer.socials.filter((_, k) => k !== i) } }))}>
@@ -792,7 +792,7 @@ function StaticPagesEditor({ content, onChange }: {
         <div className="space-y-3">
           <Field label="Page title" value={page.title}
             onChange={v => onChange({ pages: { ...pages, [active]: { ...page, title: v } } })} />
-          <p className="text-[10px] text-ink/40">
+          <p className="text-[10px] text-ink/65">
             Each block is a heading (optional) plus its paragraph. The shipping page may contain
             {' {{shipping}}'} — it renders your live shipping figures until you rewrite it.
           </p>
@@ -821,7 +821,7 @@ function StaticPagesEditor({ content, onChange }: {
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-ink/50">This page has no content yet.</p>
+          <p className="text-sm text-ink/65">This page has no content yet.</p>
           <button
             type="button"
             onClick={() => onChange({ pages: { ...pages, [active]: { title: active, body: [{ p: '' }] } } })}

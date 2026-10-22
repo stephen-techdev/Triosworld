@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Mail, Phone, MapPin, LockKeyhole } from 'lucide-react';
-import { Wordmark, TriosMark } from '@/components/Brand';
+import { TriosMark } from '@/components/Brand';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import Newsletter from '@/components/Newsletter';
 import { Reveal } from '@/components/Motion';
@@ -75,7 +75,7 @@ export default function Footer() {
           </div>
           {footer.columns.map(col => (
             <div key={col.title} className="col-span-1 md:col-span-2">
-              <h4 className="text-xs font-semibold tracking-widest uppercase text-ivory/40 mb-4">{col.title}</h4>
+              <h3 className="text-xs font-semibold tracking-widest uppercase text-ivory/60 mb-4">{col.title}</h3>
               <ul className="space-y-2.5">
                 {col.links.map(l => (
                   <li key={l.to}>
@@ -86,7 +86,7 @@ export default function Footer() {
             </div>
           ))}
           <div className="col-span-2 md:col-span-2 space-y-3">
-            <h4 className="text-xs font-semibold tracking-widest uppercase text-ivory/40 mb-4">Contact</h4>
+            <h3 className="text-xs font-semibold tracking-widest uppercase text-ivory/60 mb-4">Contact</h3>
             {footer.address && (
               <p className="text-sm text-ivory/80 flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0" /> {footer.address}</p>
             )}

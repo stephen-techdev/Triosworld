@@ -146,7 +146,7 @@ export default function ShopPage() {
       </FilterGroup>
       <FilterGroup title="Colour">
         {SHOP_COLORS.length === 0 ? (
-          <p className="text-xs text-ink/40">No colours recorded on this page yet.</p>
+          <p className="text-xs text-ink/65">No colours recorded on this page yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {SHOP_COLORS.map(c => (
@@ -198,7 +198,7 @@ export default function ShopPage() {
           onChange={e => setFilters(f => ({ ...f, maxPrice: Number(e.target.value) }))}
           className="w-full accent-ink disabled:opacity-40"
         />
-        <div className="flex justify-between text-xs text-ink/50 mt-1">
+        <div className="flex justify-between text-xs text-ink/65 mt-1">
           <span>{formatINR(priceFloor)}</span>
           <span>
             {filters.maxPrice === null || filters.maxPrice >= priceCeiling
@@ -208,7 +208,7 @@ export default function ShopPage() {
         </div>
         {filters.maxPrice !== null && (
           <button type="button" onClick={() => setFilters(f => ({ ...f, maxPrice: null }))}
-            className="text-[11px] text-ink/50 underline hover:text-ink mt-1">
+            className="text-[11px] text-ink/65 underline hover:text-ink mt-1">
             Clear price filter
           </button>
         )}
@@ -233,7 +233,7 @@ export default function ShopPage() {
         { name: collection.name, path: `/shop/${slug}` },
       ])} />
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-ink/50 mb-6">
+      <nav className="flex items-center gap-1.5 text-xs text-ink/65 mb-6">
         <Link to="/home" className="hover:text-ink">Home</Link>
         <ChevronRight size={12} />
         <Link to="/collections" className="hover:text-ink">Collections</Link>
@@ -260,10 +260,10 @@ export default function ShopPage() {
             Filters
             {activeCount > 0 && <span className="bg-ink text-ivory text-[10px] rounded-full px-1.5 py-0.5">{activeCount}</span>}
           </button>
-          <p className="hidden sm:block text-sm text-ink/50">{filtered.length} {filtered.length === 1 ? 'product' : 'products'}</p>
+          <p className="hidden sm:block text-sm text-ink/65">{filtered.length} {filtered.length === 1 ? 'product' : 'products'}</p>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-ink/50 hidden sm:block">Sort</label>
-            <select value={sort} onChange={e => setSort(e.target.value as Sort)}
+            <label htmlFor="shop-sort" className="text-xs text-ink/65 hidden sm:block">Sort</label>
+            <select id="shop-sort" aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value as Sort)}
               className="text-sm bg-transparent border border-ink/15 rounded-full px-3 py-2 max-w-[9.5rem] focus:outline-none focus:border-ink">
               {SORTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -288,12 +288,12 @@ export default function ShopPage() {
               {baseProducts.length === 0 ? (
                 <>
                   <p className="font-display text-2xl mb-2">New arrivals coming soon.</p>
-                  <p className="text-ink/50 text-sm">Fresh pieces are added regularly — check back shortly.</p>
+                  <p className="text-ink/65 text-sm">Fresh pieces are added regularly — check back shortly.</p>
                 </>
               ) : (
                 <>
                   <p className="font-display text-2xl mb-2">No products match those filters.</p>
-                  <p className="text-ink/50 text-sm mb-6">Try removing a filter or widening your price range.</p>
+                  <p className="text-ink/65 text-sm mb-6">Try removing a filter or widening your price range.</p>
                   <button onClick={() => setFilters(emptyFilters)} className="bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80">Clear filters</button>
                 </>
               )}
@@ -334,7 +334,7 @@ export default function ShopPage() {
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="text-xs font-semibold tracking-widest uppercase text-ink/40 mb-3">{title}</h4>
+      <h4 className="text-xs font-semibold tracking-widest uppercase text-ink/65 mb-3">{title}</h4>
       {children}
     </div>
   );

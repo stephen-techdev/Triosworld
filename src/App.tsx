@@ -26,7 +26,7 @@ const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
 
 function RouteFallback() {
   return (
-    <div className="page-container py-32 grid place-items-center text-ink/40">
+    <div className="page-container py-32 grid place-items-center text-ink/65">
       <Loader2 className="animate-spin" size={26} />
     </div>
   );

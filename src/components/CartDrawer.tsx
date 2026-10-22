@@ -53,7 +53,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                         </Link>
                         <div className="flex-1 min-w-0">
                           <Link to={`/product/${p.slug}`} onClick={onClose} className="text-sm font-medium hover:text-ink/60">{p.name}</Link>
-                          <p className="text-xs text-ink/50 mt-0.5">{item.color} · {item.size}</p>
+                          <p className="text-xs text-ink/65 mt-0.5">{item.color} · {item.size}</p>
                           <p className="text-sm font-semibold mt-1">{formatINR(p.price)}</p>
                           <div className="mt-2 flex items-center gap-3">
                             <div className="flex items-center border border-ink/15 rounded-full">
@@ -61,7 +61,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                               <span className="w-8 text-center text-sm">{item.qty}</span>
                               <button onClick={() => updateQty(item.productId, item.color, item.size, item.qty + 1)} aria-label="Increase" className="w-9 h-9 flex items-center justify-center"><Plus size={16} /></button>
                             </div>
-                            <button onClick={() => removeFromCart(item.productId, item.color, item.size)} aria-label="Remove" className="text-ink/40 hover:text-burgundy"><Trash2 size={16} /></button>
+                            <button onClick={() => removeFromCart(item.productId, item.color, item.size)} aria-label="Remove" className="text-ink/65 hover:text-burgundy"><Trash2 size={16} /></button>
                           </div>
                         </div>
                       </div>
@@ -75,7 +75,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                     <span>Shipping</span><span>{shipping === 0 ? 'Free' : formatINR(shipping)}</span>
                   </div>
                   {toFree > 0 && (
-                    <p className="text-xs text-ink/50">Add {formatINR(toFree)} more for free shipping.</p>
+                    <p className="text-xs text-ink/65">Add {formatINR(toFree)} more for free shipping.</p>
                   )}
                   <div className="flex justify-between text-base font-semibold pt-2 border-t border-ink/10"><span>Total</span><span>{formatINR(subtotal + shipping)}</span></div>
                   <Link to="/checkout" onClick={onClose}

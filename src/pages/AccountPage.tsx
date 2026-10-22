@@ -80,7 +80,7 @@ export default function AccountPage() {
     return (
       <div className="page-container py-32 text-center">
         <SEO title="My Account" noindex />
-        <Loader2 size={32} className="animate-spin mx-auto text-ink/40" />
+        <Loader2 size={32} className="animate-spin mx-auto text-ink/65" />
       </div>
     );
   }
@@ -173,7 +173,7 @@ export default function AccountPage() {
             <div>
               <label className="text-xs text-ink/60">Mobile Number</label>
               <div className="mt-1 flex items-center rounded-lg border border-ink/15 focus-within:border-ink overflow-hidden">
-                <span className="px-3 py-2.5 text-sm text-ink/50 border-r border-ink/10 bg-stone/20">+91</span>
+                <span className="px-3 py-2.5 text-sm text-ink/65 border-r border-ink/10 bg-stone/20">+91</span>
                 <input type="tel" value={profileForm.mobile} onChange={e => setProfileForm(f => ({ ...f, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                   placeholder="9876543210" inputMode="numeric" className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
               </div>
@@ -246,15 +246,15 @@ export default function AccountPage() {
               <div className="p-6 rounded-xl border border-ink/10 space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-ink/40 uppercase tracking-wide">Full Name</p>
+                    <p className="text-xs text-ink/65 uppercase tracking-wide">Full Name</p>
                     <p className="text-sm font-medium mt-1">{user.full_name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-ink/40 uppercase tracking-wide">Mobile</p>
+                    <p className="text-xs text-ink/65 uppercase tracking-wide">Mobile</p>
                     <p className="text-sm font-medium mt-1">{user.mobile ? `+91 ${user.mobile}` : 'Not set'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-ink/40 uppercase tracking-wide">Gender</p>
+                    <p className="text-xs text-ink/65 uppercase tracking-wide">Gender</p>
                     <p className="text-sm font-medium mt-1 capitalize">{user.gender ? user.gender.replace('_', ' ') : 'Not specified'}</p>
                   </div>
                 </div>
@@ -282,7 +282,7 @@ export default function AccountPage() {
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="text-sm font-medium">Order #{o.order_number}</p>
-                          <p className="text-xs text-ink/50">{new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          <p className="text-xs text-ink/65">{new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                         </div>
                         <span className="text-xs font-medium px-3 py-1 rounded-full bg-stone/40 capitalize">{o.status}</span>
                       </div>
@@ -292,7 +292,7 @@ export default function AccountPage() {
                         ))}
                       </div>
                       <div className="mt-3 flex items-center justify-between pt-3 border-t border-ink/5">
-                        <span className="text-xs text-ink/50 capitalize">{o.payment_method}</span>
+                        <span className="text-xs text-ink/65 capitalize">{o.payment_method}</span>
                         <span className="text-sm font-semibold">{formatINR(o.total)}</span>
                       </div>
                     </div>
@@ -386,14 +386,14 @@ export default function AccountPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Mobile Number</p>
-                    <p className="text-xs text-ink/50 mt-0.5">{user.mobile ? `+91 ${user.mobile}` : 'Not set'}</p>
+                    <p className="text-xs text-ink/65 mt-0.5">{user.mobile ? `+91 ${user.mobile}` : 'Not set'}</p>
                   </div>
                   <Edit3 size={16} className="text-ink/30" />
                 </div>
                 <div className="border-t border-ink/5 pt-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Password</p>
-                    <p className="text-xs text-ink/50 mt-0.5">••••••••</p>
+                    <p className="text-xs text-ink/65 mt-0.5">••••••••</p>
                   </div>
                   <Link to="/forgot-password" className="text-xs text-ink/60 hover:text-ink underline">Change</Link>
                 </div>

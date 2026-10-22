@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { siteContent } from '@/lib/siteContent';
 
 interface SEOProps {
@@ -13,9 +14,24 @@ const BASE_TITLE = 'TRIOSWORLD — Three Vibes. One World. | Men\'s Streetwear &
 const BASE_DESC = 'Premium Indian men\'s streetwear, graphic tees and everyday essentials. Shop men\'s t-shirts online in India.';
 // Public site origin used for canonical URLs, Open Graph and JSON-LD.
 // Override with VITE_SITE_URL (e.g. a staging domain) — see .env.
+//
+// This used to default to triosworld.com, which is not registered: every
+// canonical, og:url and JSON-LD item pointed at a domain that answers NXDOMAIN,
+// so search engines were being told the real pages were duplicates of a site
+// that does not exist. The live domain is triosworld.in (apex redirects to www).
 const SITE_URL =
   (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/+$/, '') ||
-  'https://triosworld.com';
+  'https://www.triosworld.in';
+
+// Social crawlers reject relative og:image values and cannot read SVG, so the
+// default is a raster file joined to the origin.
+const DEFAULT_OG_IMAGE = '/og-image.jpg';
+
+/** Absolute URL for a path on this site. */
+function absolute(p: string): string {
+  if (/^https?:\/\//i.test(p)) return p;
+  return `${SITE_URL}${p.startsWith('/') ? '' : '/'}${p}`;
+}
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
   let el = document.head.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
@@ -38,6 +54,8 @@ function upsertCanonical(href: string) {
 }
 
 export default function SEO({ title, description, ogImage, noindex, jsonLd }: SEOProps) {
+  const { pathname } = useLocation();
+
   useEffect(() => {
     const fullTitle = title ? `${title} | TRIOSWORLD` : BASE_TITLE;
     document.title = fullTitle;
@@ -45,14 +63,24 @@ export default function SEO({ title, description, ogImage, noindex, jsonLd }: SE
     const desc = description || BASE_DESC;
     upsertMeta('name', 'description', desc);
 
+    // Canonical is the PAGE, not the origin. The old code wrote SITE_URL for
+    // every route, so the entire catalogue declared itself a duplicate of the
+    // homepage.
+    const path = pathname.replace(/\/+$/, '');
+    const pageUrl = `${SITE_URL}${path || '/'}`;
+    const image = absolute(ogImage || DEFAULT_OG_IMAGE);
+
+    upsertMeta('property', 'og:type', 'website');
+    upsertMeta('property', 'og:site_name', 'TRIOSWORLD');
     upsertMeta('property', 'og:title', fullTitle);
     upsertMeta('property', 'og:description', desc);
-    upsertMeta('property', 'og:url', SITE_URL);
-    upsertMeta('property', 'og:image', ogImage || '/og-image.svg');
+    upsertMeta('property', 'og:url', pageUrl);
+    upsertMeta('property', 'og:image', image);
 
+    upsertMeta('name', 'twitter:card', 'summary_large_image');
     upsertMeta('name', 'twitter:title', fullTitle);
     upsertMeta('name', 'twitter:description', desc);
-    upsertMeta('name', 'twitter:image', ogImage || '/og-image.svg');
+    upsertMeta('name', 'twitter:image', image);
 
     if (noindex) {
       upsertMeta('name', 'robots', 'noindex, nofollow');
@@ -61,8 +89,8 @@ export default function SEO({ title, description, ogImage, noindex, jsonLd }: SE
       if (existing) existing.remove();
     }
 
-    upsertCanonical(SITE_URL);
-  }, [title, description, ogImage, noindex]);
+    upsertCanonical(pageUrl);
+  }, [title, description, ogImage, noindex, pathname]);
 
   useEffect(() => {
     const existing = document.getElementById('jsonld-dynamic');

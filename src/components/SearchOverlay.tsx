@@ -50,7 +50,7 @@ export default function SearchOverlay({ open, onClose }: Props) {
           <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
             className="bg-ivory w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-5 py-4 border-b border-ink/10">
-              <Search size={20} className="text-ink/50" />
+              <Search size={20} className="text-ink/65" />
               <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)}
                 placeholder="Search tees, colours, fits…"
                 aria-label="Search products"
@@ -59,11 +59,11 @@ export default function SearchOverlay({ open, onClose }: Props) {
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {q.trim() === '' ? (
-                <div className="p-5 text-sm text-ink/50">Try “oversized”, “black”, “men”, “graphic”…</div>
+                <div className="p-5 text-sm text-ink/65">Try “oversized”, “black”, “men”, “graphic”…</div>
               ) : results.length === 0 ? (
                 <div className="p-8 text-center">
                   <p className="text-ink/60 mb-1">No results for “{q}”.</p>
-                  <p className="text-sm text-ink/40">Try a different keyword or browse our collections.</p>
+                  <p className="text-sm text-ink/65">Try a different keyword or browse our collections.</p>
                 </div>
               ) : (
                 <ul className="divide-y divide-ink/5">
@@ -74,7 +74,7 @@ export default function SearchOverlay({ open, onClose }: Props) {
                         <img src={p.variants[0].images[0]} alt={p.name} className="w-14 h-16 object-cover rounded" />
                         <div className="flex-1">
                           <p className="font-medium text-sm">{p.name}</p>
-                          <p className="text-xs text-ink/50">{p.gender} · {p.fit}</p>
+                          <p className="text-xs text-ink/65">{p.gender} · {p.fit}</p>
                         </div>
                         <span className="text-sm font-semibold">{formatINR(p.price)}</span>
                       </button>

@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
                 <KeyRound size={22} className="text-ink/60" />
               </div>
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Forgot Password?</h1>
-              <p className="text-ink/50 text-sm mb-8">Enter your mobile number and we'll send you a reset code.</p>
+              <p className="text-ink/65 text-sm mb-8">Enter your mobile number and we'll send you a reset code.</p>
 
               {error && (
                 <div className="mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700" role="alert">
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
                 <div>
                   <label htmlFor="resetMobile" className="text-xs font-medium text-ink/60">Mobile Number</label>
                   <div className="mt-1.5 flex items-center rounded-lg border border-ink/15 focus-within:border-ink overflow-hidden">
-                    <span className="px-3 py-3 text-sm text-ink/50 border-r border-ink/10 bg-stone/20 select-none">+91</span>
+                    <span className="px-3 py-3 text-sm text-ink/65 border-r border-ink/10 bg-stone/20 select-none">+91</span>
                     <input
                       id="resetMobile"
                       type="tel"
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-sm text-ink/50">
+              <p className="mt-6 text-center text-sm text-ink/65">
                 <Link to="/login" className="text-ink font-medium hover:text-ink/70 underline">Back to Sign In</Link>
               </p>
             </>
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
             <>
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Enter Reset Code</h1>
               {demoToken ? (
-                <div className="mb-8 text-sm text-ink/50">
+                <div className="mb-8 text-sm text-ink/65">
                   <p>
                     SMS delivery isn't configured for this project yet, so we can't text you a code.
                     Use this demo code to finish resetting your password:
@@ -137,7 +137,7 @@ export default function ForgotPasswordPage() {
                   <p className="mt-2 text-ink text-lg font-semibold tracking-[0.3em]">{demoToken}</p>
                 </div>
               ) : (
-                <p className="text-ink/50 text-sm mb-8">We sent a 6-digit code to +91 {mobile.replace(/\D/g, '').slice(-10)}.</p>
+                <p className="text-ink/65 text-sm mb-8">We sent a 6-digit code to +91 {mobile.replace(/\D/g, '').slice(-10)}.</p>
               )}
 
               {error && (
@@ -179,7 +179,7 @@ export default function ForgotPasswordPage() {
                 </button>
               </form>
 
-              <button onClick={() => setStep('request')} className="mt-6 block w-full text-center text-sm text-ink/50 hover:text-ink">
+              <button onClick={() => setStep('request')} className="mt-6 block w-full text-center text-sm text-ink/65 hover:text-ink">
                 Use a different mobile number
               </button>
             </>

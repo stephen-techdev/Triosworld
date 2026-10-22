@@ -145,7 +145,7 @@ export default function FeedbackWidget() {
                   <h2 id="feedback-title" className="font-display text-xl font-bold">
                     {sent ? 'Thank you.' : 'Tell us what you think'}
                   </h2>
-                  <p className="text-xs text-ink/50 mt-1">
+                  <p className="text-xs text-ink/65 mt-1">
                     {sent
                       ? 'Your feedback goes straight to the TriosWorld team.'
                       : 'Takes 20 seconds. Your feedback lands in our dashboard.'}
@@ -155,7 +155,7 @@ export default function FeedbackWidget() {
                   type="button"
                   onClick={close}
                   aria-label="Close feedback"
-                  className="p-2 -m-1 text-ink/40 hover:text-ink rounded-full hover:bg-stone/40"
+                  className="p-2 -m-1 text-ink/65 hover:text-ink rounded-full hover:bg-stone/40"
                 >
                   <X size={18} />
                 </button>

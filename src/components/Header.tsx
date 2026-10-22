@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, User, Heart, ShoppingBag, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wordmark } from '@/components/Brand';
 import { useStore } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
 import { useSiteContent } from '@/lib/siteContent';
@@ -198,7 +197,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               <div className="page-container py-10 grid grid-cols-4 gap-8">
                 {megaGroups.map(g => (
                   <div key={g.title}>
-                    <h4 className="text-xs font-semibold tracking-widest text-ink/40 uppercase mb-4">{g.title}</h4>
+                    <h4 className="text-xs font-semibold tracking-widest text-ink/65 uppercase mb-4">{g.title}</h4>
                     <ul className="space-y-3">
                       {g.links.map(l => (
                         <li key={l.to}>

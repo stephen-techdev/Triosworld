@@ -50,7 +50,7 @@ export default function ComboField({
           {suggestions.map(s => <option key={s} value={s} />)}
         </datalist>
       )}
-      {hint && <span className="text-[11px] text-ink/40">{hint}</span>}
+      {hint && <span className="text-[11px] text-ink/65">{hint}</span>}
     </label>
   );
 }

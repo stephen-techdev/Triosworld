@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://triosworld.com/sitemap.xml
+# Private / transactional routes — no content worth indexing.
+Disallow: /admin
+Disallow: /account
+Disallow: /checkout
+Disallow: /wishlist
+Disallow: /order/
+
+Sitemap: https://www.triosworld.in/sitemap.xml

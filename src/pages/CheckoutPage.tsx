@@ -454,7 +454,7 @@ export default function CheckoutPage() {
                 </p>
                 <p className="text-xs text-ink/60 mt-1.5 leading-relaxed">
                   Something went wrong while sending your order. Please try again, or reach us on
-                  WhatsApp at <span className="font-semibold text-ink">+91 93451 25667</span>.
+                  WhatsApp at <span className="font-semibold text-ink">+91 63838 83727</span>.
                 </p>
                 <button
                   type="button"

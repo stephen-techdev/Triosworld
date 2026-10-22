@@ -7,6 +7,7 @@ import {
 import {
   AdminAuthError, getSettings, saveSettings, uploadProductImage,
 } from '@/lib/admin';
+import { prepareImage } from '@/lib/imagePrep';
 import {
   normalizeContent, setSiteContent,
   type SiteContent, type BenefitIconKey, type SocialIconKey,
@@ -117,22 +118,29 @@ function ImageField({ label, value, onChange }: {
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
 
   const pick = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
     setErr(null);
+    setSaved(null);
     setBusy(true);
     try {
-      if (file.size > 4 * 1024 * 1024) throw new Error('That file is over 4MB — compress it first.');
-      const data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-        reader.onerror = () => reject(new Error('Could not read that file'));
-        reader.readAsDataURL(file);
-      });
-      const res = await uploadProductImage(file.name, file.type, data);
+      // Same compressor the product gallery uses: any file, any size, any
+      // format. This used to read the original through a data URL and refuse
+      // anything over 4MB with "compress it first" — handing the operator a
+      // job the dashboard should be doing itself, and then confirming nothing.
+      const prepared = await prepareImage(file);
+      const res = await uploadProductImage(prepared.filename, prepared.contentType, prepared.data);
       onChange(res.url);
+
+      const kb = (v: number) => `${Math.max(1, Math.round(v / 1024))} KB`;
+      setSaved(
+        prepared.originalBytes > prepared.bytes
+          ? `Compressed ${kb(prepared.originalBytes)} → ${kb(prepared.bytes)}.`
+          : `Uploaded at ${kb(prepared.bytes)} — already web-ready.`,
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -151,6 +159,7 @@ function ImageField({ label, value, onChange }: {
           <input type="file" accept="image/*" className="sr-only" onChange={e => pick(e.target.files)} />
         </label>
       </div>
+      {saved && <p className="mt-1 text-[10px] text-green-700">{saved}</p>}
       {err && <p className="mt-1 text-[10px] text-red-600">{err}</p>}
       {value && (
         <img src={value} alt="" className="mt-2 h-24 w-20 rounded border border-ink/10 object-cover bg-stone/40" />
@@ -672,7 +681,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="WhatsApp number (country code, digits only)" value={c.footer.whatsapp}
-            placeholder="919345125667"
+            placeholder="916383883727"
             onChange={v => setC(p => ({ ...p, footer: { ...p.footer, whatsapp: v } }))} />
           <Field label="Closing line (next to ©)" value={c.footer.note}
             onChange={v => setC(p => ({ ...p, footer: { ...p.footer, note: v } }))} />

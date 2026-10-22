@@ -1829,7 +1829,7 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
   onDetectedColor?: (name: string, hex: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [detected, setDetected] = useState<string | null>(null);
@@ -1843,6 +1843,27 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
     onChange(next);
   };
 
+  /**
+   * What the operator is told after a batch — every time, never nothing.
+   *
+   * The old message was gated on `before > after`, so an already-optimised
+   * photo, or a format the browser cannot re-encode (a RAW, an SVG — both of
+   * which go up byte for byte), finished with no confirmation at all. Silence
+   * read exactly like "it did not compress", which is what was reported.
+   */
+  const describe = (n: number, before: number, after: number) => {
+    const kb = (v: number) => `${Math.max(1, Math.round(v / 1024))} KB`;
+    const many = n > 1 ? 's' : '';
+    if (before > after) {
+      const pct = Math.max(1, Math.round(((before - after) / before) * 100));
+      return `Compressed ${n} photo${many}: ${kb(before)} → ${kb(after)} (${pct}% smaller). The card now loads much faster.`;
+    }
+    if (before === after) {
+      return `Photo${many} added at ${kb(after)} — already web-ready, so nothing needed shrinking. Formats the browser cannot re-encode are uploaded unchanged.`;
+    }
+    return `${n} photo${many} added at ${kb(after)}.`;
+  };
+
   const onPick = async (files: FileList | null) => {
     if (!files?.length) return;
     setErr(null);
@@ -1850,37 +1871,55 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
     setDetected(null);
     const room = Math.max(0, max - images.length);
     const picked = Array.from(files).slice(0, room);
+    if (!picked.length) {
+      if (files.length > room) setErr(`Only ${max} photos per product — none were added.`);
+      return;
+    }
     if (files.length > room) {
       setErr(`Only ${max} photos per product — the first ${room} were taken.`);
     }
     setUploading(true);
-    let totalBefore = 0;
-    let totalAfter = 0;
+    setProgress({ done: 0, total: picked.length, label: 'Compressing' });
     try {
-      for (let i = 0; i < picked.length; i++) {
-        setProgress({ done: i, total: picked.length });
-        const file = picked[i];
-        const prepared = await prepareImage(file);
-        const res = await uploadProductImage(prepared.filename, prepared.contentType, prepared.data);
-        totalBefore += prepared.originalBytes;
-        totalAfter += prepared.bytes;
-        onChange([...images, { url: res.url, name: prepared.filename }].slice(0, max));
+      // Compress EVERY file first, in parallel. Decoding is the slow part and
+      // it is all local work, so four photos cost barely more than one — the
+      // old code did this one at a time, interleaved with a network round trip
+      // per photo, which is what made the picker feel like it never finished.
+      const prepared = await Promise.all(picked.map(f => prepareImage(f)));
 
-        // Read the garment's colour off the photo that just went up. The first
-        // photo wins, because it is the one the operator picked as the main
-        // shot; later photos only fill in when the box is still empty.
-        if (onDetectedColor && (i === 0 || !detected)) {
-          const hit = await detectColorFromImage(res.url);
-          if (hit && hit.confidence >= 0.4) {
-            const label = hit.name.charAt(0).toUpperCase() + hit.name.slice(1);
-            onDetectedColor(label, hit.hex);
-            setDetected(`${label} detected from the photo — adjust it if that is not right.`);
-          }
+      // Then upload them together. One slow photo no longer holds the rest up.
+      let done = 0;
+      setProgress({ done, total: prepared.length, label: 'Uploading' });
+      const results = await Promise.all(
+        prepared.map(async (p) => {
+          const res = await uploadProductImage(p.filename, p.contentType, p.data);
+          done += 1;
+          setProgress({ done, total: prepared.length, label: 'Uploading' });
+          return { p, res };
+        }),
+      );
+
+      const totalBefore = prepared.reduce((s, p) => s + p.originalBytes, 0);
+      const totalAfter = prepared.reduce((s, p) => s + p.bytes, 0);
+
+      onChange(
+        [...images, ...results.map(r => ({ url: r.res.url, name: r.p.filename }))].slice(0, max),
+      );
+
+      // Say what happened BEFORE anything else can get in the way.
+      setSaved(describe(picked.length, totalBefore, totalAfter));
+
+      // Colour sampling re-downloads the photo, so it runs last: it must never
+      // delay the confirmation, and only the first photo is ever tried — the
+      // old `!detected` check meant a photo that sampled inconclusively was
+      // re-fetched and re-sampled for EVERY remaining image in the batch.
+      if (onDetectedColor && results[0]) {
+        const hit = await detectColorFromImage(results[0].res.url);
+        if (hit && hit.confidence >= 0.4) {
+          const label = hit.name.charAt(0).toUpperCase() + hit.name.slice(1);
+          onDetectedColor(label, hit.hex);
+          setDetected(`${label} detected from the photo — adjust it if that is not right.`);
         }
-      }
-      if (totalAfter > 0 && totalBefore > totalAfter) {
-        const pct = Math.max(1, Math.round(((totalBefore - totalAfter) / totalBefore) * 100));
-        setSaved(`Compressed ${Math.round(totalBefore / 1024)} KB → ${Math.round(totalAfter / 1024)} KB (${pct}% smaller). The card now loads much faster.`);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Upload failed');
@@ -1946,7 +1985,7 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
       }`}>
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/avif"
+          accept="image/*"
           multiple
           disabled={uploading || images.length >= max}
           className="sr-only"
@@ -1955,7 +1994,7 @@ function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
         {uploading ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Uploading {progress ? `${progress.done + 1} of ${progress.total}` : ''}…
+            {progress ? `${progress.label} ${progress.done} of ${progress.total}…` : 'Working…'}
           </>
         ) : images.length >= max ? (
           <><Check size={16} /> {max} photos added</>

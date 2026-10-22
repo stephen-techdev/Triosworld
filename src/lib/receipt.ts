@@ -106,7 +106,7 @@ export function buildReceipt(payload: ReceiptPayload): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(190, 190, 190);
-  doc.text('triosworld.com  |  +91 93451 25667', PAGE_W - MARGIN, 21, { align: 'right' });
+  doc.text('triosworld.com  |  +91 63838 83727', PAGE_W - MARGIN, 21, { align: 'right' });
 
   y = 44;
 
@@ -292,7 +292,7 @@ export function buildReceipt(payload: ReceiptPayload): jsPDF {
     footerY,
   );
   doc.text(
-    'Support: hello@triosworld.com  |  WhatsApp +91 93451 25667',
+    'Support: hello@triosworld.com  |  WhatsApp +91 63838 83727',
     MARGIN,
     footerY + 4,
   );

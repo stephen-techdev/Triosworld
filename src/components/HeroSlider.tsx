@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
-import { ArrowRight, ArrowLeft, Pause, Play } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 import type { HeroSlide } from '@/lib/siteContent';
 
 /** Multi-line display headings: each entry becomes its own line. */
@@ -56,11 +56,11 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
     return () => window.clearTimeout(t);
   }, [idx, playing, reduced, count, current]);
 
-  // A backgrounded tab should not advance slides the customer never saw.
+  // A backgrounded tab should not advance slides the customer never saw. It
+  // picks up again the moment they come back — there is no pause button any
+  // more, so the reel can never be left stopped by accident.
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) setPlaying(false);
-    };
+    const onVisibility = () => setPlaying(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
@@ -134,18 +134,10 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         </motion.div>
       </motion.div>
 
-      {/* Controls. Dots on every screen; play/pause and arrows are desktop-only
-          so the phone keeps its gestures and stays clean. */}
+      {/* Controls. Dots on every screen; the arrows are desktop-only, so the
+          phone keeps its swipe gesture and the corner stays clean. */}
       {count > 1 && (
         <div className="absolute bottom-6 right-4 sm:right-6 md:bottom-10 md:right-10 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setPlaying(p => !p)}
-            aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
-            className="w-9 h-9 rounded-full border border-ivory/30 text-ivory/80 grid place-items-center hover:bg-ivory/15 transition-colors"
-          >
-            {playing && !reduced ? <Pause size={14} /> : <Play size={14} />}
-          </button>
           <div className="hidden sm:flex items-center gap-2">
             <button type="button" onClick={() => go(idx - 1)} aria-label="Previous slide" className="w-9 h-9 rounded-full border border-ivory/30 text-ivory/80 grid place-items-center hover:bg-ivory/15 transition-colors"><ArrowLeft size={16} /></button>
             <button type="button" onClick={() => go(idx + 1)} aria-label="Next slide" className="w-9 h-9 rounded-full border border-ivory/30 text-ivory/80 grid place-items-center hover:bg-ivory/15 transition-colors"><ArrowRight size={16} /></button>

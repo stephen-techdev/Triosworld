@@ -237,17 +237,6 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       seconds: 7,
     },
     {
-      eyebrow: 'Heavyweight Essentials',
-      titleLines: ['BUILT FOR', 'EVERY DAY.'],
-      subtitle: 'Premium cotton, boxy cuts and a finish that survives the wash. The backbone of the rotation.',
-      ctaPrimaryLabel: 'SHOP ESSENTIALS',
-      ctaPrimaryTo: '/shop/essentials',
-      ctaSecondaryLabel: 'SHOP ALL',
-      ctaSecondaryTo: '/shop/shop-all',
-      image: 'https://images.pexels.com/photos/8532616/pexels-photo-8532616.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
-      seconds: 6,
-    },
-    {
       eyebrow: 'Editorial Drop 03',
       titleLines: ['NOT JUST', 'A TEE.'],
       subtitle: 'Original graphics, printed in India and made to say something. Wear the statement.',

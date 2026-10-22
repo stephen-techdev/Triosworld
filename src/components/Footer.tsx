@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Mail, Phone, MapPin, LockKeyhole } from 'lucide-react';
-import { TriosMark } from '@/components/Brand';
+import { InstagramGlyph, TriosMark } from '@/components/Brand';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import Newsletter from '@/components/Newsletter';
 import { Reveal } from '@/components/Motion';
@@ -57,6 +57,10 @@ export default function Footer() {
             <div className="flex items-center gap-3 pt-1">
               {socialLinks.map(({ href, label, icon }) => {
                 const Icon = SOCIAL_GLYPHS[icon] ?? Instagram;
+                // Instagram keeps its real gradient, so it hovers to a neutral
+                // ivory tint instead of the lime disc (which muddies the brand
+                // colours) — the other glyphs stay monochrome and keep lime.
+                const isInstagram = icon === 'instagram';
                 return (
                   <a
                     key={`${label}-${href}`}
@@ -64,9 +68,13 @@ export default function Footer() {
                     target="_blank"
                     rel="noreferrer"
                     aria-label={label}
-                    className="w-10 h-10 rounded-full border border-ivory/15 flex items-center justify-center text-ivory/70 hover:text-ink hover:bg-lime hover:border-lime transition-all duration-300 ease-smooth active:scale-95"
+                    className={`w-10 h-10 rounded-full border border-ivory/15 flex items-center justify-center transition-all duration-300 ease-smooth active:scale-95 ${
+                      isInstagram
+                        ? 'hover:bg-ivory/10 hover:border-ivory/35'
+                        : 'text-ivory/70 hover:text-ink hover:bg-lime hover:border-lime'
+                    }`}
                   >
-                    <Icon size={18} />
+                    {isInstagram ? <InstagramGlyph size={18} /> : <Icon size={18} />}
                   </a>
                 );
               })}

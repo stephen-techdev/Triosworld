@@ -168,3 +168,66 @@ export function Wordmark({
 export function TriosMark({ className = '' }: { className?: string }) {
   return <TwMonogram className={className} variant="chrome" title="" />;
 }
+
+/**
+ * Instagram's camera glyph in the brand's own gradient.
+ *
+ * The footer row used a monochrome line icon, which reads as a generic
+ * "social" shape and does not say Instagram at a glance. This is the real
+ * mark — rounded square, lens, flash dot — painted with the official
+ * yellow → orange → pink → purple → blue ramp, so it stays recognisable
+ * even at 18px on the dark footer.
+ */
+export function InstagramGlyph({
+  size = 18,
+  className = '',
+}: {
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <defs>
+        <linearGradient
+          id="trios-instagram-gradient"
+          x1="2"
+          y1="22"
+          x2="22"
+          y2="2"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0" stopColor="#feda75" />
+          <stop offset="0.28" stopColor="#fa7e1e" />
+          <stop offset="0.52" stopColor="#d62976" />
+          <stop offset="0.74" stopColor="#962fbf" />
+          <stop offset="1" stopColor="#4f5bd5" />
+        </linearGradient>
+      </defs>
+      <rect
+        x="2.4"
+        y="2.4"
+        width="19.2"
+        height="19.2"
+        rx="5.6"
+        stroke="url(#trios-instagram-gradient)"
+        strokeWidth="2"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="4.5"
+        stroke="url(#trios-instagram-gradient)"
+        strokeWidth="2"
+      />
+      <circle cx="17.45" cy="6.55" r="1.3" fill="url(#trios-instagram-gradient)" />
+    </svg>
+  );
+}

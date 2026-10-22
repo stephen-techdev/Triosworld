@@ -218,7 +218,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     ctaPrimaryTo: '/shop/shop-all',
     ctaSecondaryLabel: 'NEW ARRIVALS',
     ctaSecondaryTo: '/shop/new-arrivals',
-    image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
+    image: 'https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
   },
 
   // The opening slide is the shipped hero verbatim, so an operator who never
@@ -233,7 +233,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/shop-all',
       ctaSecondaryLabel: 'NEW ARRIVALS',
       ctaSecondaryTo: '/shop/new-arrivals',
-      image: 'https://images.pexels.com/photos/25312245/pexels-photo-25312245.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
+      image: 'https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 7,
     },
     {
@@ -244,7 +244,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/essentials',
       ctaSecondaryLabel: 'SHOP ALL',
       ctaSecondaryTo: '/shop/shop-all',
-      image: 'https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
+      image: 'https://images.pexels.com/photos/8532616/pexels-photo-8532616.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
     {
@@ -255,7 +255,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/graphics',
       ctaSecondaryLabel: 'NEW ARRIVALS',
       ctaSecondaryTo: '/shop/new-arrivals',
-      image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
+      image: 'https://images.pexels.com/photos/2451200/pexels-photo-2451200.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
     {
@@ -266,7 +266,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ctaPrimaryTo: '/shop/streetwear',
       ctaSecondaryLabel: 'SHOP ALL',
       ctaSecondaryTo: '/shop/shop-all',
-      image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
+      image: 'https://images.pexels.com/photos/32969128/pexels-photo-32969128.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
       seconds: 6,
     },
   ],

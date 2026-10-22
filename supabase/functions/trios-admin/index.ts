@@ -599,6 +599,22 @@ Deno.serve(async (req: Request) => {
         const stock: Record<string, number> = Object.keys(saved).length
           ? saved
           : { ONE: Math.max(0, Number(r.price) ? 10 : 0) };
+
+        // Once colours carry their own sizes, that map is what the storefront
+        // sells from - so the card's "in stock" badge must sum it, not the
+        // legacy product-wide map. This is also what makes paid orders visibly
+        // reduce the count.
+        let colorStockTotal: number | null = null;
+        for (const c of Array.isArray(r.colors) ? (r.colors as unknown[]) : []) {
+          const sizes = c && typeof c === "object"
+            ? (c as { sizes?: unknown }).sizes
+            : null;
+          if (sizes && typeof sizes === "object") {
+            colorStockTotal = (colorStockTotal ?? 0) + Object.values(sizes as Record<string, unknown>)
+              .reduce((s, n) => s + Math.max(0, Math.floor(Number(n) || 0)), 0);
+          }
+        }
+
         return {
           id: r.id,
           name: r.name,
@@ -608,7 +624,8 @@ Deno.serve(async (req: Request) => {
           price: r.price,
           colors: (r.colors as string[] | null) ?? [],
           stock,
-          stock_total: Object.values(stock).reduce((s, n) => s + (Number(n) || 0), 0),
+          stock_total: colorStockTotal
+            ?? Object.values(stock).reduce((s, n) => s + (Number(n) || 0), 0),
           is_active: r.is_active,
           updated_at: r.updated_at,
           overridden: false,

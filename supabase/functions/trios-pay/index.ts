@@ -477,11 +477,53 @@ async function findGatewayPayment(order: OrderRecord): Promise<GatewayPayment | 
 }
 
 /**
+ * Take the sold units out of the operator's per-colour stock.
+ *
+ * Runs only on the one update that actually moved the order to 'paid' (the
+ * caller checks the returned row), so a retried webhook cannot decrement twice.
+ * A failure is logged but never fails the payment: the money is already taken,
+ * and the operator can correct a count in the dashboard.
+ */
+async function decrementOrderStock(order: { id: string; items?: PricedLine[] }): Promise<void> {
+  const lines = Array.isArray(order.items) ? order.items : [];
+  if (lines.length === 0) return;
+
+  for (const line of lines) {
+    const qty = Math.max(0, Math.floor(Number(line.qty) || 0));
+    if (qty === 0) continue;
+    const { error } = await supabase.rpc("decrement_variant_stock", {
+      p_product_id: String(line.productId),
+      p_color: String(line.color),
+      p_size: String(line.size),
+      p_qty: qty,
+    });
+    if (error) {
+      await recordEvent(order.id, "stock_decrement_failed", {
+        product_id: line.productId,
+        color: line.color,
+        size: line.size,
+        qty,
+        error: error.message,
+      });
+    }
+  }
+
+  await recordEvent(order.id, "stock_decremented", {
+    lines: lines.map((l) => ({
+      product_id: l.productId,
+      color: l.color,
+      size: l.size,
+      qty: l.qty,
+    })),
+  });
+}
+
+/**
  * The single place allowed to move an order to 'paid'. Refuses underpayments
  * and is idempotent so retried webhooks cannot double-process.
  */
 async function markPaid(
-  order: { id: string; order_number: string; total: number },
+  order: { id: string; order_number: string; total: number; items?: PricedLine[] },
   opts: {
     provider: string;
     paymentId: string;
@@ -504,7 +546,7 @@ async function markPaid(
     return false;
   }
 
-  const { error } = await supabase
+  const { data: transitionedRows, error } = await supabase
     .from("orders")
     .update({
       payment_status: "paid",
@@ -517,11 +559,19 @@ async function markPaid(
       updated_at: new Date().toISOString(),
     })
     .eq("id", order.id)
-    .neq("payment_status", "paid"); // idempotent: webhooks retry
+    .neq("payment_status", "paid") // idempotent: webhooks retry
+    .select("id");
 
   if (error) {
     await recordEvent(order.id, "mark_paid_failed", { error: error.message });
     return false;
+  }
+
+  // Only the transition into 'paid' may move stock. A retried webhook updates
+  // no row, so the counts stay correct.
+  const transitioned = Array.isArray(transitionedRows) && transitionedRows.length > 0;
+  if (transitioned) {
+    await decrementOrderStock(order);
   }
 
   await recordEvent(

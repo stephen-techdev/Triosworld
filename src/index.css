@@ -130,7 +130,7 @@
    header (50), cart drawer (55) and search overlay (60). */
 .wa-fab {
   position: fixed;
-  right: 16px;
+  right: 20px;
   bottom: calc(24px + env(safe-area-inset-bottom));
   height: 48px;
   padding: 0 18px 0 14px;
@@ -164,33 +164,49 @@
 .wa-fab:hover {
   box-shadow: 0 12px 28px rgba(37, 211, 102, 0.45);
 }
-/* Clear of the mobile sticky add-to-cart bar on product pages. */
-.wa-fab[data-lift] {
-  bottom: calc(86px + env(safe-area-inset-bottom));
-}
+/* The pill is fixed, so its offset is tuned per device: desktop sits clear of
+   the viewport edge, phones sit in the thumb zone, and very small phones drop
+   the label to a 50px circle so it covers as little of the page as possible. */
 @keyframes wa-pulse {
   0% { transform: scale(1); opacity: 0.75; }
   70% { transform: scale(1.4); opacity: 0; }
   100% { opacity: 0; }
 }
-@media (min-width: 701px) and (max-width: 1080px) {
+@media (max-width: 1279px) {
   .wa-fab {
-    right: 22px;
-    bottom: calc(26px + env(safe-area-inset-bottom));
+    right: 18px;
+    bottom: calc(22px + env(safe-area-inset-bottom));
   }
 }
 @media (max-width: 700px) {
   .wa-fab {
     right: 14px;
-    /* Raised clear of the footer's last rows on small screens. */
-    bottom: calc(40px + env(safe-area-inset-bottom));
-    height: 46px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    height: 48px;
     padding: 0 16px 0 13px;
     gap: 7px;
     font-size: 12.5px;
   }
+}
+@media (max-width: 400px) {
+  .wa-fab {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .wa-fab__label { display: none; }
+}
+/* Clear of the sticky add-to-cart bar, which only exists below md. */
+@media (max-width: 767px) {
   .wa-fab[data-lift] {
-    bottom: calc(106px + env(safe-area-inset-bottom));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 400px) {
+  .wa-fab[data-lift] {
+    bottom: calc(94px + env(safe-area-inset-bottom));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -221,21 +237,32 @@
 .fb-fab:hover {
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
 }
-/* Clear of the mobile sticky add-to-cart bar on product pages. */
-.fb-fab[data-lift] {
-  bottom: calc(86px + env(safe-area-inset-bottom));
-}
 @media (max-width: 700px) {
   .fb-fab {
-    height: 46px;
+    height: 48px;
     left: 14px;
-    /* Raised clear of the footer's last rows on small screens. */
-    bottom: calc(40px + env(safe-area-inset-bottom));
+    bottom: calc(16px + env(safe-area-inset-bottom));
     padding: 0 14px;
   }
   .fb-fab__label { display: none; }
+}
+@media (max-width: 400px) {
+  .fb-fab {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+/* Clear of the sticky add-to-cart bar, which only exists below md. */
+@media (max-width: 767px) {
   .fb-fab[data-lift] {
-    bottom: calc(106px + env(safe-area-inset-bottom));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 400px) {
+  .fb-fab[data-lift] {
+    bottom: calc(94px + env(safe-area-inset-bottom));
   }
 }
 

@@ -12,9 +12,9 @@ const HERO_IMG = 'https://images.pexels.com/photos/19259008/pexels-photo-1925900
  * Customer sign-in.
  *
  * This page is for customers only. Operators sign in on their own page at
- * /admin/login (linked discreetly from the footer), where the credentials are
- * verified server-side by the trios-admin function. The field here accepts a
- * 10-digit mobile number and nothing else.
+ * /admin/login (bookmark it; no storefront link points there), where the
+ * credentials are verified server-side by the trios-admin function. The field
+ * here accepts a 10-digit mobile number and nothing else.
  */
 export default function LoginPage() {
   const navigate = useNavigate();

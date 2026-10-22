@@ -248,11 +248,17 @@ export default function ProductPage() {
       </nav>
 
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-        {/* Gallery */}
-        <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4">
+        {/* Gallery — min-w-0 all the way down. A grid/flex item defaults to
+            `min-width:auto`, so the thumbnail rail's fixed 5 x 80px content
+            was forcing this column to 448px. On a 360-390px phone that made
+            the whole document 480px wide: everything right of the screen got
+            cut off (prices, size buttons, badges) and the page read as
+            "zoomed in". Each level now shrinks to the screen and the rail
+            scrolls inside its own box. */}
+        <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 min-w-0">
           {/* Left column: every photo of the product, so the t-shirt can be
               seen from every angle without leaving the page. */}
-          <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible no-scrollbar">
+          <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible no-scrollbar min-w-0">
             {viewerImages.map((img, i) => (
               <button key={img + i} onClick={() => selectImage(i)}
                 className={`shrink-0 w-20 h-24 rounded overflow-hidden border-2 transition ${imageIdx === i ? 'border-ink' : 'border-transparent hover:border-ink/30'}`}>

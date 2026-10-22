@@ -352,7 +352,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     whatsapp: '916383883727',
     email: 'hello@triosworld.com',
     socials: [
-      { icon: 'instagram', label: 'Instagram', href: 'https://instagram.com' },
+      { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/triosworld_?utm_source=qr&vrfl=bmhsOGE1MGFteG8z' },
       { icon: 'whatsapp', label: 'WhatsApp', href: '' },
       { icon: 'mail', label: 'Email', href: 'mailto:hello@triosworld.com' },
     ],

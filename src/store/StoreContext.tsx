@@ -73,7 +73,7 @@ function reducer(state: StoreState, action: Action): StoreState {
         ...state,
         cart: state.cart.map(i =>
           i.productId === action.productId && i.color === action.color && i.size === action.size
-            ? { ...i, qty: Math.min(action.qty, cap) }
+            ? { ...i, qty: Math.max(1, Math.min(action.qty, cap)) }
             : i
         ),
       };

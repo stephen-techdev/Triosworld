@@ -478,7 +478,9 @@ export default function ProductPage() {
               <p className={`mt-2 text-[11px] ${maxAddable === 0 ? 'text-burgundy' : 'text-ink/60'}`}>
                 {maxAddable === 0
                   ? 'All available units for this size are already in your bag.'
-                  : `Only ${maxAddable} more available in this size.`}
+                  : qty >= maxAddable
+                    ? 'Maximum available for this size.'
+                    : `Only ${maxAddable} available in this size.`}
               </p>
             )}
           </div>

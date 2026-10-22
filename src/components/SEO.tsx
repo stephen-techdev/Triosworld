@@ -156,7 +156,7 @@ export function organizationJsonLd() {
     '@type': 'Organization',
     name: 'TRIOSWORLD',
     url: SITE_URL,
-    logo: `${SITE_URL}/og-image.svg`,
+    logo: `${SITE_URL}/logo.png`,
     sameAs: footer.socials
       .map(s => s.href.trim())
       .filter(h => /^https:\/\//i.test(h)),

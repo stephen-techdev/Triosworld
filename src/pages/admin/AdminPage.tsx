@@ -8,7 +8,6 @@ import {
   ArrowUp, ArrowDown,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
-import { Wordmark } from '@/components/Brand';
 import { EASE } from '@/components/Motion';
 import { SIZES, SUGGESTED_BADGES, SUGGESTED_FABRICS, SUGGESTED_FITS, formatINR } from '@/data/catalog';
 import ComboField from '@/components/ComboField';
@@ -82,7 +81,7 @@ export default function AdminPage() {
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <Link to="/" className="text-lg shrink-0">
-              <Wordmark variant="chrome" />
+              <img src="/logo-ivory.png" alt="TriosWorld" className="h-7 w-auto" />
             </Link>
             <span className="hidden sm:inline text-[11px] uppercase tracking-widest text-ivory/60 border border-ivory/20 rounded-full px-2.5 py-1">
               Admin
@@ -1822,7 +1821,7 @@ interface GalleryImage { url: string; name: string }
  * to `onDetectedColor`, so the colour box names the colour the operator just
  * photographed — no typing, no picker.
  */
-function GalleryField({ images, onChange, max = 8, onDetectedColor }: {
+function GalleryField({ images, onChange, max = 10, onDetectedColor }: {
   images: GalleryImage[];
   onChange: (next: GalleryImage[]) => void;
   max?: number;

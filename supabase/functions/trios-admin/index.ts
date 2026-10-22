@@ -682,7 +682,7 @@ Deno.serve(async (req: Request) => {
         // swatch on the card and the shop's colour filter will render them.
         if (body.colors !== undefined) patch.colors = normalizeColors(body.colors);
         if (Array.isArray(body.images)) {
-          const imgs = (body.images as unknown[]).map(String).filter(Boolean).slice(0, 8);
+          const imgs = (body.images as unknown[]).map(String).filter(Boolean).slice(0, 10);
           patch.images = imgs;
           patch.image_url = imgs[0] ?? null;
         }
@@ -875,7 +875,7 @@ Deno.serve(async (req: Request) => {
       // Uploaded images come back as public URLs; the first one is also kept in
       // image_url so the single-image surfaces keep working.
       const images = Array.isArray(body.images)
-        ? (body.images as unknown[]).map((i) => String(i).trim()).filter(Boolean).slice(0, 8)
+        ? (body.images as unknown[]).map((i) => String(i).trim()).filter(Boolean).slice(0, 10)
         : [];
       const explicitUrl = body.image_url ? String(body.image_url).trim() : "";
       const allImages = explicitUrl ? [explicitUrl, ...images] : images;

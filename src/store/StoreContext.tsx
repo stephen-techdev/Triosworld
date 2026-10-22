@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import type { Product } from '@/data/catalog';
 import { liveProductById, useLiveCatalog } from '@/lib/storefrontCatalog';
+import { maxUnitsPerLine } from '@/lib/stock';
 
 export interface CartItem {
   productId: string;
@@ -20,13 +21,29 @@ type Action =
   | { type: 'REMOVE_FROM_CART'; productId: string; color: string; size: string }
   | { type: 'CLEAR_CART' }
   | { type: 'TOGGLE_WISHLIST'; productId: string }
+  | { type: 'RECONCILE_STOCK' }
   | { type: 'HYDRATE'; state: StoreState };
 
 const STORAGE_KEY = 'triosworld-store-v1';
 
+/**
+ * Clamp a line to the operator's stock for that exact colour + size.
+ *
+ * 0 means the variant is sold out (or the catalog has not loaded), so callers
+ * treat it as "do not keep this line". The flat ten-unit ceiling only applies
+ * when the operator has more than ten left.
+ */
+function cappedQty(productId: string, color: string, size: string, qty: number): number {
+  const cap = maxUnitsPerLine(productId, color, size);
+  if (cap === 0) return 0;
+  return Math.max(1, Math.min(Math.floor(qty), cap));
+}
+
 function reducer(state: StoreState, action: Action): StoreState {
   switch (action.type) {
     case 'ADD_TO_CART': {
+      const cap = cappedQty(action.item.productId, action.item.color, action.item.size, action.item.qty);
+      if (cap === 0) return state;
       const existing = state.cart.find(
         i => i.productId === action.item.productId && i.color === action.item.color && i.size === action.item.size
       );
@@ -34,20 +51,46 @@ function reducer(state: StoreState, action: Action): StoreState {
         return {
           ...state,
           cart: state.cart.map(i =>
-            i === existing ? { ...i, qty: Math.min(i.qty + action.item.qty, 10) } : i
+            i === existing
+              ? { ...i, qty: Math.min(i.qty + action.item.qty, cap) }
+              : i
           ),
         };
       }
-      return { ...state, cart: [...state.cart, { ...action.item, qty: Math.min(action.item.qty, 10) }] };
+      return { ...state, cart: [...state.cart, { ...action.item, qty: cap }] };
     }
-    case 'UPDATE_QTY':
+    case 'UPDATE_QTY': {
+      const cap = cappedQty(action.productId, action.color, action.size, action.qty);
+      if (cap === 0) {
+        return {
+          ...state,
+          cart: state.cart.filter(
+            i => !(i.productId === action.productId && i.color === action.color && i.size === action.size)
+          ),
+        };
+      }
       return {
         ...state,
         cart: state.cart.map(i =>
           i.productId === action.productId && i.color === action.color && i.size === action.size
-            ? { ...i, qty: Math.max(1, Math.min(action.qty, 10)) }
+            ? { ...i, qty: Math.min(action.qty, cap) }
             : i
         ),
+      };
+    }
+    case 'RECONCILE_STOCK':
+      // A bag can predate an admin stock change. Once the catalog is known,
+      // pull every line back to what the operator can actually sell. Products
+      // that are not in the catalog at all are left alone: an empty list means
+      // the fetch failed, and losing the bag would be worse than a stale line.
+      return {
+        ...state,
+        cart: state.cart.flatMap(i => {
+          const product = liveProductById(i.productId);
+          if (!product) return [i];
+          const cap = maxUnitsPerLine(i.productId, i.color, i.size);
+          return cap === 0 ? [] : [{ ...i, qty: Math.min(i.qty, cap) }];
+        }),
       };
     case 'REMOVE_FROM_CART':
       return {
@@ -93,7 +136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Prices live in the database, so the subtotal has to wait for the catalog.
   // Without this the total read zero for every dashboard product and a customer
   // could reach the payment screen quoting nothing.
-  const { ready } = useLiveCatalog();
+  const { products, ready } = useLiveCatalog();
 
   useEffect(() => {
     try {
@@ -106,6 +149,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // ignore
     }
   }, []);
+
+  // A bag can outlive an admin stock change. As soon as the live catalog is
+  // known, trim every saved line to the units that are actually sellable, so
+  // the stepper cannot show ten of a colour that now has four left.
+  useEffect(() => {
+    if (ready && products.length > 0) dispatch({ type: 'RECONCILE_STOCK' });
+  }, [ready, products.length]);
 
   useEffect(() => {
     try {

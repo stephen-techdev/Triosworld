@@ -5,7 +5,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/store/StoreContext';
 import { useAuth } from '@/store/AuthContext';
 import { useSiteContent } from '@/lib/siteContent';
+import { Wordmark } from '@/components/Brand';
 import { EASE, fadeUp, staggerParent } from '@/components/Motion';
+
+/**
+ * Header brand: the brand's drawn TRIO lettering sitting above the winged
+ * mark, as the operator asked. The lettering is the same vector artwork used
+ * elsewhere on the site, so it stays sharp at every size and never falls back
+ * to a different typeface.
+ */
+function HeaderLockup({
+  wordmarkClassName = 'text-[15px] sm:text-[16px]',
+  markClassName = 'h-8 sm:h-9',
+}: {
+  wordmarkClassName?: string;
+  markClassName?: string;
+}) {
+  return (
+    <span className="inline-flex flex-col items-center">
+      <Wordmark variant="ink" showMonogram={false} className={wordmarkClassName} />
+      <img src="/logo.png" alt="TriosWorld" className={`mt-0.5 w-auto ${markClassName}`} />
+    </span>
+  );
+}
 
 /**
  * The desktop nav is three stacked rows — utility bar, nav, then the wordmark
@@ -96,7 +118,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               </button>
             </div>
             <Link to="/home" aria-label="TriosWorld home" className="text-xl text-ink transition-opacity hover:opacity-70 justify-self-center">
-              <img src="/logo.png" alt="TriosWorld" className="h-9 sm:h-11 w-auto" />
+              <HeaderLockup />
             </Link>
             <div className="flex items-center justify-end gap-0.5">
               <button onClick={onOpenSearch} aria-label="Search" className={iconBtn}>
@@ -123,7 +145,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
           <div className="hidden xl:flex items-center justify-between h-20">
             <div className="flex items-center flex-1">
               <Link to="/home" aria-label="TriosWorld home" className="text-2xl text-ink transition-opacity hover:opacity-70">
-                <img src="/logo.png" alt="TriosWorld" className="h-9 sm:h-11 w-auto" />
+                <HeaderLockup wordmarkClassName="text-[17px]" markClassName="h-9" />
               </Link>
             </div>
 
@@ -231,7 +253,7 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
               transition={{ type: 'spring', stiffness: 380, damping: 40 }}
               className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-ivory z-50 xl:hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-ink/10">
-                <span className="text-lg text-ink"><img src="/logo.png" alt="TriosWorld" className="h-8 w-auto" /></span>
+                <span className="text-lg text-ink"><HeaderLockup wordmarkClassName="text-[13px]" markClassName="h-6" /></span>
                 <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="-mr-1 p-2 rounded-full hover:bg-ink/5 transition-colors"><X size={22} /></button>
               </div>
               <motion.nav

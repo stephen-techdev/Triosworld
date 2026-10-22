@@ -4,7 +4,6 @@ import {
   FacebookGlyph,
   GmailGlyph,
   InstagramGlyph,
-  TriosMark,
   WhatsAppGlyph,
   YouTubeGlyph,
 } from '@/components/Brand';
@@ -99,7 +98,6 @@ export default function Footer() {
                   </a>
                 );
               })}
-              <span className="text-lime ml-1"><TriosMark className="w-6 h-6" /></span>
             </div>
           </div>
           {footer.columns.map(col => (

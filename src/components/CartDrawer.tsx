@@ -46,6 +46,8 @@ export default function CartDrawer({ open, onClose }: Props) {
                     const p = resolveProduct(item.productId);
                     if (!p) return null;
                     const v = p.variants.find(x => x.color === item.color);
+                    const stock = v?.sizes.find(s => s.size === item.size)?.stock ?? 0;
+                    const maxUnits = Math.min(10, stock);
                     return (
                       <div key={`${item.productId}-${item.color}-${item.size}`} className="flex gap-4">
                         <Link to={`/product/${p.slug}`} onClick={onClose} className="shrink-0">
@@ -59,10 +61,18 @@ export default function CartDrawer({ open, onClose }: Props) {
                             <div className="flex items-center border border-ink/15 rounded-full">
                               <button onClick={() => updateQty(item.productId, item.color, item.size, item.qty - 1)} aria-label="Decrease" className="w-9 h-9 flex items-center justify-center"><Minus size={16} /></button>
                               <span className="w-8 text-center text-sm">{item.qty}</span>
-                              <button onClick={() => updateQty(item.productId, item.color, item.size, item.qty + 1)} aria-label="Increase" className="w-9 h-9 flex items-center justify-center"><Plus size={16} /></button>
+                              <button
+                                onClick={() => updateQty(item.productId, item.color, item.size, item.qty + 1)}
+                                disabled={item.qty >= maxUnits}
+                                aria-label="Increase"
+                                className="w-9 h-9 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                              ><Plus size={16} /></button>
                             </div>
                             <button onClick={() => removeFromCart(item.productId, item.color, item.size)} aria-label="Remove" className="text-ink/65 hover:text-burgundy"><Trash2 size={16} /></button>
                           </div>
+                          {item.qty >= maxUnits && (
+                            <p className="mt-1.5 text-[11px] text-ink/60">Only {maxUnits} available in this size.</p>
+                          )}
                         </div>
                       </div>
                     );

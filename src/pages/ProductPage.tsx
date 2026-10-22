@@ -7,6 +7,7 @@ import { formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useStore } from '@/store/StoreContext';
+import { MAX_UNITS_PER_LINE } from '@/lib/stock';
 import { useSiteContent } from '@/lib/siteContent';
 import { ProductCardMotion } from '@/components/ProductCard';
 import SEO, { productJsonLd, breadcrumbJsonLd } from '@/components/SEO';
@@ -25,7 +26,7 @@ export default function ProductPage() {
   // a rating is now only shown when the operator has actually published
   // reviews, so no number on this page is invented.
   const { content } = useSiteContent();
-  const { addToCart, toggleWishlist, isWishlisted } = useStore();
+  const { addToCart, toggleWishlist, isWishlisted, cart } = useStore();
 
   const [colorIdx, setColorIdx] = useState(0);
   const [imageIdx, setImageIdx] = useState(0);
@@ -43,6 +44,20 @@ export default function ProductPage() {
     setColorIdx(0); setImageIdx(0); setSize(null); setQty(1);
     setAdded(false); setError(null); setActiveTab('description'); setViewerIdx(null);
   }, [slug]);
+
+  // Keep the stepper inside the operator's stock for the selected colour and
+  // size. The cap is that colour+size count minus whatever is already in the
+  // bag, so four units of "Black / M" really do stop at four.
+  useEffect(() => {
+    if (!product || !size) return;
+    const active = product.variants[colorIdx];
+    const stock = active?.sizes.find((s) => s.size === size)?.stock ?? 0;
+    const bagged = cart.find(
+      (i) => i.productId === product.id && i.color === active?.color && i.size === size,
+    )?.qty ?? 0;
+    const left = Math.max(1, Math.min(MAX_UNITS_PER_LINE, stock) - bagged);
+    setQty((q) => (q > left ? left : q));
+  }, [product, size, colorIdx, cart]);
 
   /**
    * Full-screen photo viewer.
@@ -130,6 +145,17 @@ export default function ProductPage() {
   const totalStock = variant.sizes.reduce((s, x) => s + x.stock, 0);
   const inStock = totalStock > 0;
 
+  // Units of this exact colour+size that can still go in the bag. Stock is the
+  // ceiling; anything already bagged is subtracted so the same four units
+  // cannot be added twice.
+  const stockForSize = size ? (variant.sizes.find((x) => x.size === size)?.stock ?? 0) : 0;
+  const inBag = size
+    ? cart.find((i) => i.productId === product.id && i.color === variant.color && i.size === size)?.qty ?? 0
+    : 0;
+  const maxAddable = size
+    ? Math.max(0, Math.min(MAX_UNITS_PER_LINE, stockForSize) - inBag)
+    : MAX_UNITS_PER_LINE;
+
   // A colour whose own stock has run out is shown but cannot be bought: the
   // swatch greys out and its photo is never shown. Only colours that actually
   // carry per-colour stock can sell out this way — a colour sharing the
@@ -163,8 +189,12 @@ export default function ProductPage() {
 
   const handleAdd = (buyNow = false) => {
     if (!size) { setError('Please select a size first.'); return; }
+    if (maxAddable === 0) {
+      setError('All available units for this size are already in your bag.');
+      return;
+    }
     setError(null);
-    addToCart({ productId: product.id, color: variant.color, size, qty });
+    addToCart({ productId: product.id, color: variant.color, size, qty: Math.min(qty, maxAddable) });
     if (buyNow) { navigate('/checkout'); return; }
     setAdded(true);
     setTimeout(() => setAdded(false), 2200);
@@ -426,17 +456,31 @@ export default function ProductPage() {
           </div>
 
           {/* Qty + actions */}
-          <div className="mt-7 flex items-center gap-3">
-            <div className="flex items-center border border-ink/15 rounded-full">
-              <button onClick={() => setQty(q => Math.max(1, q - 1))} aria-label="Decrease" className="w-10 h-10 flex items-center justify-center"><Minus size={16} /></button>
-              <span className="w-8 text-center text-sm">{qty}</span>
-              <button onClick={() => setQty(q => Math.min(10, q + 1))} aria-label="Increase" className="w-10 h-10 flex items-center justify-center"><Plus size={16} /></button>
+          <div className="mt-7">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center border border-ink/15 rounded-full">
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} aria-label="Decrease" className="w-10 h-10 flex items-center justify-center"><Minus size={16} /></button>
+                <span className="w-8 text-center text-sm">{qty}</span>
+                <button
+                  onClick={() => setQty(q => Math.min(Math.max(1, maxAddable), q + 1))}
+                  disabled={size !== null && qty >= maxAddable}
+                  aria-label="Increase"
+                  className="w-10 h-10 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                ><Plus size={16} /></button>
+              </div>
+              <button onClick={() => toggleWishlist(product.id)}
+                className={`w-12 h-12 rounded-full border border-ink/15 flex items-center justify-center transition ${wished ? 'text-burgundy border-burgundy' : 'hover:border-ink'}`}
+                aria-label="Wishlist">
+                <Heart size={20} fill={wished ? 'currentColor' : 'none'} />
+              </button>
             </div>
-            <button onClick={() => toggleWishlist(product.id)}
-              className={`w-12 h-12 rounded-full border border-ink/15 flex items-center justify-center transition ${wished ? 'text-burgundy border-burgundy' : 'hover:border-ink'}`}
-              aria-label="Wishlist">
-              <Heart size={20} fill={wished ? 'currentColor' : 'none'} />
-            </button>
+            {size && maxAddable <= 5 && (
+              <p className={`mt-2 text-[11px] ${maxAddable === 0 ? 'text-burgundy' : 'text-ink/60'}`}>
+                {maxAddable === 0
+                  ? 'All available units for this size are already in your bag.'
+                  : `Only ${maxAddable} more available in this size.`}
+              </p>
+            )}
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3">

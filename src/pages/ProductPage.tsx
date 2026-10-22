@@ -355,7 +355,7 @@ export default function ProductPage() {
           <div className="mt-3 flex items-center gap-4">
             {reviews.length > 0 && (
               <div className="flex items-center gap-1">
-                <div className="flex items-center gap-0.5" aria-label={`${reviewScore.toFixed(1)} out of 5 stars`}>
+                <div className="flex items-center gap-0.5" role="img" aria-label={`${reviewScore.toFixed(1)} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map(i => (
                     <Star key={i} size={14} className={i <= Math.round(reviewScore) ? 'fill-ink text-ink' : 'fill-ink/20 text-ink/20'} />
                   ))}

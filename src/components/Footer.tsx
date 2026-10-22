@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Mail, Phone, MapPin, LockKeyhole } from 'lucide-react';
-import { InstagramGlyph, TriosMark } from '@/components/Brand';
+import {
+  FacebookGlyph,
+  GmailGlyph,
+  InstagramGlyph,
+  TriosMark,
+  WhatsAppGlyph,
+  YouTubeGlyph,
+} from '@/components/Brand';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import Newsletter from '@/components/Newsletter';
 import { Reveal } from '@/components/Motion';
@@ -18,6 +25,20 @@ const SOCIAL_GLYPHS: Record<SocialIconKey, typeof Instagram> = {
   whatsapp: WhatsAppIcon as unknown as typeof Instagram,
   mail: Mail,
   youtube: Youtube,
+};
+
+/**
+ * Full-colour brand marks. These replace the monochrome line icons wherever an
+ * operator uses one of the five channels we ship artwork for, so the footer
+ * reads as real brands (green WhatsApp, four-colour Gmail, blue Facebook…)
+ * rather than a row of identical grey outlines.
+ */
+const BRAND_GLYPHS: Partial<Record<SocialIconKey, typeof InstagramGlyph>> = {
+  instagram: InstagramGlyph,
+  facebook: FacebookGlyph,
+  whatsapp: WhatsAppGlyph,
+  mail: GmailGlyph,
+  youtube: YouTubeGlyph,
 };
 
 /** A typed-in link must not be able to navigate somewhere unexpected. */
@@ -56,11 +77,11 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-3 pt-1">
               {socialLinks.map(({ href, label, icon }) => {
+                // Every channel we ship a mark for gets its real brand colours.
+                // Only an unexpected icon key falls back to the monochrome
+                // lucide glyph, which keeps the lime hover.
+                const BrandGlyph = BRAND_GLYPHS[icon];
                 const Icon = SOCIAL_GLYPHS[icon] ?? Instagram;
-                // Instagram keeps its real gradient, so it hovers to a neutral
-                // ivory tint instead of the lime disc (which muddies the brand
-                // colours) — the other glyphs stay monochrome and keep lime.
-                const isInstagram = icon === 'instagram';
                 return (
                   <a
                     key={`${label}-${href}`}
@@ -69,12 +90,12 @@ export default function Footer() {
                     rel="noreferrer"
                     aria-label={label}
                     className={`w-10 h-10 rounded-full border border-ivory/15 flex items-center justify-center transition-all duration-300 ease-smooth active:scale-95 ${
-                      isInstagram
+                      BrandGlyph
                         ? 'hover:bg-ivory/10 hover:border-ivory/35'
                         : 'text-ivory/70 hover:text-ink hover:bg-lime hover:border-lime'
                     }`}
                   >
-                    {isInstagram ? <InstagramGlyph size={18} /> : <Icon size={18} />}
+                    {BrandGlyph ? <BrandGlyph size={18} /> : <Icon size={18} />}
                   </a>
                 );
               })}

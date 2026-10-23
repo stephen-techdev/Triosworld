@@ -33,6 +33,7 @@ import {
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview, type ProductColor,
 } from '@/lib/admin';
+import { ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
 
@@ -54,12 +55,12 @@ function shortDate(iso: string | null): string {
 }
 
 /**
- * Admin dashboard at /admin.
+ * Admin dashboard at the private ADMIN_BASE route.
  *
- * Reached through the normal sign-in page by entering the operator's email and
- * password instead of a mobile number. Everything it displays comes from the
- * `trios-admin` edge function, which re-verifies the operator session on every
- * request — the browser holding a token is never sufficient on its own.
+ * Reached only through the private operator sign-in page. Everything it
+ * displays comes from the `trios-admin` edge function, which re-verifies the
+ * operator session on every request — the browser holding a token is never
+ * sufficient on its own.
  */
 export default function AdminPage() {
   const [session, setSession] = useState<AdminSession | null>(() => readSession());
@@ -70,8 +71,8 @@ export default function AdminPage() {
     setSession(null);
   }, []);
 
-  // Sign-in lives on its own page at /admin/login; don't duplicate the form here.
-  if (!session) return <Navigate to="/admin/login" replace />;
+  // Sign-in lives on its own private page; don't duplicate the form here.
+  if (!session) return <Navigate to={ADMIN_LOGIN_PATH} replace />;
 
   return (
     <div className="min-h-screen bg-stone/25">

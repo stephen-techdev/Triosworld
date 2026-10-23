@@ -2,7 +2,6 @@ User-agent: *
 Allow: /
 
 # Private / transactional routes — no content worth indexing.
-Disallow: /admin
 Disallow: /account
 Disallow: /checkout
 Disallow: /wishlist

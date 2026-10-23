@@ -5,14 +5,15 @@ import { Loader2, Lock, ShieldAlert } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { AdminAuthError, AdminServiceUnavailableError, adminLogin, readSession } from '@/lib/admin';
+import { ADMIN_BASE } from '@/lib/adminRoute';
 
 /**
- * Standalone operator sign-in at `/admin/login`.
+ * Standalone operator sign-in at the private ADMIN_LOGIN_PATH.
  *
  * Separate from the customer login on purpose: no storefront header, footer or
  * floating buttons, and it is `noindex` so operator credentials can never be
- * surfaced in search results. Entering an operator email on the customer
- * `/login` page still works, but this is the canonical entry point.
+ * surfaced in search results. The customer `/login` page accepts mobile
+ * numbers only, so this is the only operator entry point.
  *
  * The credentials are verified by the `trios-admin` edge function against the
  * bcrypt hash in the `admins` table — this form holds no password of its own and
@@ -29,7 +30,7 @@ export default function AdminLoginPage() {
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (readSession()) navigate('/admin', { replace: true });
+    if (readSession()) navigate(ADMIN_BASE, { replace: true });
   }, [navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -38,7 +39,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       await adminLogin(email.trim(), password);
-      navigate('/admin', { replace: true });
+      navigate(ADMIN_BASE, { replace: true });
     } catch (err) {
       setError(
         err instanceof AdminAuthError

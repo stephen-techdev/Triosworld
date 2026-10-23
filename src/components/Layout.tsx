@@ -9,6 +9,7 @@ import SearchOverlay from '@/components/SearchOverlay';
 import WhatsAppFloat from '@/components/WhatsAppFloat';
 import FeedbackWidget from '@/components/FeedbackWidget';
 import { EASE } from '@/components/Motion';
+import { ADMIN_BASE } from '@/lib/adminRoute';
 
 const AUTH_PAGES = ['/login', '/register', '/forgot-password'];
 
@@ -18,7 +19,7 @@ export default function Layout() {
   const location = useLocation();
 
   const isAuthPage = AUTH_PAGES.includes(location.pathname);
-  const isAdminPage = location.pathname.startsWith('/admin');
+  const isAdminPage = location.pathname.startsWith(ADMIN_BASE);
 
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 

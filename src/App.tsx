@@ -17,6 +17,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import StaticPage from '@/pages/StaticPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import { ADMIN_BASE, ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
 
 // Split the heavy, rarely-visited routes out of the main bundle: the order page
 // pulls in the QR renderer and jsPDF, and the dashboard is admin-only.
@@ -40,9 +41,12 @@ export default function App() {
           <BrowserRouter>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-                {/* Operator sign-in sits outside the storefront Layout so it
-                    renders full-bleed with no header, footer or floating buttons. */}
-                <Route path="/admin/login" element={<AdminLoginPage />} />
+                {/* The operator entrance is deliberately on a private path,
+                    outside the storefront Layout, so it renders full-bleed
+                    with no header, footer or floating buttons. The old
+                    /admin paths fall back to the shop instead of hinting
+                    that an admin area exists. */}
+                <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginPage />} />
                 <Route element={<Layout />}>
                   {/* The shop is the front door: a visitor landing on the bare
                       domain is taken straight to Shop All, and reaches the
@@ -59,7 +63,11 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
+                  {/* Old admin bookmarks are sent to the shop, so a customer
+                      who guesses them never sees an operator sign-in. */}
+                  <Route path="/admin" element={<Navigate to="/" replace />} />
+                  <Route path="/admin/login" element={<Navigate to="/" replace />} />
+                  <Route path={ADMIN_BASE} element={<AdminPage />} />
                   <Route path="/about" element={<StaticPage page="about" />} />
                   <Route path="/shipping" element={<StaticPage page="shipping" />} />
                   <Route path="/returns" element={<StaticPage page="returns" />} />

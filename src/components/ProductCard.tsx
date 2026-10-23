@@ -219,24 +219,43 @@ export default function ProductCard({ product }: Props) {
             {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
           </p>
         )}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1" role="group" aria-label="Colours">
-          {product.variants.map((variant, i) => (
-            <button
-              key={variant.color}
-              type="button"
-              onClick={() => setActiveColor(i)}
-              aria-label={`Show ${variant.color}`}
-              aria-pressed={activeColor === i}
-              title={variant.color}
-              className="flex h-4 w-4 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95"
-            >
-              <span
-                className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
-                style={{ backgroundColor: variant.hex }}
-              />
-            </button>
-          ))}
-          <span className="ml-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-ink/65">
+        <div className="mt-1.5 flex flex-wrap items-start gap-2" role="group" aria-label="Colours and stock remaining">
+          {product.variants.map((variant, i) => {
+            const colorStock = variant.sizes.reduce(
+              (sum, entry) => sum + Math.max(0, Math.floor(Number(entry.stock) || 0)),
+              0,
+            );
+            const low = colorStock > 0 && colorStock <= 3;
+            return (
+              <button
+                key={variant.color}
+                type="button"
+                onClick={() => setActiveColor(i)}
+                aria-label={`${variant.color}: ${colorStock === 0 ? 'sold out' : `${colorStock} left`}`}
+                aria-pressed={activeColor === i}
+                title={`${variant.color} — ${colorStock === 0 ? 'sold out' : `${colorStock} left`}`}
+                className="flex flex-col items-center gap-1 rounded-md p-0.5 transition-transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <span
+                  className={`block h-2.5 w-2.5 rounded-full transition-shadow ${colorStock === 0 ? 'opacity-35' : ''} ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
+                  style={{ backgroundColor: variant.hex }}
+                />
+                <span
+                  className={`text-[9px] font-semibold leading-none tabular-nums ${
+                    colorStock === 0
+                      ? 'text-ink/30 line-through'
+                      : low
+                        ? 'text-burgundy'
+                        : 'text-ink/45'
+                  }`}
+                  aria-hidden="true"
+                >
+                  {colorStock}
+                </span>
+              </button>
+            );
+          })}
+          <span className="ml-0.5 self-center text-[9px] font-semibold uppercase tracking-[0.08em] text-ink/65">
             {v.color}
           </span>
         </div>

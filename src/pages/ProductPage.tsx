@@ -160,6 +160,20 @@ export default function ProductPage() {
   const related = liveRelated(product);
   const totalStock = variant.sizes.reduce((s, x) => s + x.stock, 0);
   const inStock = totalStock > 0;
+  // The low-stock reminder belongs on the individual product photo, not on
+  // every shop card. It follows the selected colour: 1–3 units shows, while
+  // 0 and 4+ stay quiet.
+  const showLowStock = totalStock > 0 && totalStock <= 3;
+  const lowStockLabel = totalStock === 1 ? 'Only 1 left' : `${totalStock} stock left`;
+  const lowStockBadge = showLowStock ? (
+    <span
+      className="pointer-events-none absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-ivory/95 px-2.5 py-1 text-[10px] font-semibold leading-none text-ink shadow-card ring-1 ring-ink/10 backdrop-blur"
+      title={`${variant.color}: ${totalStock} ${totalStock === 1 ? 'unit' : 'units'} left`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-burgundy" aria-hidden="true" />
+      {lowStockLabel}
+    </span>
+  ) : null;
 
   // Units of this exact colour+size that can still go in the bag. Stock is the
   // ceiling; anything already bagged is subtracted so the same four units
@@ -320,20 +334,23 @@ export default function ProductPage() {
           {/* Phone: one strip of photos, swiped in place. The page scrolls
               normally — nothing takes over the screen. */}
           <div className="md:hidden -mx-4">
-            <div
-              ref={carouselRef}
-              onScroll={onStripScroll}
-              className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
-            >
-              {viewerImages.map((img, i) => (
-                <img
-                  key={img + i}
-                  src={img}
-                  alt={`${product.name} ${i + 1}`}
-                  className="w-full shrink-0 snap-center aspect-[3/4] object-cover"
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                />
-              ))}
+            <div className="relative">
+              <div
+                ref={carouselRef}
+                onScroll={onStripScroll}
+                className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+              >
+                {viewerImages.map((img, i) => (
+                  <img
+                    key={img + i}
+                    src={img}
+                    alt={`${product.name} ${i + 1}`}
+                    className="w-full shrink-0 snap-center aspect-[3/4] object-cover"
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                  />
+                ))}
+              </div>
+              {lowStockBadge}
             </div>
             {viewerCount > 1 && (
               <p className="text-[11px] text-ink/65 text-center mt-2">Swipe for more photos</p>
@@ -356,6 +373,7 @@ export default function ProductPage() {
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewerIdx(imageIdx); } }}
               />
             </AnimatePresence>
+            {lowStockBadge}
             {/* Affordance so a tap-to-zoom is discoverable rather than secret.
                 When the product has more photos than the selected colour shows,
                 the count is spelled out so the customer knows the rest of the

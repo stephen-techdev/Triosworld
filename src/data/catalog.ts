@@ -26,7 +26,10 @@ export const SUGGESTED_BADGES = [
 export interface Variant {
   color: string;
   hex: string;
+  /** The full gallery, so cards and the photo viewer never lose a shot. */
   images: string[];
+  /** The one photo that belongs to this colour, when the operator supplied it. */
+  colorImage?: string;
   sizes: { size: string; stock: number }[];
 }
 
@@ -97,7 +100,7 @@ const allSizes = (stock = 12) => SIZES.map(size => ({ size, stock }));
 const makeVariants = (imgs: { color: string; images: string[] }[]) =>
   imgs.map(v => {
     const c = COLORS.find(x => x.name === v.color) ?? COLORS[0];
-    return { color: v.color, hex: c.hex, images: v.images, sizes: allSizes() };
+    return { color: v.color, hex: c.hex, images: v.images, colorImage: v.images[0], sizes: allSizes() };
   });
 
 export const CATEGORIES = [

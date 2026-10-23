@@ -99,22 +99,18 @@ function asStock(v: unknown): Record<string, number> {
  * size picker and cart line works unchanged.
  *
  * Colour → photo
- *   When the operator uploads exactly one photo per colour, those photos are
- *   that colour's photo: tapping the "Blue" icon shows the blue shirt, tapping
- *   "Olive" shows the olive one. This is the behaviour customers expect from a
- *   colour swatch.
+ *   The operator uploads one photo per colour, in the same order as the
+ *   colours, then any extra detail or group shots afterwards. With at least as
+ *   many photos as colours, the photo at a colour's index is that colour's
+ *   photo: tapping "Blue" shows the blue shirt. Extra photos stay in the full
+ *   gallery but are not owned by a colour.
  *
- *   With any other photo count — one photo for several colours, or a gallery —
- *   every colour still gets the whole gallery, so hovering the card and the
- *   full-screen viewer keep working. Nothing is ever dropped.
+ *   If there are fewer photos than colours, no colour can claim a photo, so
+ *   the whole gallery stays shared. Nothing is ever dropped from the gallery.
  */
-function imagesForColor(index: number, colors: number, images: string[]): string[] {
-  // Only pair photo→colour when the counts line up exactly and there is more
-  // than one colour; a single photo for a single colour is just the gallery.
-  if (colors > 1 && images.length === colors) {
-    return [images[index]];
-  }
-  return images;
+function colorImageFor(index: number, colors: number, images: string[]): string | undefined {
+  if (colors > 1 && images.length >= colors) return images[index];
+  return undefined;
 }
 
 /**
@@ -148,7 +144,8 @@ function toProduct(row: RuntimeRow): Product {
   const variants = (colors.length ? colors : [{ name: 'Default', hex: '#171717' }]).map((c, i) => ({
     color: c.name,
     hex: c.hex,
-    images: imagesForColor(i, colors.length || 1, images),
+    images,
+    colorImage: colorImageFor(i, colors.length || 1, images),
     sizes: sizesForColor(c, stock),
   }));
 

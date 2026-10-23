@@ -1936,6 +1936,9 @@ function GalleryField({ images, onChange, max = 10, onDetectedColor }: {
         </span>
         <span className="text-[11px] text-ink/65 shrink-0">{images.length}/{max}</span>
       </div>
+      <p className="text-[10px] text-ink/55 mt-1">
+        Colour photos follow the colour order: photo 1 is colour 1, photo 2 is colour 2, and so on. Put extra detail or group shots after the colour photos.
+      </p>
 
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">

@@ -91,9 +91,25 @@ export default function ProductPage() {
    * swap the t-shirt on screen — that is the whole point of the swatches.
    */
   const photoIndexForColor = (i: number) => {
-    const first = product?.variants[i]?.images?.[0];
-    const at = first ? viewerImages.indexOf(first) : -1;
-    return at >= 0 ? at : 0;
+    const primary = product?.variants[i]?.colorImage;
+    const at = primary ? viewerImages.indexOf(primary) : -1;
+    return at >= 0 ? at : null;
+  };
+
+  /**
+   * The colour a photo belongs to, when exactly one variant owns it.
+   *
+   * A shared gallery belongs to every colour at once, so it cannot move the
+   * swatch — only a dedicated per-colour photo can. This is what stops a swipe
+   * through an extra group shot from snapping the page back to the first
+   * colour.
+   */
+  const colorForImage = (src?: string) => {
+    if (!src) return -1;
+    const owners = (product?.variants ?? [])
+      .map((v, i) => (v.colorImage === src ? i : -1))
+      .filter(i => i >= 0);
+    return owners.length === 1 ? owners[0] : -1;
   };
 
   useEffect(() => {
@@ -179,7 +195,7 @@ export default function ProductPage() {
 
   const jsonLd = productJsonLd({
     name: product.name, slug: product.slug, description: product.description,
-    price: product.price, mrp: product.mrp, image: variant.images[0],
+    price: product.price, mrp: product.mrp, image: variant.colorImage ?? variant.images[0],
   });
   const bcJsonLd = breadcrumbJsonLd([
     { name: 'Home', path: '/' },
@@ -233,8 +249,7 @@ export default function ProductPage() {
    */
   const selectImage = (i: number) => {
     setImageIdx(i);
-    const src = viewerImages[i];
-    const color = src ? product.variants.findIndex((v) => v.images.includes(src)) : -1;
+    const color = colorForImage(viewerImages[i]);
     if (color >= 0) applyColor(color);
     const strip = carouselRef.current;
     if (strip) strip.scrollTo({ left: i * strip.clientWidth, behavior: 'smooth' });
@@ -243,8 +258,14 @@ export default function ProductPage() {
   const selectColor = (i: number) => {
     // A sold-out colour cannot be selected, so its photo is never shown.
     if (hasColorStock && colorSoldOut[i]) return;
-    // Touching a swatch swaps the t-shirt on screen to that colour's photo.
-    selectImage(photoIndexForColor(i));
+    // The colour itself must change even when the operator has not given it a
+    // dedicated photo. The photo swap is a bonus, not the source of the state.
+    applyColor(i);
+    const at = photoIndexForColor(i);
+    if (at === null) return;
+    setImageIdx(at);
+    const strip = carouselRef.current;
+    if (strip) strip.scrollTo({ left: at * strip.clientWidth, behavior: 'smooth' });
   };
 
   /**
@@ -261,8 +282,7 @@ export default function ProductPage() {
     const i = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));
     if (i < 0 || i >= viewerCount || i === imageIdx) return;
     setImageIdx(i);
-    const src = viewerImages[i];
-    const color = src ? product.variants.findIndex((v) => v.images.includes(src)) : -1;
+    const color = colorForImage(viewerImages[i]);
     if (color >= 0) applyColor(color);
   };
 

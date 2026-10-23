@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
-  ArrowLeft, TrendingUp, UserRound, X, Trash2, Truck, FileText, Pencil, ImagePlus,
+  ArrowLeft, TrendingUp, UserRound, X, Trash2, Download, Truck, FileText, Pencil, ImagePlus,
   ArrowUp, ArrowDown,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -34,6 +34,7 @@ import {
   type AdminSession, type Overview, type ProductColor,
 } from '@/lib/admin';
 import { ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
+import { downloadAdminReceipt } from '@/lib/adminReceipt';
 
 type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
 
@@ -327,6 +328,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearErr, setClearErr] = useState<string | null>(null);
+  const [receiptErr, setReceiptErr] = useState<string | null>(null);
 
   const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
     try {
@@ -348,6 +350,15 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
     }
   };
 
+  const downloadReceipt = (order: AdminOrder) => {
+    setReceiptErr(null);
+    try {
+      downloadAdminReceipt(order);
+    } catch (err) {
+      setReceiptErr(err instanceof Error ? err.message : 'Could not create the receipt.');
+    }
+  };
+
   const doClear = async (scope: 'all' | 'paid' | 'failed' | 'pending' | 'guests') => {
     const label = scope === 'all' ? 'ALL orders' : scope === 'guests' ? 'all GUEST orders' : `all ${scope} orders`;
     if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
@@ -366,6 +377,16 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   return (
     <div>
       <SectionHead title="Orders & Payments" subtitle="Every order, guest and registered" onRefresh={reload} loading={loading} />
+
+      <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
+        Download a PDF receipt for any order — it includes the delivery address and every item&rsquo;s
+        colour, size and quantity. Receipts are generated on your device and are never stored on the
+        server, so there is no copy left behind to auto-delete.
+      </p>
+
+      {receiptErr && (
+        <p className="text-xs text-red-600 mb-3" role="alert">{receiptErr}</p>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -418,36 +439,62 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
           const open = openId === order.id;
           return (
             <div key={order.id} className="rounded-xl border border-ink/10 bg-ivory overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenId(open ? null : order.id)}
-                className="w-full text-left p-4 flex items-center gap-4 hover:bg-stone/20 transition"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-mono text-xs font-semibold">{order.order_number}</span>
-                    <PaymentChip status={order.payment_status} />
-                    <span className="text-[11px] text-ink/65 capitalize">{order.status}</span>
-                    {!order.user_id && (
-                      <span className="text-[10px] uppercase tracking-wide text-ink/65 border border-ink/15 rounded-full px-2 py-0.5">
-                        Guest
-                      </span>
-                    )}
+              <div className="p-4 flex items-center gap-3 hover:bg-stone/20 transition">
+                <button
+                  type="button"
+                  onClick={() => setOpenId(open ? null : order.id)}
+                  className="flex-1 min-w-0 text-left flex items-center gap-4"
+                  aria-expanded={open}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-mono text-xs font-semibold">{order.order_number}</span>
+                      <PaymentChip status={order.payment_status} />
+                      <span className="text-[11px] text-ink/65 capitalize">{order.status}</span>
+                      {!order.user_id && (
+                        <span className="text-[10px] uppercase tracking-wide text-ink/65 border border-ink/15 rounded-full px-2 py-0.5">
+                          Guest
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium truncate">
+                      {order.customer_name ?? 'Customer'}
+                      {order.customer_mobile && <span className="text-ink/65 font-normal"> · {order.customer_mobile}</span>}
+                    </p>
+                    <p className="text-[11px] text-ink/65 mt-0.5">{shortDate(order.created_at)}</p>
                   </div>
-                  <p className="text-sm font-medium truncate">
-                    {order.customer_name ?? 'Customer'}
-                    {order.customer_mobile && <span className="text-ink/65 font-normal"> · {order.customer_mobile}</span>}
-                  </p>
-                  <p className="text-[11px] text-ink/65 mt-0.5">{shortDate(order.created_at)}</p>
-                </div>
-                <div className="text-right shrink-0 flex items-center gap-2">
-                  <p className="font-semibold text-sm">{formatINR(order.amount_paid ?? order.total)}</p>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeOrder(order); }} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete order">
+                  <p className="font-semibold text-sm shrink-0">{formatINR(order.amount_paid ?? order.total)}</p>
+                </button>
+                <div className="shrink-0 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => downloadReceipt(order)}
+                    className="p-1.5 rounded-full text-ink/65 hover:text-ink hover:bg-stone/50 transition"
+                    title={`Download receipt ${order.order_number}`}
+                    aria-label={`Download receipt ${order.order_number}`}
+                  >
+                    <Download size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeOrder(order)}
+                    className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition"
+                    title={`Delete order ${order.order_number}`}
+                    aria-label={`Delete order ${order.order_number}`}
+                  >
                     <Trash2 size={14} />
                   </button>
-                  <ChevronDown size={16} className={`text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(open ? null : order.id)}
+                    className="p-1.5 rounded-full text-ink/45 hover:text-ink hover:bg-stone/50 transition"
+                    aria-label={open ? 'Collapse order' : 'Expand order'}
+                    aria-expanded={open}
+                  >
+                    <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
-              </button>
+              </div>
 
               <AnimatePresence initial={false}>
                 {open && (
@@ -458,7 +505,11 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                     transition={{ duration: 0.25, ease: EASE }}
                     className="overflow-hidden border-t border-ink/10"
                   >
-                    <OrderDetail order={order} onPatch={patch => setStatus(order, patch)} />
+                    <OrderDetail
+                      order={order}
+                      onPatch={patch => setStatus(order, patch)}
+                      onDownload={() => downloadReceipt(order)}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -470,7 +521,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   );
 }
 
-function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: { status?: string; payment_status?: string }) => void }) {
+function OrderDetail({ order, onPatch, onDownload }: { order: AdminOrder; onPatch: (patch: { status?: string; payment_status?: string }) => void; onDownload: () => void }) {
   const [events, setEvents] = useState<{ id: string; event: string; detail: unknown; created_at: string }[] | null>(null);
   const [showEvents, setShowEvents] = useState(false);
 
@@ -489,6 +540,22 @@ function OrderDetail({ order, onPatch }: { order: AdminOrder; onPatch: (patch: {
 
   return (
     <div className="p-4 md:p-5 bg-stone/10 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-ink/10 bg-ivory p-3.5">
+        <div>
+          <p className="text-sm font-medium">Order receipt</p>
+          <p className="text-[11px] text-ink/60 mt-0.5">
+            PDF with the delivery address and every item&rsquo;s colour, size and quantity.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDownload}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-ink text-ivory hover:bg-ink/80 transition shrink-0"
+        >
+          <Download size={14} /> Download receipt
+        </button>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-5">
         {/* Items */}
         <div>

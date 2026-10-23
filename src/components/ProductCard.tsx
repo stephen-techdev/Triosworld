@@ -209,7 +209,7 @@ export default function ProductCard({ product }: Props) {
               colorStock === 0
                 ? 'Sold out'
                 : colorStock === 1
-                  ? 'Only 1'
+                  ? 'Only 1 left'
                   : `${colorStock} left`;
             return (
               <button
@@ -226,7 +226,7 @@ export default function ProductCard({ product }: Props) {
                   style={{ backgroundColor: variant.hex }}
                 />
                 <span
-                  className={`inline-flex min-w-[25px] items-center justify-center whitespace-nowrap rounded-full px-1 py-0.5 text-[8px] font-bold leading-none ${
+                  className={`inline-flex min-w-[27px] items-center justify-center whitespace-nowrap rounded-full px-1 py-0.5 text-[9px] font-bold leading-none ${
                     colorStock === 0
                       ? 'bg-ink/5 text-ink/30'
                       : low

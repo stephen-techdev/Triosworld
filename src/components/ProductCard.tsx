@@ -23,7 +23,10 @@ const badgeStyles: Record<string, string> = {
 export default function ProductCard({ product }: Props) {
   const { toggleWishlist, isWishlisted, addToCart } = useStore();
   const wished = isWishlisted(product.id);
-  const v = product.variants[0];
+  const [activeColor, setActiveColor] = useState(0);
+  const v = product.variants[activeColor] ?? product.variants[0];
+  // The selected colour's photo leads, then the rest of the gallery follows.
+  const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images])).slice(0, 5);
   const hasDiscount = product.mrp > product.price;
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -46,11 +49,11 @@ export default function ProductCard({ product }: Props) {
           to={`/product/${product.slug}`}
           className="block relative overflow-hidden bg-stone/50 aspect-[3/4]"
         >
-          {v.images.slice(0, 5).map((img, i) => (
+          {gallery.map((img, i) => (
             <img
               key={`${img}-${i}`}
               src={img}
-              alt={`${product.name} view ${i + 1}`}
+              alt={`${product.name} ${v.color} view ${i + 1}`}
               className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-[350ms] ease-out group-hover:scale-[1.02] ${i === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
               style={{
                 transitionDelay: `${i * 50}ms`,
@@ -87,7 +90,7 @@ export default function ProductCard({ product }: Props) {
                 <div className="mb-2 flex items-start justify-between gap-2 px-0.5">
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink">Select size</p>
-                    <p className="truncate text-[10px] uppercase tracking-[0.04em] text-ink/65">{product.name}</p>
+                    <p className="truncate text-[10px] uppercase tracking-[0.04em] text-ink/65">{v.color} · {product.name}</p>
                   </div>
                   <button
                     onClick={() => setSheetOpen(false)}
@@ -195,20 +198,26 @@ export default function ProductCard({ product }: Props) {
             {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
           </p>
         )}
-        <div className="mt-1.5 flex items-center gap-1.5">
-          {product.variants.slice(0, 4).map(variant => (
-            <span
+        <div className="mt-1.5 flex flex-wrap items-center gap-1" role="group" aria-label="Colours">
+          {product.variants.map((variant, i) => (
+            <button
               key={variant.color}
+              type="button"
+              onClick={() => setActiveColor(i)}
+              aria-label={`Show ${variant.color}`}
+              aria-pressed={activeColor === i}
               title={variant.color}
-              className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-ink/25"
-              style={{ backgroundColor: variant.hex }}
-            />
+              className="flex h-4 w-4 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95"
+            >
+              <span
+                className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
+                style={{ backgroundColor: variant.hex }}
+              />
+            </button>
           ))}
-          {product.variants.length > 1 && (
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink/65">
-              {product.variants.length} colors
-            </span>
-          )}
+          <span className="ml-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-ink/65">
+            {v.color}
+          </span>
         </div>
       </div>
     </div>

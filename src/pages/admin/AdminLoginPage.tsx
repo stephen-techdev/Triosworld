@@ -8,7 +8,8 @@ import { AdminAuthError, AdminServiceUnavailableError, adminLogin, readSession }
 import { ADMIN_BASE } from '@/lib/adminRoute';
 
 /**
- * Standalone operator sign-in at the private ADMIN_LOGIN_PATH.
+ * Standalone operator sign-in at /admin/login (also served at the private
+ * ADMIN_LOGIN_PATH).
  *
  * Separate from the customer login on purpose: no storefront header, footer or
  * floating buttons, and it is `noindex` so operator credentials can never be

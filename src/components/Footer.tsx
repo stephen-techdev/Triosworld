@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Instagram, Facebook, Youtube, Mail, Phone, MapPin } from 'lucide-react';
+import { Instagram, Facebook, Youtube, Mail, Phone, MapPin, LockKeyhole } from 'lucide-react';
 import {
   FacebookGlyph,
   GmailGlyph,
@@ -143,8 +143,18 @@ export default function Footer() {
         </Reveal>
         <div className="border-t border-ivory/10 pt-6 pb-24 md:pb-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-ivory/50">
           <p>© {new Date().getFullYear()} TriosWorld. All rights reserved.</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <p>{footer.note}</p>
+            {/* Operator entry point. Leads to /admin/login, where the
+                credentials are checked server-side by the trios-admin
+                function — this link grants nothing on its own. */}
+            <Link
+              to="/admin/login"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ivory/15 px-3 py-1.5 text-ivory/50 transition-colors hover:border-lime/40 hover:text-lime"
+            >
+              <LockKeyhole size={12} aria-hidden="true" />
+              Admin access
+            </Link>
           </div>
         </div>
       </div>

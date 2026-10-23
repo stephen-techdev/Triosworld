@@ -41,12 +41,14 @@ export default function App() {
           <BrowserRouter>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-                {/* The operator entrance is deliberately on a private path,
-                    outside the storefront Layout, so it renders full-bleed
-                    with no header, footer or floating buttons. The old
-                    /admin paths fall back to the shop instead of hinting
-                    that an admin area exists. */}
+                {/* Operator sign-in is reachable from the footer's "Admin
+                    access" link at /admin/login, and from the private
+                    bookmark path. Both render full-bleed, with no storefront
+                    header, footer or floating buttons. The dashboard itself
+                    stays on the unlisted ADMIN_BASE route. */}
                 <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginPage />} />
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
                 <Route element={<Layout />}>
                   {/* The shop is the front door: a visitor landing on the bare
                       domain is taken straight to Shop All, and reaches the
@@ -63,10 +65,6 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                  {/* Old admin bookmarks are sent to the shop, so a customer
-                      who guesses them never sees an operator sign-in. */}
-                  <Route path="/admin" element={<Navigate to="/" replace />} />
-                  <Route path="/admin/login" element={<Navigate to="/" replace />} />
                   <Route path={ADMIN_BASE} element={<AdminPage />} />
                   <Route path="/about" element={<StaticPage page="about" />} />
                   <Route path="/shipping" element={<StaticPage page="shipping" />} />

@@ -1,9 +1,10 @@
 /**
- * The private operator entrance.
+ * The operator dashboard entrance.
  *
- * Deliberately not linked from the storefront, the footer, the sitemap or
- * robots.txt. The password and the server-issued token remain the real
- * protection; this only keeps the door out of the customer's way.
+ * The sign-in page is reachable at /admin/login from the storefront footer's
+ * "Admin access" link, and at this private path for a bookmark. The dashboard
+ * itself stays on this unlisted route; the password and the server-issued
+ * token remain the real protection.
  *
  * Bookmark: https://www.triosworld.in/trios-ops-9x4k/login
  */

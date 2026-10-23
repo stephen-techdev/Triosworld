@@ -33,6 +33,14 @@ export default function ProductCard({ product }: Props) {
   const [addedSize, setAddedSize] = useState<string | null>(null);
 
   const stockOf = (size: string) => v.sizes.find(x => x.size === size)?.stock ?? 0;
+  // The operator sets stock per colour and size. For the card badge, show the
+  // total remaining in the colour the customer is currently looking at, so the
+  // number changes with the swatch instead of describing a different colour.
+  const stockLeft = v.sizes.reduce(
+    (sum, entry) => sum + Math.max(0, Math.floor(Number(entry.stock) || 0)),
+    0,
+  );
+  const showLowStock = stockLeft > 0 && stockLeft <= 3;
 
   const handleQuickAdd = (size: string) => {
     addToCart({ productId: product.id, color: v.color, size, qty: 1 });
@@ -73,6 +81,19 @@ export default function ProductCard({ product }: Props) {
             </span>
           )}
         </Link>
+
+        {/* Low-stock reminder. Kept off the image link so the stock text is not
+            read as part of the product link, and placed opposite the quick-add
+            button so both stay reachable on a phone. */}
+        {showLowStock && (
+          <span
+            className="pointer-events-none absolute bottom-2.5 left-2.5 z-[6] inline-flex items-center gap-1.5 rounded-full bg-ivory/95 px-2.5 py-1 text-[10px] font-semibold leading-none text-ink shadow-card ring-1 ring-ink/10 backdrop-blur"
+            title={`${v.color}: ${stockLeft} ${stockLeft === 1 ? 'unit' : 'units'} left`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-burgundy" aria-hidden="true" />
+            {stockLeft === 1 ? 'Only 1 left' : `${stockLeft} stock left`}
+          </span>
+        )}
 
         {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card.
             On phones it sits higher up so it isn't crowded against the card's text below. */}

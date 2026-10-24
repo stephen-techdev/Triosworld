@@ -1184,12 +1184,22 @@ function ProductCard({ product, onSaved, onAuthFail, onEdit }: {
   };
 
 
+  // Stock lives inside each colour's size map. It must be part of this
+  // comparison: otherwise editing only a size count leaves Save disabled and
+  // the operator's change is silently never written.
+  const colorSignature = (rows: ProductColor[]) =>
+    rows.map(c => {
+      const sizes = Object.entries(c.sizes ?? {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([s, n]) => `${s}:${Number(n) || 0}`)
+        .join(',');
+      return `${c.name.trim()}|${c.hex}|${sizes}`;
+    }).join(';');
   const dirty =
     price !== String(product.price) ||
     mrp !== String(product.mrp) ||
     active !== product.is_active ||
-    colors.map(c => `${c.name.trim()}|${c.hex}`).join(',') !==
-      normalizeProductColors(product.colors).map(c => `${c.name.trim()}|${c.hex}`).join(',');
+    colorSignature(colors) !== colorSignature(normalizeProductColors(product.colors));
 
   const save = async () => {
     setSaving(true);
@@ -1846,7 +1856,12 @@ function ColorRows({ rows, onChange, compact = false }: {
             </div>
 
             {total !== null && (
-              <span className="text-[10px] text-ink/65 whitespace-nowrap ml-1" title="Total stock for this colour">Count: {total}</span>
+              <span
+                className="text-[10px] text-ink/65 whitespace-nowrap ml-1"
+                title="Total units for this colour across all sizes"
+              >
+                Total: {total}
+              </span>
             )}
 
             <button
@@ -1867,6 +1882,9 @@ function ColorRows({ rows, onChange, compact = false }: {
       >
         + Add colour
       </button>
+      <p className="text-[10px] leading-relaxed text-ink/60">
+        Stock is set per size. “Total” is the sum across all sizes for that colour — it is not the quantity available in each size.
+      </p>
     </div>
   );
 }

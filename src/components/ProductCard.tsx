@@ -147,7 +147,7 @@ export default function ProductCard({ product }: Props) {
         <button
           onClick={() => toggleWishlist(product.id)}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className={`absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-ivory/75 backdrop-blur-sm transition-all duration-200 active:scale-90 ${wished ? 'text-burgundy' : 'text-ink/70 hover:text-ink'}`}
+          className={`absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-ivory/75 backdrop-blur-sm transition-all duration-200 active:scale-90 ${wished ? 'text-red-600' : 'text-ink/70 hover:text-red-600'}`}
         >
           <Heart size={16} fill={wished ? 'currentColor' : 'none'} />
         </button>

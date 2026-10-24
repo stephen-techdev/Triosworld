@@ -497,27 +497,37 @@ export default function ProductPage() {
           <div className="mt-7">
             <div className="flex items-center gap-3">
               <div className="flex items-center border border-ink/15 rounded-full">
-                <button onClick={() => setQty(q => Math.max(1, q - 1))} aria-label="Decrease" className="w-10 h-10 flex items-center justify-center"><Minus size={16} /></button>
+                <button
+                  onClick={() => setQty(q => Math.max(1, q - 1))}
+                  disabled={!size}
+                  aria-label="Decrease quantity"
+                  className="w-10 h-10 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                ><Minus size={16} /></button>
                 <span className="w-8 text-center text-sm">{qty}</span>
                 <button
                   onClick={() => setQty(q => Math.min(Math.max(1, maxAddable), q + 1))}
-                  disabled={size !== null && qty >= maxAddable}
-                  aria-label="Increase"
+                  disabled={!size || qty >= maxAddable}
+                  aria-label="Increase quantity"
                   className="w-10 h-10 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
                 ><Plus size={16} /></button>
               </div>
               <button onClick={() => toggleWishlist(product.id)}
-                className={`w-12 h-12 rounded-full border border-ink/15 flex items-center justify-center transition ${wished ? 'text-burgundy border-burgundy' : 'hover:border-ink'}`}
-                aria-label="Wishlist">
+                className={`w-12 h-12 rounded-full border flex items-center justify-center transition ${wished ? 'border-red-600 bg-red-50 text-red-600' : 'border-ink/15 text-red-600 hover:border-red-600'}`}
+                aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}>
                 <Heart size={20} fill={wished ? 'currentColor' : 'none'} />
               </button>
             </div>
+            {!size && (
+              <p className="mt-2 text-[11px] text-ink/50">Select a size to choose quantity.</p>
+            )}
             {size && maxAddable <= 5 && (
               <p className={`mt-2 text-[11px] ${maxAddable === 0 ? 'text-burgundy' : 'text-ink/60'}`}>
                 {maxAddable === 0
                   ? 'All available units for this size are already in your bag.'
                   : qty >= maxAddable
-                    ? 'Maximum available for this size.'
+                    ? inBag > 0
+                      ? `Maximum available for this size: ${maxAddable} more (${inBag} already in your bag).`
+                      : `Maximum available for this size: ${maxAddable}.`
                     : `Only ${maxAddable} available in this size.`}
               </p>
             )}

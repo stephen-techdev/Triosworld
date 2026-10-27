@@ -12,7 +12,7 @@ Everything in this document is already implemented in the code. The steps under
 | Guest checkout + optional login/register | `src/pages/CheckoutPage.tsx` |
 | Collect name, mobile, delivery address | `CheckoutPage.tsx` → validated again server-side |
 | No OTP / no email or SMS verification | Never added anywhere |
-| UPI gateway with **dynamic QR** | `supabase/functions/trios-pay/index.ts` |
+| Razorpay hosted checkout (UPI, cards, netbanking) | `supabase/functions/trios-pay/index.ts` + `src/lib/razorpayCheckout.ts` |
 | Backend verification + signed webhooks | `trios-pay` `/status` (polls gateway) and `/webhook` (HMAC SHA-256) |
 | Never "success" from a frontend button | Only the server writes `payment_status = 'paid'` |
 | Auto-update order to PAID | `markPaid()` in `trios-pay` |
@@ -86,7 +86,7 @@ straight to `/admin`.
 ### 3.1 Apply the database migration
 
 ```bash
-npx supabase db push --project-ref gaslxkkupksrmecodsrm
+npx supabase db push --project-ref clvwowrplnkwkiotriiu
 ```
 
 Or paste `supabase/migrations/20261017120000_payments_admin_feedback.sql` into
@@ -103,9 +103,8 @@ This creates/extends: `orders` (guest + payment + receipt columns),
 | `RAZORPAY_KEY_ID` | for live payments | Razorpay key id |
 | `RAZORPAY_KEY_SECRET` | for live payments | Razorpay key secret |
 | `RAZORPAY_WEBHOOK_SECRET` | for live payments | Verifies webhook signatures |
-| `UPI_VPA` | optional | Your UPI ID, used if the gateway cannot issue a QR |
-| `UPI_PAYEE_NAME` | optional | Payee name shown in the UPI intent (default `TriosWorld`) |
-| `PAYMENT_DEMO_MODE` | optional | Force demo mode even with gateway keys present |
+| `PAYMENT_DEMO_MODE` | optional | Force demo mode even with gateway keys present (never enable in production) |
+| `PAYMENT_DEBUG` | optional | Verbose payment diagnostics; keep `false` in production |
 | `ADMIN_SESSION_SECRET` | optional | Signing key for admin sessions (defaults to the service role key) |
 
 ```bash
@@ -113,17 +112,21 @@ npx supabase secrets set \
   RAZORPAY_KEY_ID=rzp_live_xxxxxxxx \
   RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxx \
   RAZORPAY_WEBHOOK_SECRET=xxxxxxxxxxxxxxxx \
-  UPI_VPA=yourshop@okhdfcbank \
-  UPI_PAYEE_NAME=TriosWorld \
-  --project-ref gaslxkkupksrmecodsrm
+  PAYMENT_DEBUG=false \
+  --project-ref clvwowrplnkwkiotriiu
 ```
+
+Do **not** set `UPI_VPA`: the raw personal-UPI fallback is disabled in live mode.
+Payments must go through Razorpay so the server can verify them. The legacy
+secret may still exist on old projects; unset it with
+`npx supabase secrets unset UPI_VPA --project-ref clvwowrplnkwkiotriiu`.
 
 ### 3.3 Deploy the edge functions
 
 ```bash
-npx supabase functions deploy trios-pay   --project-ref gaslxkkupksrmecodsrm --no-verify-jwt
-npx supabase functions deploy trios-admin --project-ref gaslxkkupksrmecodsrm --no-verify-jwt
-npx supabase functions deploy trios-auth  --project-ref gaslxkkupksrmecodsrm --no-verify-jwt
+npx supabase functions deploy trios-pay   --project-ref clvwowrplnkwkiotriiu --no-verify-jwt
+npx supabase functions deploy trios-admin --project-ref clvwowrplnkwkiotriiu --no-verify-jwt
+npx supabase functions deploy trios-auth  --project-ref clvwowrplnkwkiotriiu --no-verify-jwt
 ```
 
 `--no-verify-jwt` is required: guests must be able to pay, and the webhook and
@@ -138,7 +141,7 @@ admin API authenticate with their own signatures/tokens.
 In the Razorpay dashboard → **Settings → Webhooks**, add:
 
 ```
-https://gaslxkkupksrmecodsrm.supabase.co/functions/v1/trios-pay/webhook
+https://clvwowrplnkwkiotriiu.supabase.co/functions/v1/trios-pay/webhook
 ```
 
 Use the same value you set as `RAZORPAY_WEBHOOK_SECRET`, and subscribe to:
@@ -146,10 +149,11 @@ Use the same value you set as `RAZORPAY_WEBHOOK_SECRET`, and subscribe to:
 - `payment.captured`
 - `payment.failed`
 - `order.paid`
-- `qr_code.credited`
 
 Every callback is rejected unless its `X-Razorpay-Signature` matches an
-HMAC-SHA256 of the raw body, compared in constant time.
+HMAC-SHA256 of the raw body, compared in constant time. `qr_code.credited` is
+not offered as a webhook event on accounts without the on-demand UPI QR
+feature; hosted checkout works without it.
 
 ---
 
@@ -177,9 +181,9 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
 
 1. Add an item to the bag → Checkout (no sign-in).
 2. Fill name, mobile, address → **Pay securely**.
-3. The order page shows a UPI QR and a 15-minute countdown.
-4. Live: scan with a real UPI app and pay ₹1 worth of test stock → the page
-   flips to *Payment successful* on its own within ~5s.
+3. The order page shows the 15-minute countdown and a **Pay securely** button.
+4. Live: tap **Pay securely**, choose UPI in Razorpay Checkout, and pay ₹1 worth
+   of test stock → the page flips to *Payment successful* on its own within ~5s.
 5. Demo: press **Complete demo payment**.
 6. Confirm: order ID, amount paid, payment method, payment date, status = PAID.
 7. **Download receipt** → check the PDF (branding, customer, items, GST split,
@@ -188,8 +192,8 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
 
 **Failure states**
 
-* Leave the QR unscanned → after 15 minutes the page shows *Payment window
-  closed* with no money taken.
+* Open the payment window and close it without paying → after 15 minutes the
+  page shows *Payment window closed* with no money taken.
 * A `payment.failed` webhook (or "Mark failed") shows the retry screen.
 
 **Receipt protection**
@@ -225,7 +229,8 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
   the dashboard are code-split, but the storefront itself is one chunk.
 * **`product_overrides` is public-read** (prices are public anyway) and
   service-role-write.
-* **Stock is not decremented on payment.** The server validates available stock
-  before creating a payment, but two simultaneous buyers can still oversell the
-  last unit. Add a `decrement_stock` trigger/RPC if that matters.
+* **Stock is decremented only after a verified payment.** The
+  `decrement_variant_stock` RPC is atomic per colour/size and idempotent through
+  the paid transition, so retried webhooks cannot double-decrement. The storefront
+  still caps quantity to the selected size's stock.
 * **Wildcard CORS** (`*`) on the functions, unchanged from the existing setup.

@@ -136,6 +136,10 @@ interface OrderRecord {
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     upi_intent?: string;
+    checkout_origin?: string;
+    last_failed_payment_id?: string;
+    last_failure_reason?: string;
+    last_failure_at?: string;
     qr_id?: string;
     qr_image_url?: string;
   } | null;
@@ -693,6 +697,8 @@ function paymentInfo(order: OrderRecord) {
     qr_id: meta.qr_id ?? null,
     razorpay_order_id: meta.razorpay_order_id ?? null,
     razorpay_key_id: razorpayKeyId || null,
+    failure_reason: meta.last_failure_reason ?? null,
+    failure_payment_id: meta.last_failed_payment_id ?? null,
   };
 }
 
@@ -718,6 +724,10 @@ Deno.serve(async (req: Request) => {
     if (path === "/create" && req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const customer = (body.customer ?? {}) as Partial<Customer>;
+      // Keep the browser origin with the gateway order. Razorpay's risk check
+      // compares it with the approved website, so this makes a mismatch
+      // diagnosable from the Razorpay dashboard instead of being invisible.
+      const checkoutOrigin = req.headers.get("origin")?.trim() || "unknown";
 
       // --- requirement: collect name, mobile and delivery address ---
       if (isBlank(customer.name)) return json({ error: "Full name is required" }, 400);
@@ -848,7 +858,7 @@ Deno.serve(async (req: Request) => {
             // Hosted Checkout must capture automatically; the status poll and
             // webhook only treat a captured payment as paid.
             payment_capture: 1,
-            notes: { order_number: order.order_number, mobile },
+            notes: { order_number: order.order_number, mobile, origin: checkoutOrigin },
           }),
         });
 
@@ -859,7 +869,10 @@ Deno.serve(async (req: Request) => {
         }
 
         const rzpOrderId = String(rzpOrder.data.id);
-        const gatewayMeta: Record<string, unknown> = { razorpay_order_id: rzpOrderId };
+        const gatewayMeta: Record<string, unknown> = {
+          razorpay_order_id: rzpOrderId,
+          checkout_origin: checkoutOrigin,
+        };
 
         // Razorpay's QR Codes and S2S UPI intent products are both on-demand.
         // Both currently return "requested URL was not found" on this account,
@@ -1064,15 +1077,32 @@ Deno.serve(async (req: Request) => {
           detail: { event, method: entity.method ?? "upi" },
         });
       } else if (event === "payment.failed") {
-        // A late failure callback must never undo a captured payment.
+        // A late failure callback must never undo a captured payment. Keep the
+        // failed payment id and the gateway message so support can trace a
+        // debit that the customer can see in their bank/UPI app.
+        const meta = order.gateway_meta ?? {};
         await supabase
           .from("orders")
-          .update({ payment_status: "failed", updated_at: new Date().toISOString() })
+          .update({
+            payment_status: "failed",
+            gateway_meta: {
+              ...meta,
+              last_failed_payment_id:
+                typeof entity.id === "string" ? entity.id : meta.last_failed_payment_id,
+              last_failure_reason:
+                typeof entity.error_description === "string"
+                  ? entity.error_description
+                  : meta.last_failure_reason,
+              last_failure_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", order.id)
           .neq("payment_status", "paid");
         await recordEvent(order.id, "webhook_failed", {
           event,
           error: entity.error_description ?? null,
+          payment_id: entity.id ?? null,
         });
       } else {
         await recordEvent(order.id, "webhook_ignored", { event });

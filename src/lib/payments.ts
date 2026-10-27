@@ -69,6 +69,10 @@ export interface PaymentInfo {
   razorpay_order_id: string | null;
   /** Public Razorpay key id used by Checkout. Never the key secret. */
   razorpay_key_id: string | null;
+  /** Customer-safe failure message stored from the signed failure webhook. */
+  failure_reason?: string | null;
+  /** Failed Razorpay payment id, kept for support/reconciliation. */
+  failure_payment_id?: string | null;
 }
 
 export interface StatusResult {

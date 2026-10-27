@@ -18,6 +18,18 @@ import { downloadReceipt } from '@/lib/receipt';
 import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
 
 const POLL_MS = 5000;
+const LIVE_ORIGIN = 'https://www.triosworld.in';
+
+/**
+ * Razorpay only accepts live payments from the website registered on the
+ * account. If the order page is open on a preview/non-approved origin, move
+ * the customer to the live site before opening Checkout instead of letting
+ * Razorpay reject the payment after the bank step.
+ */
+function isApprovedPaymentOrigin(): boolean {
+  if (window.location.origin === LIVE_ORIGIN) return true;
+  return import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
 
 function formatWhen(iso: string | null): string {
   if (!iso) return '—';
@@ -165,6 +177,11 @@ export default function PaymentSuccessPage() {
     const liveOrder = result?.order;
     if (!livePayment?.razorpay_order_id || !livePayment.razorpay_key_id || !liveOrder) {
       setError('This payment is not ready yet. Refresh the page and try again.');
+      return;
+    }
+
+    if (livePayment.mode === 'live' && !isApprovedPaymentOrigin()) {
+      window.location.assign(`${LIVE_ORIGIN}${window.location.pathname}${window.location.search}`);
       return;
     }
 
@@ -690,11 +707,20 @@ export default function PaymentSuccessPage() {
               </h1>
               <p className="text-sm text-ink/60 max-w-md mx-auto mb-2">
                 {paymentStatus === 'failed'
-                  ? 'The bank did not confirm this payment. Nothing has been charged to your account.'
+                  ? 'We have not captured this payment. If your bank or UPI app shows a debit, Razorpay reverses it automatically within 7 working days.'
                   : 'This order expired before the payment was completed. No money has been taken.'}
               </p>
+              {paymentStatus === 'failed' && result?.payment?.failure_reason?.toLowerCase().includes('website') && (
+                <p className="text-xs text-ink/65 max-w-md mx-auto mb-2">
+                  Razorpay blocked this attempt because it was not started from the approved live site.
+                  Open <strong className="text-ink/70">https://www.triosworld.in</strong> and try again.
+                </p>
+              )}
               <p className="text-xs text-ink/65 mb-8">
                 Order {order.order_number} · {formatINR(order.total)}
+                {paymentStatus === 'failed' && result?.payment?.failure_payment_id && (
+                  <> · Razorpay ref {result.payment.failure_payment_id}</>
+                )}
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 <Link

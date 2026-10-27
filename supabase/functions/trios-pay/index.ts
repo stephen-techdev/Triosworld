@@ -132,7 +132,13 @@ interface OrderRecord {
   paid_at: string | null;
   items: PricedLine[];
   shipping_address: Record<string, unknown>;
-  gateway_meta: { razorpay_order_id?: string; qr_id?: string; qr_image_url?: string } | null;
+  gateway_meta: {
+    razorpay_order_id?: string;
+    razorpay_payment_id?: string;
+    upi_intent?: string;
+    qr_id?: string;
+    qr_image_url?: string;
+  } | null;
 }
 
 interface GatewayPayment {
@@ -469,6 +475,17 @@ async function capturedPaymentForQr(qrId: string): Promise<GatewayPayment | null
 async function findGatewayPayment(order: OrderRecord): Promise<GatewayPayment | null> {
   const meta = order.gateway_meta ?? {};
 
+  // UPI intent creates a payment before the customer scans. Check it directly
+  // first so a QR payment is confirmed even if it never appears in the order
+  // payments list yet.
+  if (meta.razorpay_payment_id) {
+    const res = await rzp(`/payments/${meta.razorpay_payment_id}`);
+    if (res.ok) {
+      const payment = normalisePayment(res.data);
+      if (payment.status === "captured") return payment;
+    }
+  }
+
   if (meta.razorpay_order_id) {
     const captured = await capturedPaymentForOrder(meta.razorpay_order_id);
     if (captured) return captured;
@@ -668,7 +685,10 @@ function paymentInfo(order: OrderRecord) {
     demo: demoMode,
     provider: demoMode ? 'demo' : 'razorpay',
     expires_at: expiresAt,
-    upi_intent: upiIntentFor(order.order_number, order.total),
+    upi_intent:
+      typeof meta.upi_intent === "string" && meta.upi_intent
+        ? meta.upi_intent
+        : upiIntentFor(order.order_number, order.total),
     qr_image_url: meta.qr_image_url ?? null,
     qr_id: meta.qr_id ?? null,
     razorpay_order_id: meta.razorpay_order_id ?? null,
@@ -839,12 +859,47 @@ Deno.serve(async (req: Request) => {
         }
 
         const rzpOrderId = String(rzpOrder.data.id);
+        const gatewayMeta: Record<string, unknown> = { razorpay_order_id: rzpOrderId };
 
-        // Hosted Checkout is the primary live flow. It does not depend on the
-        // on-demand UPI QR feature, which can be disabled on a Razorpay account.
+        // Razorpay's QR Codes and S2S UPI intent products are both on-demand.
+        // Both currently return "requested URL was not found" on this account,
+        // so the QR path is gated. Once Razorpay enables it, set
+        // RAZORPAY_UPI_INTENT_ENABLED=true and the page will render the
+        // Razorpay-issued upi:// link as a QR again; verification stays
+        // server-side through the payment id / order / webhook.
+        const upiIntentEnabled = Deno.env.get("RAZORPAY_UPI_INTENT_ENABLED") === "true";
+        if (upiIntentEnabled) {
+          const upi = await rzp("/payments/create/upi", {
+            method: "POST",
+            body: JSON.stringify({
+              amount: totals.total * 100,
+              currency: "INR",
+              order_id: rzpOrderId,
+              email: email || "orders@triosworld.com",
+              contact: mobile,
+              method: "upi",
+              description: `TriosWorld order ${order.order_number}`,
+              notes: { order_number: order.order_number },
+              upi: { flow: "intent" },
+            }),
+          });
+
+          if (upi.ok && typeof upi.data.link === "string" && upi.data.link) {
+            gatewayMeta.upi_intent = upi.data.link;
+            if (typeof upi.data.razorpay_payment_id === "string") {
+              gatewayMeta.razorpay_payment_id = upi.data.razorpay_payment_id;
+            }
+            payment.upi_intent = upi.data.link;
+            payment.razorpay_payment_id = upi.data.razorpay_payment_id ?? null;
+          } else {
+            // Hosted Checkout remains available if UPI intent is disabled.
+            await recordEvent(order.id, "upi_intent_unavailable", upi.data);
+          }
+        }
+
         await supabase
           .from("orders")
-          .update({ gateway_meta: { razorpay_order_id: rzpOrderId } })
+          .update({ gateway_meta: gatewayMeta })
           .eq("id", order.id);
 
         payment.razorpay_order_id = rzpOrderId;

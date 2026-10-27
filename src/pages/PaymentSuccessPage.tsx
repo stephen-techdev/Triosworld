@@ -576,11 +576,19 @@ export default function PaymentSuccessPage() {
                     <p className="font-display text-4xl font-bold mb-5">{formatINR(order.total)}</p>
 
                     {payment.mode === 'live' ? (
-                      <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
-                        <li>1. Tap “Pay securely” below</li>
-                        <li>2. Choose UPI or your bank in Razorpay</li>
-                        <li>3. This page confirms automatically once the bank responds</li>
-                      </ul>
+                      qrDataUrl || payment.qr_image_url ? (
+                        <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
+                          <li>1. Scan the QR with any UPI app</li>
+                          <li>2. Pay the exact amount shown</li>
+                          <li>3. This page confirms automatically once the bank responds</li>
+                        </ul>
+                      ) : (
+                        <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
+                          <li>1. Tap “Pay securely” below</li>
+                          <li>2. Choose UPI or your bank in Razorpay</li>
+                          <li>3. This page confirms automatically once the bank responds</li>
+                        </ul>
+                      )
                     ) : (
                       <div className="mb-6 text-left p-4 rounded-xl bg-amber-50 border border-amber-200">
                         <p className="text-xs font-semibold text-amber-900 mb-1">Demo mode</p>
@@ -604,7 +612,9 @@ export default function PaymentSuccessPage() {
                             : <ShieldCheck size={16} />}
                           {openingCheckout
                             ? 'Opening secure payment…'
-                            : `Pay ${formatINR(order.total)} securely`}
+                            : qrDataUrl || payment.qr_image_url
+                              ? 'Open secure checkout instead'
+                              : `Pay ${formatINR(order.total)} securely`}
                         </button>
                       )}
 

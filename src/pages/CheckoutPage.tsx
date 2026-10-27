@@ -42,9 +42,10 @@ type FormErrors = Partial<Record<keyof FormState, string>>;
  *
  * The order is NOT created here. This page validates the delivery details and
  * hands them to the `trios-pay` edge function, which reprices the cart from the
- * server's own catalogue, writes the order with the service role, and returns a
- * dynamic UPI QR. The customer is then sent to /order/:orderNumber, which polls
- * the server until the gateway (or a signed webhook) confirms payment.
+ * server's own catalogue, writes the order with the service role, and creates a
+ * Razorpay order. The customer is then sent to /order/:orderNumber, where the
+ * hosted checkout opens; that page polls the server until the gateway (or a
+ * signed webhook) confirms payment.
  *
  * Signing in is entirely optional: it only links the order to an account.
  */
@@ -482,10 +483,10 @@ export default function CheckoutPage() {
               <input type="radio" checked readOnly className="accent-ink mt-1" aria-label="UPI" />
               <Smartphone size={20} className="text-ink/60 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold">UPI · Online payment</p>
+                <p className="text-sm font-semibold">UPI · Secure online payment</p>
                 <p className="text-xs text-ink/65 mt-0.5">
-                  Pay by scanning a secure QR with Google Pay, PhonePe, Paytm, BHIM or any UPI app.
-                  We confirm your payment with the bank before your order is placed.
+                  Pay with Google Pay, PhonePe, Paytm, BHIM or your bank through Razorpay’s secure
+                  checkout. We confirm your payment with the bank before your order is placed.
                 </p>
               </div>
             </div>
@@ -552,8 +553,8 @@ export default function CheckoutPage() {
                   Your order goes to our WhatsApp as a picture — nothing to type, nothing to change.
                 </p>
                 <p className="text-[11px] text-ink/65 mt-1 text-center">
-                  You’ll get a UPI QR on the next screen. Nothing is charged until you confirm the payment
-                  in your UPI app.
+                  You’ll be taken to Razorpay’s secure UPI checkout on the next screen. Nothing is
+                  charged until you confirm the payment in your UPI app.
                 </p>
               </>
             )}

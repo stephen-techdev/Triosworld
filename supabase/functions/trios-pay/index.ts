@@ -448,6 +448,20 @@ function normalisePayment(p: Record<string, unknown>): GatewayPayment {
   };
 }
 
+async function capturedPaymentForOrder(rzpOrderId: string): Promise<GatewayPayment | null> {
+  const res = await rzp(`/orders/${rzpOrderId}/payments`);
+  if (!res.ok) return null;
+  const items = (res.data.items ?? []) as Record<string, unknown>[];
+  return items.map(normalisePayment).find((p) => p.status === "captured") ?? null;
+}
+
+async function capturedPaymentForQr(qrId: string): Promise<GatewayPayment | null> {
+  const res = await rzp(`/payments/qr_codes/${qrId}/payments`);
+  if (!res.ok) return null;
+  const items = (res.data.items ?? []) as Record<string, unknown>[];
+  return items.map(normalisePayment).find((p) => p.status === "captured") ?? null;
+}
+
 /**
  * Ask the gateway whether this order has a captured payment. Checks both the
  * gateway order and the dynamic QR, so we never rely on the customer's word.
@@ -456,24 +470,46 @@ async function findGatewayPayment(order: OrderRecord): Promise<GatewayPayment | 
   const meta = order.gateway_meta ?? {};
 
   if (meta.razorpay_order_id) {
-    const res = await rzp(`/orders/${meta.razorpay_order_id}/payments`);
-    if (res.ok) {
-      const items = (res.data.items ?? []) as Record<string, unknown>[];
-      const captured = items.map(normalisePayment).find((p) => p.status === "captured");
-      if (captured) return captured;
-    }
+    const captured = await capturedPaymentForOrder(meta.razorpay_order_id);
+    if (captured) return captured;
   }
 
   if (meta.qr_id) {
-    const res = await rzp(`/payments/qr_codes/${meta.qr_id}/payments`);
-    if (res.ok) {
-      const items = (res.data.items ?? []) as Record<string, unknown>[];
-      const captured = items.map(normalisePayment).find((p) => p.status === "captured");
-      if (captured) return captured;
-    }
+    const captured = await capturedPaymentForQr(meta.qr_id);
+    if (captured) return captured;
   }
 
   return null;
+}
+
+/**
+ * Resolve our TW- order number from a webhook entity.
+ *
+ * Payment webhooks carry Razorpay's `order_id`, not our receipt. Fetching that
+ * gateway order gives us the `receipt` / notes we set when creating it. This
+ * fallback is essential: without it, a payment.captured callback is ignored if
+ * the customer has already closed the payment page.
+ */
+async function resolveOrderNumber(entity: Record<string, unknown>): Promise<string | undefined> {
+  const notes = entity.notes as Record<string, unknown> | undefined;
+  const noteOrder = typeof notes?.order_number === "string" ? notes.order_number : undefined;
+  if (noteOrder) return noteOrder;
+  if (typeof entity.receipt === "string" && entity.receipt.trim()) return entity.receipt;
+
+  const rzpOrderId =
+    typeof entity.order_id === "string"
+      ? entity.order_id
+      : typeof entity.id === "string" && entity.id.startsWith("order_")
+        ? entity.id
+        : "";
+  if (!rzpOrderId) return undefined;
+
+  const res = await rzp(`/orders/${rzpOrderId}`);
+  if (!res.ok) return undefined;
+  const orderNotes = res.data.notes as Record<string, unknown> | undefined;
+  if (typeof orderNotes?.order_number === "string") return orderNotes.order_number;
+  if (typeof res.data.receipt === "string" && res.data.receipt.trim()) return res.data.receipt;
+  return undefined;
 }
 
 /**
@@ -582,9 +618,14 @@ async function markPaid(
   return true;
 }
 
-/** Raw UPI intent, used when the gateway cannot issue a hosted QR. */
+/**
+ * Raw UPI intent, used only as a pre-gateway fallback.
+ *
+ * Never expose this in live mode: a direct VPA transfer bypasses Razorpay, so
+ * the signed webhook and server-side verification cannot confirm the payment.
+ */
 function upiIntentFor(orderNumber: string, amount: number): string | null {
-  if (!upiVpa) return null;
+  if (razorpayConfigured || !upiVpa) return null;
   const params = new URLSearchParams({
     pa: upiVpa,
     pn: upiPayeeName,
@@ -630,6 +671,8 @@ function paymentInfo(order: OrderRecord) {
     upi_intent: upiIntentFor(order.order_number, order.total),
     qr_image_url: meta.qr_image_url ?? null,
     qr_id: meta.qr_id ?? null,
+    razorpay_order_id: meta.razorpay_order_id ?? null,
+    razorpay_key_id: razorpayKeyId || null,
   };
 }
 
@@ -782,6 +825,9 @@ Deno.serve(async (req: Request) => {
             amount: totals.total * 100,
             currency: "INR",
             receipt: order.order_number,
+            // Hosted Checkout must capture automatically; the status poll and
+            // webhook only treat a captured payment as paid.
+            payment_capture: 1,
             notes: { order_number: order.order_number, mobile },
           }),
         });
@@ -794,34 +840,12 @@ Deno.serve(async (req: Request) => {
 
         const rzpOrderId = String(rzpOrder.data.id);
 
-        // Dynamic, single-use UPI QR for exactly this amount.
-        const qr = await rzp("/payments/qr_codes", {
-          method: "POST",
-          body: JSON.stringify({
-            type: "upi_qr",
-            name: upiPayeeName,
-            usage: "single_use",
-            fixed_amount: true,
-            payment_amount: totals.total * 100,
-            description: `TriosWorld order ${order.order_number}`,
-            close_by: Math.floor(new Date(expiresAt).getTime() / 1000),
-            notes: { order_number: order.order_number, razorpay_order_id: rzpOrderId },
-          }),
-        });
-
-        const gatewayMeta: Record<string, unknown> = { razorpay_order_id: rzpOrderId };
-        if (qr.ok) {
-          gatewayMeta.qr_id = qr.data.id;
-          gatewayMeta.qr_image_url = qr.data.image_url;
-          payment.qr_id = qr.data.id;
-          payment.qr_image_url = qr.data.image_url;
-        } else {
-          // QR Codes may not be enabled on the account; the UPI intent still
-          // lets the customer pay, and verification stays server-side.
-          await recordEvent(order.id, "qr_unavailable", qr.data);
-        }
-
-        await supabase.from("orders").update({ gateway_meta: gatewayMeta }).eq("id", order.id);
+        // Hosted Checkout is the primary live flow. It does not depend on the
+        // on-demand UPI QR feature, which can be disabled on a Razorpay account.
+        await supabase
+          .from("orders")
+          .update({ gateway_meta: { razorpay_order_id: rzpOrderId } })
+          .eq("id", order.id);
 
         payment.razorpay_order_id = rzpOrderId;
         payment.razorpay_key_id = razorpayKeyId;
@@ -936,9 +960,7 @@ Deno.serve(async (req: Request) => {
         payload.payload?.order?.entity ??
         {};
 
-      const notes = entity.notes as Record<string, string> | undefined;
-      const orderNumber = notes?.order_number ?? (typeof entity.receipt === "string" ? entity.receipt : undefined);
-
+      const orderNumber = await resolveOrderNumber(entity);
       if (!orderNumber) return json({ ok: true, ignored: "no order reference" });
 
       const { data } = await supabase
@@ -958,20 +980,41 @@ Deno.serve(async (req: Request) => {
             : typeof entity.amount_paid === "number" ? entity.amount_paid
               : typeof entity.payment_amount === "number" ? entity.payment_amount
                 : null;
-        const amount = paise != null ? Math.round(paise / 100) : order.total;
+        let amount = paise != null ? Math.round(paise / 100) : order.total;
+        let paymentId = typeof entity.id === "string" ? entity.id : orderNumber;
+        let reference =
+          typeof entity.order_id === "string" ? entity.order_id : paymentId;
+
+        // order.paid and qr_code.credited carry the order/QR id, not the payment
+        // id. Resolve the captured payment so the receipt shows the real txn ref.
+        const captured =
+          event === "order.paid" && typeof entity.id === "string" && entity.id.startsWith("order_")
+            ? await capturedPaymentForOrder(entity.id)
+            : event === "qr_code.credited" && typeof entity.id === "string"
+              ? await capturedPaymentForQr(entity.id)
+              : null;
+
+        if (captured) {
+          paymentId = captured.id;
+          reference = captured.order_id ?? captured.id;
+          amount = Math.round(captured.amount / 100);
+        }
+
         await markPaid(order, {
           provider: "razorpay",
-          paymentId: String(entity.id ?? orderNumber),
-          reference: String(entity.order_id ?? entity.id ?? orderNumber),
+          paymentId,
+          reference,
           amountPaid: amount,
           event: "webhook_paid",
           detail: { event, method: entity.method ?? "upi" },
         });
       } else if (event === "payment.failed") {
+        // A late failure callback must never undo a captured payment.
         await supabase
           .from("orders")
           .update({ payment_status: "failed", updated_at: new Date().toISOString() })
-          .eq("id", order.id);
+          .eq("id", order.id)
+          .neq("payment_status", "paid");
         await recordEvent(order.id, "webhook_failed", {
           event,
           error: entity.error_description ?? null,

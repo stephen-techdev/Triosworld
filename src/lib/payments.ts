@@ -65,6 +65,10 @@ export interface PaymentInfo {
   upi_intent: string | null;
   qr_image_url: string | null;
   qr_id: string | null;
+  /** Razorpay order for the hosted checkout; null in demo mode. */
+  razorpay_order_id: string | null;
+  /** Public Razorpay key id used by Checkout. Never the key secret. */
+  razorpay_key_id: string | null;
 }
 
 export interface StatusResult {

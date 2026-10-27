@@ -13,6 +13,7 @@ import {
   PaymentServiceUnavailableError, demoSettle, findOrderToken, getReceipt, getStatus,
   takePendingOrder, type StatusResult,
 } from '@/lib/payments';
+import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
 import { downloadReceipt } from '@/lib/receipt';
 import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
 
@@ -30,10 +31,11 @@ function formatWhen(iso: string | null): string {
 /**
  * Order + payment page (`/order/:orderNumber?token=...`).
  *
- * It shows the dynamic UPI QR, polls the server for verification, and — once
- * the *server* confirms the payment against the gateway — celebrates and offers
- * the PDF receipt. There is no local path to a "success" state: every render of
- * the paid view is backed by a server response.
+ * It opens Razorpay's hosted checkout (or shows a dynamic UPI QR when the
+ * account supports one), polls the server for verification, and — once the
+ * *server* confirms the payment against the gateway — celebrates and offers the
+ * PDF receipt. There is no local path to a "success" state: every render of the
+ * paid view is backed by a server response.
  *
  * The receipt token in the URL is the guest's credential, so this page works
  * without an account and survives a refresh.
@@ -51,6 +53,7 @@ export default function PaymentSuccessPage() {
   const [serviceDown, setServiceDown] = useState(false);
   const [checking, setChecking] = useState(false);
   const [settling, setSettling] = useState(false);
+  const [openingCheckout, setOpeningCheckout] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -154,6 +157,50 @@ export default function PaymentSuccessPage() {
       setError(err instanceof Error ? err.message : 'Could not complete the demo payment.');
     } finally {
       setSettling(false);
+    }
+  };
+
+  const handleCheckout = async () => {
+    const livePayment = result?.payment;
+    const liveOrder = result?.order;
+    if (!livePayment?.razorpay_order_id || !livePayment.razorpay_key_id || !liveOrder) {
+      setError('This payment is not ready yet. Refresh the page and try again.');
+      return;
+    }
+
+    setOpeningCheckout(true);
+    setError(null);
+    try {
+      await loadRazorpayCheckout();
+      if (!window.Razorpay) throw new Error('The secure payment window could not be loaded.');
+
+      const checkout = new window.Razorpay({
+        key: livePayment.razorpay_key_id,
+        amount: Math.round(liveOrder.total * 100),
+        currency: 'INR',
+        name: 'TriosWorld',
+        description: `Order ${liveOrder.order_number}`,
+        order_id: livePayment.razorpay_order_id,
+        notes: { order_number: liveOrder.order_number },
+        theme: { color: '#171717' },
+        handler: () => {
+          setOpeningCheckout(false);
+          void refresh();
+        },
+        modal: {
+          ondismiss: () => setOpeningCheckout(false),
+        },
+      });
+
+      checkout.on('payment.failed', response => {
+        setOpeningCheckout(false);
+        setError(response.error?.description ?? 'The payment did not go through. You can try again.');
+      });
+
+      checkout.open();
+    } catch (err) {
+      setOpeningCheckout(false);
+      setError(err instanceof Error ? err.message : 'Could not open the secure payment window.');
     }
   };
 
@@ -482,7 +529,9 @@ export default function PaymentSuccessPage() {
               transition={{ duration: 0.5, ease: EASE }}
             >
               <div className="text-center mb-8">
-                <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">Scan &amp; pay</h1>
+                <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
+                  {payment.mode === 'live' ? 'Complete your payment' : 'Demo payment'}
+                </h1>
                 <p className="text-sm text-ink/60">
                   Order <span className="font-semibold text-ink">{order.order_number}</span> · Pay{' '}
                   <span className="font-semibold text-ink">{formatINR(order.total)}</span>
@@ -502,13 +551,23 @@ export default function PaymentSuccessPage() {
                       ) : qrDataUrl ? (
                         <img src={qrDataUrl} alt="UPI payment QR code" className="w-full h-full object-contain" />
                       ) : (
-                        <p className="text-xs text-ink/65 text-center px-4">
-                          QR is being prepared…
-                        </p>
+                        <div className="text-center px-4">
+                          <ShieldCheck size={34} className="mx-auto mb-2 text-ink/60" />
+                          <p className="text-xs font-semibold text-ink">
+                            {payment.mode === 'live' ? 'Razorpay secure checkout' : 'Demo mode'}
+                          </p>
+                          <p className="text-[11px] text-ink/55 mt-1">
+                            {payment.mode === 'live' ? 'UPI, cards and netbanking' : 'No real payment will be taken'}
+                          </p>
+                        </div>
                       )}
                     </div>
                     <p className="text-[11px] text-ink/65 text-center mt-3">
-                      Scan with any UPI app
+                      {payment.qr_image_url || qrDataUrl
+                        ? 'Scan with any UPI app'
+                        : payment.mode === 'live'
+                          ? 'Secure payment window'
+                          : 'Demo payment'}
                     </p>
                   </div>
 
@@ -518,8 +577,8 @@ export default function PaymentSuccessPage() {
 
                     {payment.mode === 'live' ? (
                       <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
-                        <li>1. Open Google Pay, PhonePe, Paytm or any UPI app</li>
-                        <li>2. Scan the QR and pay the exact amount</li>
+                        <li>1. Tap “Pay securely” below</li>
+                        <li>2. Choose UPI or your bank in Razorpay</li>
                         <li>3. This page confirms automatically once the bank responds</li>
                       </ul>
                     ) : (
@@ -533,11 +592,31 @@ export default function PaymentSuccessPage() {
                     )}
 
                     <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                      {payment.mode === 'live' && (
+                        <button
+                          type="button"
+                          onClick={handleCheckout}
+                          disabled={openingCheckout}
+                          className="px-6 py-3.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          {openingCheckout
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : <ShieldCheck size={16} />}
+                          {openingCheckout
+                            ? 'Opening secure payment…'
+                            : `Pay ${formatINR(order.total)} securely`}
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => refresh()}
                         disabled={checking}
-                        className="px-5 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center gap-2"
+                        className={
+                          payment.mode === 'live'
+                            ? 'px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition disabled:opacity-50 inline-flex items-center gap-2'
+                            : 'px-5 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center gap-2'
+                        }
                       >
                         {checking ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
                         I’ve paid — check now

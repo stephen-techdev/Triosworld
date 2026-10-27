@@ -105,6 +105,7 @@ This creates/extends: `orders` (guest + payment + receipt columns),
 | `RAZORPAY_WEBHOOK_SECRET` | for live payments | Verifies webhook signatures |
 | `PAYMENT_DEMO_MODE` | optional | Force demo mode even with gateway keys present (never enable in production) |
 | `PAYMENT_DEBUG` | optional | Verbose payment diagnostics; keep `false` in production |
+| `RAZORPAY_UPI_INTENT_ENABLED` | optional | Enables the gated S2S UPI-intent QR path; keep unset/false until Razorpay enables UPI Intent on the account |
 | `ADMIN_SESSION_SECRET` | optional | Signing key for admin sessions (defaults to the service role key) |
 
 ```bash
@@ -155,6 +156,22 @@ HMAC-SHA256 of the raw body, compared in constant time. `qr_code.credited` is
 not offered as a webhook event on accounts without the on-demand UPI QR
 feature; hosted checkout works without it.
 
+### 3.5 Website origin and failed-payment reconciliation
+
+Razorpay live payments are only allowed from the website approved on the
+account. The approved live origin for this store is **`https://www.triosworld.in`**.
+The order page redirects the customer there before opening Checkout if it is
+running on a Vercel preview or another unapproved origin. `/create` also stores
+the browser origin in the gateway order (and `gateway_meta.checkout_origin`) so
+a mismatch can be traced from Razorpay.
+
+A `payment.failed` webhook stores the failed payment id, Razorpay's reason, and
+the failure time on the order. A risk-check failure is **not** marked paid and
+does not decrement stock. Razorpay's own payment page states that any amount
+debited for such a failed attempt is reversed within **7 working days**; the
+merchant cannot manually refund an uncaptured payment. Keep the failed payment
+id for support.
+
 ---
 
 ## 4. Demo mode (what happens with no gateway keys)
@@ -182,8 +199,11 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
 1. Add an item to the bag → Checkout (no sign-in).
 2. Fill name, mobile, address → **Pay securely**.
 3. The order page shows the 15-minute countdown and a **Pay securely** button.
-4. Live: tap **Pay securely**, choose UPI in Razorpay Checkout, and pay ₹1 worth
-   of test stock → the page flips to *Payment successful* on its own within ~5s.
+4. Live: open **https://www.triosworld.in** (never a Vercel preview link), tap
+   **Pay securely**, choose UPI in Razorpay Checkout, and pay ₹1 worth of test
+   stock → the page flips to *Payment successful* on its own within ~5s. A
+   checkout attempted from any other origin is redirected to the approved site
+   before Razorpay opens.
 5. Demo: press **Complete demo payment**.
 6. Confirm: order ID, amount paid, payment method, payment date, status = PAID.
 7. **Download receipt** → check the PDF (branding, customer, items, GST split,
@@ -194,7 +214,10 @@ This keeps the whole flow demoable end-to-end without ever showing a fake
 
 * Open the payment window and close it without paying → after 15 minutes the
   page shows *Payment window closed* with no money taken.
-* A `payment.failed` webhook (or "Mark failed") shows the retry screen.
+* A `payment.failed` webhook (or "Mark failed") shows the retry screen. If
+  Razorpay blocked it at the website risk check, the page shows the Razorpay
+  payment reference and the 7-working-day auto-reversal note; the order is not
+  captured and stock is not decremented.
 
 **Receipt protection**
 

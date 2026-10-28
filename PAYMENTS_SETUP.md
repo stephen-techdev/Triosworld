@@ -161,9 +161,12 @@ feature; hosted checkout works without it.
 Razorpay live payments are only allowed from the website approved on the
 account. The approved live origin for this store is **`https://www.triosworld.in`**.
 The order page redirects the customer there before opening Checkout if it is
-running on a Vercel preview or another unapproved origin. `/create` also stores
-the browser origin in the gateway order (and `gateway_meta.checkout_origin`) so
-a mismatch can be traced from Razorpay.
+running on a Vercel preview or another unapproved origin. The default production
+alias `https://triosworld.vercel.app` is also redirected to the approved origin
+at the Vercel edge (see `vercel.json`), so the alias cannot reach Checkout with
+an unapproved `Origin` header. `/create` also stores the browser origin in the
+gateway order (and `gateway_meta.checkout_origin`) so a mismatch can be traced
+from Razorpay.
 
 A `payment.failed` webhook stores the failed payment id, Razorpay's reason, and
 the failure time on the order. A risk-check failure is **not** marked paid and

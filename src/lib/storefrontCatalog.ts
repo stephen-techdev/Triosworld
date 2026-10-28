@@ -229,6 +229,19 @@ export function allProducts(): Product[] {
 }
 
 /**
+ * Re-read the catalog after a paid order.
+ *
+ * The module cache otherwise keeps the pre-purchase stock until a full reload,
+ * which means a colour that has just sold out can still look available in an
+ * already-open SPA session. Fetching again lets the stock-aware cards and
+ * galleries hide that colour immediately.
+ */
+export function refreshLiveCatalog(): Promise<void> {
+  fetched = false;
+  return fetchRuntime();
+}
+
+/**
  * Look a product up by its row id.
  *
  * The cart, wishlist and checkout all store a bare product id, so they need

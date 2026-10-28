@@ -15,6 +15,7 @@ import {
 } from '@/lib/payments';
 import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
 import { downloadReceipt } from '@/lib/receipt';
+import { refreshLiveCatalog } from '@/lib/storefrontCatalog';
 import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
 
 const POLL_MS = 5000;
@@ -140,6 +141,14 @@ export default function PaymentSuccessPage() {
     clearedRef.current = true;
     if (takePendingOrder() === orderNumber) clearCart();
   }, [result?.payment_status, orderNumber, clearCart]);
+
+  // Stock was decremented server-side when the payment was captured. Refresh
+  // the catalogue so an SPA session immediately hides the colour/photo that
+  // has just sold out instead of waiting for a hard reload.
+  useEffect(() => {
+    if (result?.payment_status !== 'paid') return;
+    void refreshLiveCatalog();
+  }, [result?.payment_status]);
 
   // Draw the QR locally when the gateway did not supply a hosted image.
   useEffect(() => {

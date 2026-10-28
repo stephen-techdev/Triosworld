@@ -74,6 +74,21 @@ export default function ProductPage() {
    * the customer can step through the lot without bouncing back to the swatch.
    */
   const allImages = product?.variants.flatMap(v => v.images) ?? [];
+  // A colour with no units left is disabled, and its dedicated photo is left
+  // out of the gallery. If every colour is sold out we keep the photos and
+  // label them instead, so the page explains what is gone rather than going
+  // blank. This is per product/colour, not a one-off for the last order.
+  const colorSoldOut = (product?.variants ?? []).map(
+    (v) => v.sizes.reduce((sum, entry) => sum + entry.stock, 0) === 0,
+  );
+  const allColorsSoldOut = colorSoldOut.length > 0 && colorSoldOut.every(Boolean);
+  const soldOutColors = (product?.variants ?? []).filter((_, i) => colorSoldOut[i]).map((v) => v.color);
+  const photoBelongsToSoldOutColor = (src: string) => {
+    const owners = (product?.variants ?? [])
+      .map((v, i) => (v.colorImage === src ? i : -1))
+      .filter((i) => i >= 0);
+    return owners.length > 0 && owners.every((i) => colorSoldOut[i]);
+  };
   /**
    * Every photo of the product, in one fixed order.
    *
@@ -81,7 +96,9 @@ export default function ProductPage() {
    * viewer on a desktop all show this same gallery, and it never reorders —
    * so the photo on screen only changes when the customer asks for it.
    */
-  const viewerImages = allImages.filter((src, i) => allImages.indexOf(src) === i);
+  const viewerImages = allImages
+    .filter((src, i) => allImages.indexOf(src) === i)
+    .filter((src) => allColorsSoldOut || !photoBelongsToSoldOutColor(src));
   const viewerCount = viewerImages.length;
 
   /**
@@ -111,6 +128,30 @@ export default function ProductPage() {
       .filter(i => i >= 0);
     return owners.length === 1 ? owners[0] : -1;
   };
+
+  // Open on a colour that can actually be bought. Without this, a product whose
+  // first colour just sold out would load on a disabled colour and a photo
+  // that is no longer in the gallery.
+  useEffect(() => {
+    if (!product || !colorSoldOut[colorIdx]) return;
+    const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
+    if (firstAvailable < 0) return;
+    setColorIdx(firstAvailable);
+    setSize(null);
+    setError(null);
+    const primary = product.variants[firstAvailable]?.colorImage;
+    const at = primary ? viewerImages.indexOf(primary) : -1;
+    setImageIdx(at >= 0 ? at : 0);
+  }, [product, colorIdx, colorSoldOut, viewerImages]);
+
+  // Stock can remove a photo from the gallery while the page is open (for
+  // example, the last unit sells in another tab). Keep both the thumbnail and
+  // full-screen indexes inside the shortened gallery.
+  useEffect(() => {
+    if (!viewerCount) return;
+    setImageIdx((i) => Math.min(i, viewerCount - 1));
+    setViewerIdx((i) => (i === null ? null : Math.min(i, viewerCount - 1)));
+  }, [viewerCount]);
 
   useEffect(() => {
     if (viewerIdx === null) return;
@@ -174,6 +215,13 @@ export default function ProductPage() {
       {lowStockLabel}
     </span>
   ) : null;
+  const outOfStockBadge = !inStock ? (
+    <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-ink/30">
+      <span className="rounded-full bg-ivory/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
+        Out of stock
+      </span>
+    </span>
+  ) : null;
 
   // Units of this exact colour+size that can still go in the bag. Stock is the
   // ceiling; anything already bagged is subtracted so the same four units
@@ -185,15 +233,6 @@ export default function ProductPage() {
   const maxAddable = size
     ? Math.max(0, Math.min(MAX_UNITS_PER_LINE, stockForSize) - inBag)
     : MAX_UNITS_PER_LINE;
-
-  // A colour whose own stock has run out is shown but cannot be bought: the
-  // swatch greys out and its photo is never shown. Only colours that actually
-  // carry per-colour stock can sell out this way — a colour sharing the
-  // product-wide stock is available as long as the product is. `hasColorStock`
-  // gates the grey-out so a product that never used per-colour stock behaves
-  // exactly as it did before.
-  const colorSoldOut = product.variants.map((v) => v.sizes.reduce((s, x) => s + x.stock, 0) === 0);
-  const hasColorStock = product.variants.some((v) => v.sizes.some((x) => x.stock > 0));
 
   // Reviews come from the dashboard. With none published, the rating line is
   // hidden entirely rather than showing a number nothing backs it.
@@ -218,6 +257,7 @@ export default function ProductPage() {
   ]);
 
   const handleAdd = (buyNow = false) => {
+    if (!inStock) { setError('This product is out of stock.'); return; }
     if (!size) { setError('Please select a size first.'); return; }
     if (maxAddable === 0) {
       setError('All available units for this size are already in your bag.');
@@ -240,7 +280,7 @@ export default function ProductPage() {
   const applyColor = (i: number) => {
     if (i === colorIdx) return;
     // A sold-out colour cannot be selected, so its photo is never shown.
-    if (hasColorStock && colorSoldOut[i]) return;
+    if (colorSoldOut[i]) return;
     setColorIdx(i);
     // The size picked for the old colour may be sold out on the new one, in
     // which case it cannot stay selected.
@@ -271,7 +311,7 @@ export default function ProductPage() {
 
   const selectColor = (i: number) => {
     // A sold-out colour cannot be selected, so its photo is never shown.
-    if (hasColorStock && colorSoldOut[i]) return;
+    if (colorSoldOut[i]) return;
     // The colour itself must change even when the operator has not given it a
     // dedicated photo. The photo swap is a bonus, not the source of the state.
     applyColor(i);
@@ -351,6 +391,7 @@ export default function ProductPage() {
                 ))}
               </div>
               {lowStockBadge}
+              {outOfStockBadge}
             </div>
             {viewerCount > 1 && (
               <p className="text-[11px] text-ink/65 text-center mt-2">Swipe for more photos</p>
@@ -374,6 +415,7 @@ export default function ProductPage() {
               />
             </AnimatePresence>
             {lowStockBadge}
+            {outOfStockBadge}
             {/* Affordance so a tap-to-zoom is discoverable rather than secret.
                 When the product has more photos than the selected colour shows,
                 the count is spelled out so the customer knows the rest of the
@@ -451,7 +493,7 @@ export default function ProductPage() {
             <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium">Colour: <span className="text-ink/60">{variant.color}</span></span></div>
             <div className="flex gap-2">
               {product.variants.map((v, i) => {
-                const soldOut = hasColorStock && colorSoldOut[i];
+                const soldOut = colorSoldOut[i];
                 return (
                   <button key={v.color} onClick={() => selectColor(i)} title={soldOut ? `${v.color} — sold out` : v.color}
                     disabled={soldOut}
@@ -468,6 +510,11 @@ export default function ProductPage() {
                 );
               })}
             </div>
+            {soldOutColors.length > 0 && (
+              <p className="mt-2 text-[11px] text-ink/55">
+                Out of stock: <span className="text-ink/70">{soldOutColors.join(', ')}</span>
+              </p>
+            )}
           </div>
 
           {/* Size */}
@@ -534,14 +581,23 @@ export default function ProductPage() {
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3">
-            <button onClick={() => handleAdd(false)}
-              className="flex-1 py-4 rounded-full bg-ink text-ivory font-semibold hover:bg-ink/80 transition relative overflow-hidden">
-              {added ? <span className="inline-flex items-center gap-2"><Check size={18} /> Added to bag</span> : 'Add to Cart'}
-            </button>
-            <button onClick={() => handleAdd(true)}
-              className="flex-1 py-4 rounded-full bg-lime text-ink font-semibold hover:bg-lime/90 transition">
-              Buy Now
-            </button>
+            {inStock ? (
+              <>
+                <button onClick={() => handleAdd(false)}
+                  className="flex-1 py-4 rounded-full bg-ink text-ivory font-semibold hover:bg-ink/80 transition relative overflow-hidden">
+                  {added ? <span className="inline-flex items-center gap-2"><Check size={18} /> Added to bag</span> : 'Add to Cart'}
+                </button>
+                <button onClick={() => handleAdd(true)}
+                  className="flex-1 py-4 rounded-full bg-lime text-ink font-semibold hover:bg-lime/90 transition">
+                  Buy Now
+                </button>
+              </>
+            ) : (
+              <button type="button" disabled
+                className="flex-1 py-4 rounded-full bg-ink/40 text-ivory font-semibold cursor-not-allowed">
+                Out of stock
+              </button>
+            )}
           </div>
 
           {/* Promises — copy typed in Admin → Content; the glyph set is code */}
@@ -755,13 +811,16 @@ export default function ProductPage() {
                 {product.variants.length > 1 && (
                   <div className="flex items-center justify-center gap-2.5 mt-3">
                     {product.variants.map((v, i) => {
-                      const soldOut = hasColorStock && colorSoldOut[i];
+                      const soldOut = colorSoldOut[i];
                       return (
                         <button
                           key={v.color}
                           type="button"
                           disabled={soldOut}
-                          onClick={() => { setColorIdx(i); setViewerIdx(0); }}
+                          onClick={() => {
+                            selectColor(i);
+                            setViewerIdx(photoIndexForColor(i) ?? 0);
+                          }}
                           aria-label={soldOut ? `${v.color} sold out` : `Show ${v.color}`}
                           title={soldOut ? `${v.color} — sold out` : v.color}
                           className={`relative w-7 h-7 rounded-full border-2 transition ${colorIdx === i ? 'border-lime' : 'border-ivory/25'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
@@ -794,8 +853,9 @@ export default function ProductPage() {
           <p className="text-xs text-ink/60 truncate">{product.name}</p>
           <p className="text-sm font-semibold">{formatINR(product.price)}</p>
         </div>
-        <button onClick={() => handleAdd(false)} className="px-6 py-3.5 rounded-full bg-ink text-ivory text-sm font-semibold min-h-11">
-          {added ? 'Added' : 'Add to Cart'}
+        <button onClick={() => handleAdd(false)} disabled={!inStock}
+          className={`px-6 py-3.5 rounded-full text-sm font-semibold min-h-11 ${inStock ? 'bg-ink text-ivory' : 'bg-ink/40 text-ivory cursor-not-allowed'}`}>
+          {!inStock ? 'Out of stock' : added ? 'Added' : 'Add to Cart'}
         </button>
       </div>
     </div>

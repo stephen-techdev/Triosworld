@@ -24,9 +24,30 @@ export default function ProductCard({ product }: Props) {
   const { toggleWishlist, isWishlisted, addToCart } = useStore();
   const wished = isWishlisted(product.id);
   const [activeColor, setActiveColor] = useState(0);
-  const v = product.variants[activeColor] ?? product.variants[0];
+  const colorSoldOut = product.variants.map(
+    (variant) => variant.sizes.reduce((sum, entry) => sum + entry.stock, 0) === 0,
+  );
+  const allSoldOut = colorSoldOut.length > 0 && colorSoldOut.every(Boolean);
+  // If the chosen colour has just sold out, fall back to the first colour that
+  // can still be bought. This keeps the card from opening on a disabled colour
+  // and its retired photo.
+  const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
+  const activeIdx = firstAvailable >= 0 && colorSoldOut[activeColor] ? firstAvailable : activeColor;
+  const v = product.variants[activeIdx] ?? product.variants[0];
+  const selectedSoldOut = colorSoldOut[activeIdx] ?? true;
   // The selected colour's photo leads, then the rest of the gallery follows.
-  const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images])).slice(0, 5);
+  // A photo owned only by a sold-out colour is omitted, the same way it is on
+  // the product page. If the whole product is gone, keep the photos and label
+  // the card instead of showing an empty tile.
+  const soldOutOnlyImage = (src: string) => {
+    const owners = product.variants
+      .map((variant, i) => (variant.colorImage === src ? i : -1))
+      .filter((i) => i >= 0);
+    return owners.length > 0 && owners.every((i) => colorSoldOut[i]);
+  };
+  const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images]))
+    .filter((src) => allSoldOut || !soldOutOnlyImage(src))
+    .slice(0, 5);
   const hasDiscount = product.mrp > product.price;
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -35,6 +56,8 @@ export default function ProductCard({ product }: Props) {
   const stockOf = (size: string) => v.sizes.find(x => x.size === size)?.stock ?? 0;
 
   const handleQuickAdd = (size: string) => {
+    if (selectedSoldOut) return;
+    if (stockOf(size) < 1) return;
     addToCart({ productId: product.id, color: v.color, size, qty: 1 });
     setSheetOpen(false);
     setAddedSize(size);
@@ -73,6 +96,14 @@ export default function ProductCard({ product }: Props) {
             </span>
           )}
         </Link>
+
+        {allSoldOut && (
+          <span className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-ink/35">
+            <span className="rounded-full bg-ivory/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
+              Out of stock
+            </span>
+          </span>
+        )}
 
         {/* Quick add — circular "+" (desktop + mobile), expands into the animated size card.
             On phones it sits higher up so it isn't crowded against the card's text below. */}
@@ -132,9 +163,10 @@ export default function ProductCard({ product }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.18 }}
-                  onClick={() => setSheetOpen(true)}
-                  aria-label="Quick add — choose a size"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95"
+                  onClick={() => { if (!allSoldOut) setSheetOpen(true); }}
+                  disabled={allSoldOut}
+                  aria-label={allSoldOut ? 'Out of stock' : 'Quick add — choose a size'}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 ${allSoldOut ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95'}`}
                 >
                   {addedSize ? <Check size={16} /> : <Plus size={16} />}
                 </motion.button>
@@ -199,22 +231,29 @@ export default function ProductCard({ product }: Props) {
           </p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-1" role="group" aria-label="Colours">
-          {product.variants.map((variant, i) => (
-            <button
-              key={variant.color}
-              type="button"
-              onClick={() => setActiveColor(i)}
-              aria-label={`Show ${variant.color}`}
-              aria-pressed={activeColor === i}
-              title={variant.color}
-              className="flex h-4 w-4 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95"
-            >
-              <span
-                className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
-                style={{ backgroundColor: variant.hex }}
-              />
-            </button>
-          ))}
+          {product.variants.map((variant, i) => {
+            const soldOut = colorSoldOut[i];
+            return (
+              <button
+                key={variant.color}
+                type="button"
+                disabled={soldOut}
+                onClick={() => setActiveColor(i)}
+                aria-label={soldOut ? `${variant.color} out of stock` : `Show ${variant.color}`}
+                aria-pressed={activeIdx === i}
+                title={soldOut ? `${variant.color} out of stock` : variant.color}
+                className={`relative flex h-4 w-4 items-center justify-center rounded-full transition-transform ${soldOut ? 'opacity-35 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+              >
+                <span
+                  className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeIdx === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
+                  style={{ backgroundColor: variant.hex }}
+                />
+                {soldOut && (
+                  <span className="pointer-events-none absolute block h-[1.5px] w-3 rotate-45 rounded-full bg-ink/70" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
           <span className="ml-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-ink/65">
             {v.color}
           </span>

@@ -292,7 +292,7 @@ export function buildReceipt(payload: ReceiptPayload): jsPDF {
     footerY,
   );
   doc.text(
-    'Support: hello@triosworld.com  |  WhatsApp +91 63838 83727',
+    'Support: WhatsApp +91 63838 83727',
     MARGIN,
     footerY + 4,
   );

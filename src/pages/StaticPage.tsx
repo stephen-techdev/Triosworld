@@ -19,14 +19,20 @@ import { useSiteContent } from '@/lib/siteContent';
  */
 type Paragraph = { h?: string; p: string };
 
-const shippingLine = (s: StoreSettings) =>
-  `Standard delivery takes 3–5 business days. ${freeShippingLabel(s, formatINR)}. A flat fee of ${formatINR(s.shippingFee)} applies below that threshold.`;
+const shippingLine = (s: StoreSettings, ready: boolean) => {
+  if (!ready) return 'Shipping is calculated at checkout. Standard delivery takes 3–5 business days.';
+  const free = freeShippingLabel(s, formatINR);
+  const feeNote = s.freeShippingThreshold > 0 && s.shippingFee > 0
+    ? ` A flat fee of ${formatINR(s.shippingFee)} applies below that threshold.`
+    : '';
+  return `Standard delivery takes 3–5 business days. ${free}.${feeNote}`;
+};
 
-const renderP = (p: string, s: StoreSettings): string =>
-  p.includes('{{shipping}}') ? p.replace(/\{\{shipping\}\}/g, shippingLine(s)) : p;
+const renderP = (p: string, s: StoreSettings, ready: boolean): string =>
+  p.includes('{{shipping}}') ? p.replace(/\{\{shipping\}\}/g, shippingLine(s, ready)) : p;
 
 export default function StaticPage({ page }: { page: string }) {
-  const { settings } = useStoreSettings();
+  const { settings, ready } = useStoreSettings();
   const { content } = useSiteContent();
 
   const c = content.pages[page];
@@ -49,7 +55,7 @@ export default function StaticPage({ page }: { page: string }) {
         {(c.body as Paragraph[]).map((b, i) => (
           <div key={i}>
             {b.h && <h2 className="font-display text-lg font-semibold text-ink mb-2">{b.h}</h2>}
-            <p>{renderP(b.p, settings)}</p>
+            <p>{renderP(b.p, settings, ready)}</p>
           </div>
         ))}
       </div>

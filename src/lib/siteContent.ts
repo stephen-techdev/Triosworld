@@ -350,11 +350,10 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     address: 'Mumbai, India',
     phone: '+91 63838 83727',
     whatsapp: '916383883727',
-    email: 'hello@triosworld.com',
+    email: '',
     socials: [
       { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/triosworld_?utm_source=qr&vrfl=bmhsOGE1MGFteG8z' },
       { icon: 'whatsapp', label: 'WhatsApp', href: '' },
-      { icon: 'mail', label: 'Email', href: 'mailto:hello@triosworld.com' },
     ],
     note: 'Designed in India. Made for the world.',
   },
@@ -369,13 +368,11 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ['XL', '44', '30'],
       ['XXL', '46', '31'],
     ],
-    reviews: [
-      { name: 'Arjun K.', rating: 5, text: 'Fabric quality is legit for this price. Fit is exactly as described — oversized but not baggy. Will buy again.' },
-      { name: 'Rohan M.', rating: 4, text: 'Good tee, print is clean and has not cracked after 3 washes. Delivery took 4 days to Bangalore.' },
-      { name: 'Karthik S.', rating: 5, text: "Heavyweight cotton feels premium. The black hasn't faded. Best tee I've bought online this year." },
-    ],
-    promises: ['Ships in 24h', '7-day returns', 'Secure pay'],
-    returnsLine: '7-day easy returns. Items must be unworn with tags intact.',
+    // Only publish reviews the operator has actually collected. The product
+    // page hides the rating block when this list is empty.
+    reviews: [],
+    promises: ['Fast dispatch', '7-day returns', 'Secure pay'],
+    returnsLine: '7-day returns on unworn items with tags. Message us on WhatsApp to start.',
   },
 
   pages: {
@@ -390,18 +387,18 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     shipping: {
       title: 'Shipping Policy',
       body: [
-        { p: 'Orders are dispatched within 24 hours of placement, excluding weekends and public holidays.' },
+        { p: 'We aim to dispatch orders within 1–2 business days, excluding weekends and public holidays.' },
         // Rendered from the operator's live shipping settings while unedited;
         // once saved from the dashboard it becomes plain text like the rest.
         { h: 'Domestic shipping (India)', p: '{{shipping}}' },
-        { h: 'Tracking', p: 'Every order ships with a tracking number. You will receive an email and SMS with tracking details once your order is dispatched.' },
+        { h: 'Tracking', p: 'Every order ships with a tracking number. We share tracking details on WhatsApp once your order is dispatched.' },
       ],
     },
     returns: {
       title: 'Return Policy',
       body: [
-        { p: 'We offer 7-day easy returns on all unworn items with original tags intact.' },
-        { h: 'How to return', p: 'Log in to your account, open the order and request a return. We will arrange a pickup and process your refund within 5–7 business days of receiving the item.' },
+        { p: 'We accept return or exchange requests within 7 days on unworn items with original tags intact.' },
+        { h: 'How to return', p: 'Message us on WhatsApp at +91 63838 83727 with your order number. We will confirm eligibility, arrange a pickup where available, and process the refund after the item is received and checked.' },
         { h: 'Non-returnable items', p: 'Items worn, washed or damaged by the customer cannot be returned. Innerwear and custom prints are non-returnable.' },
       ],
     },
@@ -410,7 +407,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       body: [
         { p: 'TriosWorld respects your privacy. We collect only the information needed to process orders and improve your experience — name, contact details and address.' },
         { h: 'How we use it', p: 'To fulfil orders, communicate updates, and — only if you opt in — send marketing emails. We never sell your data.' },
-        { h: 'Your rights', p: 'You can request access to or deletion of your data at any time by writing to hello@triosworld.com.' },
+        { h: 'Your rights', p: 'You can request access to or deletion of your data at any time by messaging us on WhatsApp at +91 63838 83727.' },
       ],
     },
     terms: {
@@ -425,18 +422,17 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       title: 'Contact Us',
       body: [
         { p: 'We are here to help. Reach us any of the ways below — typical response time is under 24 hours on business days.' },
-        { h: 'Email', p: 'hello@triosworld.com' },
-        { h: 'Phone', p: '+91 63838 83727 (Mon–Sat, 10am–7pm IST)' },
+        { h: 'WhatsApp / Phone', p: '+91 63838 83727 (Mon–Sat, 10am–7pm IST)' },
         { h: 'Address', p: 'TriosWorld, Mumbai, India' },
       ],
     },
     faqs: {
       title: 'FAQs',
       body: [
-        { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. You will get tracking details by email and SMS.' },
-        { h: 'Can I exchange for a different size?', p: 'Yes — within 7 days, as long as the item is unworn with tags. Start a return from your account.' },
+        { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. We share tracking details on WhatsApp.' },
+        { h: 'Can I exchange for a different size?', p: 'Yes — within 7 days, as long as the item is unworn with tags. Message us on WhatsApp to start an exchange.' },
         { h: 'Do you ship internationally?', p: 'We currently ship within India only. International shipping is coming soon.' },
-        { h: 'How do I track my order?', p: 'Once dispatched, you will receive a tracking link. You can also view order status from your account.' },
+        { h: 'How do I track my order?', p: 'Once dispatched, we share a tracking link on WhatsApp. You can also view order status from your account.' },
       ],
     },
   },

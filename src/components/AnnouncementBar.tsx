@@ -12,13 +12,15 @@ import { formatINR } from '@/data/catalog';
 // and the promo code used to be literals here).
 export default function AnnouncementBar() {
   const [i, setI] = useState(0);
-  const { settings } = useStoreSettings();
+  const { settings, ready } = useStoreSettings();
   const { content } = useSiteContent();
 
   const messages = [
-    announcementLine(settings, formatINR),
+    ...(ready ? [announcementLine(settings, formatINR)] : []),
     ...announcementExtras(content),
   ].filter(Boolean);
+  if (messages.length === 0) messages.push('Three vibes, one world.');
+  const activeIndex = i % messages.length;
 
   useEffect(() => {
     const id = setInterval(() => setI(p => (p + 1) % messages.length), 5200);
@@ -38,7 +40,7 @@ export default function AnnouncementBar() {
               transition={{ duration: 0.4, ease: EASE }}
               className="absolute inset-0 flex items-center justify-center px-6 text-center text-[11px] sm:text-xs tracking-wide"
             >
-              {messages[i]}
+              {messages[activeIndex]}
             </motion.span>
           </AnimatePresence>
         </div>
@@ -48,8 +50,8 @@ export default function AnnouncementBar() {
               key={m}
               onClick={() => setI(k)}
               aria-label={`Show announcement ${k + 1}`}
-              aria-current={k === i}
-              className={`h-1.5 rounded-full transition-all duration-300 ease-smooth ${k === i ? 'w-4 bg-lime' : 'w-1.5 bg-ivory/30 hover:bg-ivory/60'}`}
+              aria-current={k === activeIndex}
+              className={`h-1.5 rounded-full transition-all duration-300 ease-smooth ${k === activeIndex ? 'w-4 bg-lime' : 'w-1.5 bg-ivory/30 hover:bg-ivory/60'}`}
             />
           ))}
         </div>

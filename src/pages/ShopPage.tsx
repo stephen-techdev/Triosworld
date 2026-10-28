@@ -25,7 +25,7 @@ const emptyFilters: Filters = { sizes: [], colors: [], fits: [], fabrics: [], ma
 
 export default function ShopPage() {
   const { slug = 'shop-all' } = useParams();
-  const { products: liveAll } = useLiveCatalog();
+  const { products: liveAll, ready } = useLiveCatalog();
   const { content } = useSiteContent();
 
   /**
@@ -260,7 +260,7 @@ export default function ShopPage() {
             Filters
             {activeCount > 0 && <span className="bg-ink text-ivory text-[10px] rounded-full px-1.5 py-0.5">{activeCount}</span>}
           </button>
-          <p className="hidden sm:block text-sm text-ink/65">{filtered.length} {filtered.length === 1 ? 'product' : 'products'}</p>
+          <p className="hidden sm:block text-sm text-ink/65">{ready ? `${filtered.length} ${filtered.length === 1 ? 'product' : 'products'}` : 'Loading products…'}</p>
           <div className="flex items-center gap-2">
             <label htmlFor="shop-sort" className="text-xs text-ink/65 hidden sm:block">Sort</label>
             <select id="shop-sort" aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value as Sort)}
@@ -283,7 +283,17 @@ export default function ShopPage() {
             </div>
           )}
 
-          {filtered.length === 0 ? (
+          {!ready ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12" aria-busy="true" aria-label="Loading products">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-[3/4] rounded-xl bg-stone/70" />
+                  <div className="mt-3 h-3 w-2/3 rounded bg-stone/70" />
+                  <div className="mt-2 h-3 w-1/3 rounded bg-stone/60" />
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-24 text-center">
               {baseProducts.length === 0 ? (
                 <>

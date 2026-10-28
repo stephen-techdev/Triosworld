@@ -122,7 +122,7 @@ interface AuthContextValue {
   signUp: (data: { full_name: string; mobile: string; password: string; gender?: string }, remember?: boolean) => Promise<{ error: string | null }>;
   signInWithGoogle: (remember?: boolean) => Promise<{ error: string | null }>;
   completeProfile: (data: { mobile: string; full_name: string; gender?: string }) => Promise<{ error: string | null }>;
-  requestPasswordReset: (mobile: string) => Promise<{ error: string | null; demoToken?: string }>;
+  requestPasswordReset: (mobile: string) => Promise<{ error: string | null }>;
   confirmPasswordReset: (mobile: string, token: string, newPassword: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -313,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const requestPasswordReset = async (mobile: string): Promise<{ error: string | null; demoToken?: string }> => {
+  const requestPasswordReset = async (mobile: string): Promise<{ error: string | null }> => {
     try {
       const res = await fetch(`${AUTH_FN_URL}/reset-request`, {
         method: 'POST',
@@ -322,7 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) return { error: errorFrom(res.status, data, 'Could not send reset code') };
-      return { error: null, demoToken: data?.demo_token };
+      return { error: null };
     } catch {
       return { error: 'Network error' };
     }

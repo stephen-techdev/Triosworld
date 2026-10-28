@@ -17,7 +17,6 @@ export default function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [demoToken, setDemoToken] = useState<string | null>(null);
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,12 +26,11 @@ export default function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    const { error: err, demoToken: dt } = await requestPasswordReset(mobile.replace(/\D/g, '').slice(-10));
+    const { error: err } = await requestPasswordReset(mobile.replace(/\D/g, '').slice(-10));
     setLoading(false);
     if (err) {
       setError(err);
     } else {
-      setDemoToken(dt ?? null);
       setStep('confirm');
     }
   };
@@ -128,17 +126,7 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Enter Reset Code</h1>
-              {demoToken ? (
-                <div className="mb-8 text-sm text-ink/65">
-                  <p>
-                    SMS delivery isn't configured for this project yet, so we can't text you a code.
-                    Use this demo code to finish resetting your password:
-                  </p>
-                  <p className="mt-2 text-ink text-lg font-semibold tracking-[0.3em]">{demoToken}</p>
-                </div>
-              ) : (
-                <p className="text-ink/65 text-sm mb-8">We sent a 6-digit code to +91 {mobile.replace(/\D/g, '').slice(-10)}.</p>
-              )}
+              <p className="text-ink/65 text-sm mb-8">We sent a 6-digit code to +91 {mobile.replace(/\D/g, '').slice(-10)}.</p>
 
               {error && (
                 <div className="mb-5 p-3.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700" role="alert">

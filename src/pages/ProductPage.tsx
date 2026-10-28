@@ -20,7 +20,7 @@ export default function ProductPage() {
   // flashing for a product that does exist.
   const { ready } = useLiveCatalog();
   const product = slug ? liveProduct(slug) : undefined;
-  const { settings } = useStoreSettings();
+  const { settings, ready: settingsReady } = useStoreSettings();
   // Size guide, reviews, promises and the returns line are operator-owned
   // (Admin → Content). The three reviews this page used to hardcode are gone:
   // a rating is now only shown when the operator has actually published
@@ -443,7 +443,7 @@ export default function ProductPage() {
           {/* Delivery estimate */}
           <div className="mt-3 flex items-center gap-2 text-xs text-ink/60">
             <Truck size={16} className="text-ink/65" />
-            <span>Estimated delivery by <span className="font-medium text-ink">{deliveryStr}</span> — {freeShippingLabel(settings, formatINR)}</span>
+            <span>Estimated delivery by <span className="font-medium text-ink">{deliveryStr}</span> — {settingsReady ? freeShippingLabel(settings, formatINR) : 'shipping calculated at checkout'}</span>
           </div>
 
           {/* Colour */}
@@ -593,7 +593,13 @@ export default function ProductPage() {
               )}
               {activeTab === 'shipping' && (
                 <div>
-                  <p>{freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India. A flat fee of {formatINR(settings.shippingFee)} applies below the free-shipping threshold.</p>
+                  <p>
+                    {settingsReady
+                      ? `${freeShippingLabel(settings, formatINR)}. Standard delivery in 3–5 business days across India.${settings.freeShippingThreshold > 0 && settings.shippingFee > 0
+                        ? ` A flat fee of ${formatINR(settings.shippingFee)} applies below the free-shipping threshold.`
+                        : ''}`
+                      : 'Shipping is calculated at checkout. Standard delivery in 3–5 business days across India.'}
+                  </p>
                   <p>{content.pdp.returnsLine}</p>
                 </div>
               )}

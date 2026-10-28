@@ -21,9 +21,9 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-// Optional real SMS delivery for password-reset codes (Twilio). When these are
-// not configured the reset endpoint falls back to a clearly-labelled demo mode
-// that returns the code in the response, and NEVER pretends an SMS was sent.
+// Optional real SMS delivery for password-reset codes (Twilio). Password reset
+// is disabled when these are not configured: returning a reset code in the API
+// response would let anyone who knows a mobile number take over that account.
 const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID") ?? "";
 const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN") ?? "";
 const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER") ?? "";
@@ -349,6 +349,12 @@ Deno.serve(async (req: Request) => {
       const cleanMobile = sanitizeMobile(mobile);
       if (!validateMobile(cleanMobile)) return json({ error: "Enter a valid mobile number" }, 400);
 
+      if (!smsConfigured()) {
+        return json({
+          error: "Password reset is temporarily unavailable. Please contact us on WhatsApp at +91 63838 83727.",
+        }, 503);
+      }
+
       if (await checkRateLimit(cleanMobile)) {
         return json({ error: "Too many attempts. Please try again in 15 minutes." }, 429);
       }
@@ -375,23 +381,12 @@ Deno.serve(async (req: Request) => {
         expires_at: expiresAt,
       });
 
-      if (smsConfigured()) {
-        const sent = await sendSms(
-          fullMobile(cleanMobile),
-          `Your TriosWorld password reset code is ${resetToken}. It expires in 30 minutes.`,
-        );
-        if (sent) return json({ message: "Reset code sent to your mobile number" });
-        return json({ error: "Could not send the reset code right now. Please try again later." }, 502);
-      }
-
-      // Demo mode: no SMS provider is configured for this project, so we cannot
-      // actually deliver the code. We return it explicitly flagged as a demo
-      // code rather than pretending an SMS was sent.
-      return json({
-        message: "A reset code has been generated for this number",
-        demo_token: resetToken,
-        demo: true,
-      });
+      const sent = await sendSms(
+        fullMobile(cleanMobile),
+        `Your TriosWorld password reset code is ${resetToken}. It expires in 30 minutes.`,
+      );
+      if (sent) return json({ message: "Reset code sent to your mobile number" });
+      return json({ error: "Could not send the reset code right now. Please try again later." }, 502);
     }
 
     // ============ PASSWORD RESET CONFIRM ============
@@ -403,6 +398,12 @@ Deno.serve(async (req: Request) => {
       if (!token) return json({ error: "Reset code is required" }, 400);
       const pwdError = validatePassword(new_password);
       if (pwdError) return json({ error: pwdError }, 400);
+
+      if (!smsConfigured()) {
+        return json({
+          error: "Password reset is temporarily unavailable. Please contact us on WhatsApp at +91 63838 83727.",
+        }, 503);
+      }
 
       // Brute-force protection for 6-digit codes.
       if (await checkRateLimit(cleanMobile)) {

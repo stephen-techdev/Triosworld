@@ -74,21 +74,15 @@ export default function ProductPage() {
    * the customer can step through the lot without bouncing back to the swatch.
    */
   const allImages = product?.variants.flatMap(v => v.images) ?? [];
-  // A colour with no units left is disabled, and its dedicated photo is left
-  // out of the gallery. If every colour is sold out we keep the photos and
-  // label them instead, so the page explains what is gone rather than going
-  // blank. This is per product/colour, not a one-off for the last order.
+  // A sold-out colour stays in the gallery and its swatch stays disabled, but
+  // the photo is labelled "Out of stock" instead of being removed. That keeps
+  // the full colour range visible without suggesting it can be bought. This is
+  // per product/colour, not a one-off for the last order.
   const colorSoldOut = (product?.variants ?? []).map(
     (v) => v.sizes.reduce((sum, entry) => sum + entry.stock, 0) === 0,
   );
   const allColorsSoldOut = colorSoldOut.length > 0 && colorSoldOut.every(Boolean);
   const soldOutColors = (product?.variants ?? []).filter((_, i) => colorSoldOut[i]).map((v) => v.color);
-  const photoBelongsToSoldOutColor = (src: string) => {
-    const owners = (product?.variants ?? [])
-      .map((v, i) => (v.colorImage === src ? i : -1))
-      .filter((i) => i >= 0);
-    return owners.length > 0 && owners.every((i) => colorSoldOut[i]);
-  };
   /**
    * Every photo of the product, in one fixed order.
    *
@@ -96,9 +90,7 @@ export default function ProductPage() {
    * viewer on a desktop all show this same gallery, and it never reorders —
    * so the photo on screen only changes when the customer asks for it.
    */
-  const viewerImages = allImages
-    .filter((src, i) => allImages.indexOf(src) === i)
-    .filter((src) => allColorsSoldOut || !photoBelongsToSoldOutColor(src));
+  const viewerImages = allImages.filter((src, i) => allImages.indexOf(src) === i);
   const viewerCount = viewerImages.length;
 
   /**
@@ -129,9 +121,15 @@ export default function ProductPage() {
     return owners.length === 1 ? owners[0] : -1;
   };
 
+  const imageSoldOut = (src?: string) => {
+    if (!src) return false;
+    const color = colorForImage(src);
+    return allColorsSoldOut || (color >= 0 && colorSoldOut[color]);
+  };
+
   // Open on a colour that can actually be bought. Without this, a product whose
-  // first colour just sold out would load on a disabled colour and a photo
-  // that is no longer in the gallery.
+  // first colour just sold out would load on a disabled colour and an
+  // out-of-stock image.
   useEffect(() => {
     if (!product || !colorSoldOut[colorIdx]) return;
     const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
@@ -215,13 +213,14 @@ export default function ProductPage() {
       {lowStockLabel}
     </span>
   ) : null;
-  const outOfStockBadge = !inStock ? (
-    <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-ink/30">
+  const outOfStockOverlay = (key?: string) => (
+    <span key={key} className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-ink/30">
       <span className="rounded-full bg-ivory/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
         Out of stock
       </span>
     </span>
-  ) : null;
+  );
+  const currentImageSoldOut = imageSoldOut(viewerImages[imageIdx]);
 
   // Units of this exact colour+size that can still go in the bag. Stock is the
   // ceiling; anything already bagged is subtracted so the same four units
@@ -381,17 +380,18 @@ export default function ProductPage() {
                 className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
               >
                 {viewerImages.map((img, i) => (
-                  <img
-                    key={img + i}
-                    src={img}
-                    alt={`${product.name} ${i + 1}`}
-                    className="w-full shrink-0 snap-center aspect-[3/4] object-cover"
-                    loading={i === 0 ? 'eager' : 'lazy'}
-                  />
+                  <div key={img + i} className="relative w-full shrink-0 snap-center aspect-[3/4]">
+                    <img
+                      src={img}
+                      alt={`${product.name} ${i + 1}`}
+                      className="w-full h-full object-cover"
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                    />
+                    {imageSoldOut(img) && outOfStockOverlay()}
+                  </div>
                 ))}
               </div>
-              {lowStockBadge}
-              {outOfStockBadge}
+              {!currentImageSoldOut && lowStockBadge}
             </div>
             {viewerCount > 1 && (
               <p className="text-[11px] text-ink/65 text-center mt-2">Swipe for more photos</p>
@@ -414,8 +414,8 @@ export default function ProductPage() {
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewerIdx(imageIdx); } }}
               />
             </AnimatePresence>
-            {lowStockBadge}
-            {outOfStockBadge}
+            {!currentImageSoldOut && lowStockBadge}
+            {currentImageSoldOut && outOfStockOverlay()}
             {/* Affordance so a tap-to-zoom is discoverable rather than secret.
                 When the product has more photos than the selected colour shows,
                 the count is spelled out so the customer knows the rest of the
@@ -765,6 +765,7 @@ export default function ProductPage() {
                 className="w-full h-full object-contain select-none"
                 draggable={false}
               />
+              {imageSoldOut(viewerImages[viewerIdx]) && outOfStockOverlay()}
             </motion.div>
 
             {/* Tappable arrows — swipe works, but an explicit control is what

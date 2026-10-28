@@ -30,24 +30,21 @@ export default function ProductCard({ product }: Props) {
   const allSoldOut = colorSoldOut.length > 0 && colorSoldOut.every(Boolean);
   // If the chosen colour has just sold out, fall back to the first colour that
   // can still be bought. This keeps the card from opening on a disabled colour
-  // and its retired photo.
+  // and its out-of-stock photo.
   const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
   const activeIdx = firstAvailable >= 0 && colorSoldOut[activeColor] ? firstAvailable : activeColor;
   const v = product.variants[activeIdx] ?? product.variants[0];
   const selectedSoldOut = colorSoldOut[activeIdx] ?? true;
   // The selected colour's photo leads, then the rest of the gallery follows.
-  // A photo owned only by a sold-out colour is omitted, the same way it is on
-  // the product page. If the whole product is gone, keep the photos and label
-  // the card instead of showing an empty tile.
-  const soldOutOnlyImage = (src: string) => {
+  // A sold-out colour's photo stays in the gallery, but it carries an
+  // "Out of stock" badge; the swatch below it stays disabled with a cross.
+  const soldOutImage = (src: string) => {
     const owners = product.variants
       .map((variant, i) => (variant.colorImage === src ? i : -1))
       .filter((i) => i >= 0);
     return owners.length > 0 && owners.every((i) => colorSoldOut[i]);
   };
-  const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images]))
-    .filter((src) => allSoldOut || !soldOutOnlyImage(src))
-    .slice(0, 5);
+  const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images])).slice(0, 5);
   const hasDiscount = product.mrp > product.price;
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -73,17 +70,26 @@ export default function ProductCard({ product }: Props) {
           className="block relative overflow-hidden bg-stone/50 aspect-[3/4]"
         >
           {gallery.map((img, i) => (
-            <img
+            <div
               key={`${img}-${i}`}
-              src={img}
-              alt={`${product.name} ${v.color} view ${i + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-[350ms] ease-out group-hover:scale-[1.02] ${i === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-              style={{
-                transitionDelay: `${i * 50}ms`,
-                objectPosition: 'center top'
-              }}
-              loading="lazy"
-            />
+              className={`absolute inset-0 transition-opacity duration-[350ms] ease-out ${i === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              style={{ transitionDelay: `${i * 50}ms` }}
+            >
+              <img
+                src={img}
+                alt={`${product.name} ${v.color} view ${i + 1}`}
+                className="w-full h-full object-cover object-top transition-transform duration-[350ms] ease-out group-hover:scale-[1.02]"
+                style={{ objectPosition: 'center top' }}
+                loading="lazy"
+              />
+              {!allSoldOut && soldOutImage(img) && (
+                <span className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-ink/30">
+                  <span className="rounded-full bg-ivory/95 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
+                    Out of stock
+                  </span>
+                </span>
+              )}
+            </div>
           ))}
 
           {/* Badge — top left, clean pill. Only rendered when set, so a

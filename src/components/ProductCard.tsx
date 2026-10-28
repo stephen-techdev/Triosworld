@@ -255,7 +255,9 @@ export default function ProductCard({ product }: Props) {
                   style={{ backgroundColor: variant.hex }}
                 />
                 {soldOut && (
-                  <span className="pointer-events-none absolute block h-[1.5px] w-3 rotate-45 rounded-full bg-ink/70" aria-hidden="true" />
+                  <svg className="pointer-events-none absolute inset-0 h-full w-full text-ink/70" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
                 )}
               </button>
             );

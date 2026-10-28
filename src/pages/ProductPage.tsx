@@ -499,12 +499,12 @@ export default function ProductPage() {
                     disabled={soldOut}
                     className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
                     style={{ backgroundColor: v.hex }} aria-label={soldOut ? `${v.color} sold out` : v.color}>
-                    {/* Strike-through marks the sold-out colour without relying
-                        on the faded swatch alone, so it reads at a glance. */}
+                    {/* A cross marks the sold-out colour without relying on
+                        the faded swatch alone, so it reads at a glance. */}
                     {soldOut && (
-                      <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                        <span className="block w-full h-[2px] bg-ink/70 rotate-45 rounded-full" />
-                      </span>
+                      <svg className="pointer-events-none absolute inset-0 h-full w-full text-ink/70" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                        <path d="M9 9 23 23M23 9 9 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
                     )}
                   </button>
                 );

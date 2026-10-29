@@ -297,8 +297,16 @@ export default function ShopPage() {
             <div className="py-24 text-center">
               {baseProducts.length === 0 ? (
                 <>
-                  <p className="font-display text-2xl mb-2">New arrivals coming soon.</p>
+                  <p className="font-display text-2xl mb-2">This collection is empty right now.</p>
                   <p className="text-ink/65 text-sm">Fresh pieces are added regularly — check back shortly.</p>
+                  {slug !== 'shop-all' && (
+                    <Link
+                      to="/shop/shop-all"
+                      className="mt-6 inline-flex bg-ink text-ivory px-6 py-3 rounded-full text-sm font-medium hover:bg-ink/80"
+                    >
+                      Browse all products
+                    </Link>
+                  )}
                 </>
               ) : (
                 <>

@@ -449,7 +449,14 @@ export default function ProductPage() {
                 rather than rendering an empty "Fit ·" line. */}
             {(product.fit || product.fabric) && (
               <span className="text-xs text-ink/65 capitalize">
-                {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
+                {[
+                  product.fit
+                    ? /\sfit$/i.test(product.fit.trim())
+                      ? product.fit.trim()
+                      : `${product.fit.trim()} fit`
+                    : null,
+                  product.fabric,
+                ].filter(Boolean).join(' · ')}
               </span>
             )}
           </div>

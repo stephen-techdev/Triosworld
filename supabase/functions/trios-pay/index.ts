@@ -49,11 +49,19 @@ const upiPayeeName = Deno.env.get("UPI_PAYEE_NAME") ?? "TriosWorld";
 const razorpayConfigured = Boolean(razorpayKeyId && razorpayKeySecret);
 const demoMode = Deno.env.get("PAYMENT_DEMO_MODE") === "true" || !razorpayConfigured;
 
+// Razorpay's approved website. Order creation is refused on every other
+// origin so an expired preview URL cannot start a live payment.
+const APPROVED_CHECKOUT_ORIGIN =
+  Deno.env.get("CHECKOUT_ORIGIN") ?? "https://www.triosworld.in";
+
 // Fallbacks only. The real values come from the store_settings table, which
 // Admin > Settings edits; these match its seeded row so a failed read shows the
 // same numbers the storefront would have used.
-const DEFAULT_FREE_SHIPPING_OVER = 1499;
-const DEFAULT_FLAT_SHIPPING = 79;
+// Match the live store settings: free shipping on every order. If the
+// settings read fails, never silently add a shipping charge the storefront
+// did not show the customer.
+const DEFAULT_FREE_SHIPPING_OVER = 0;
+const DEFAULT_FLAT_SHIPPING = 0;
 
 interface ShippingRule {
   freeShippingOver: number;
@@ -219,9 +227,29 @@ function priceCart(
   }
   if (rawItems.length > 50) throw new PayloadError("Too many items in this order.");
 
-  return rawItems.map((raw) => {
+  // Merge duplicate product/colour/size lines before checking stock. Without
+  // this, two 6-unit lines could each pass the per-line stock check and then
+  // together take 12 units of a 10-unit size.
+  const merged = new Map<string, { productId: string; color: string; size: string; qty: number }>();
+  for (const raw of rawItems) {
     const line = raw as Partial<CartLine>;
     const productId = String(line.productId ?? "");
+    const color = String(line.color ?? "");
+    const size = String(line.size ?? "");
+    const qty = Math.floor(Number(line.qty));
+    if (!Number.isFinite(qty) || qty < 1) throw new PayloadError("Invalid quantity.");
+
+    const key = JSON.stringify([productId, color, size]);
+    const existing = merged.get(key);
+    if (existing) {
+      existing.qty += qty;
+      if (existing.qty > 10) throw new PayloadError("Maximum 10 units per item.");
+    } else {
+      merged.set(key, { productId, color, size, qty });
+    }
+  }
+
+  return Array.from(merged.values()).map(({ productId, color, size, qty }) => {
     const entry = catalog[productId];
     if (!entry) throw new PayloadError("One of the items is no longer available.");
 
@@ -236,22 +264,16 @@ function priceCart(
       throw new PayloadError(`${entry.name} has an invalid price. Please contact support.`);
     }
 
-    const color = String(line.color ?? "");
     if (entry.colors.length > 0 && !entry.colors.includes(color)) {
       throw new PayloadError(`${entry.name}: that colour is unavailable.`);
     }
 
-    const size = String(line.size ?? "");
     // The selected colour's own stock is authoritative when it has one; the
     // merged product-wide list is only a fallback for shared-stock rows.
     const colorOwn = color && entry.colorSizes[color]?.[size];
     const available = stockOverrides[productId]?.[size] ?? colorOwn ?? entry.sizes[size];
     if (available === undefined) throw new PayloadError(`${entry.name}: that size is unavailable.`);
     if (available <= 0) throw new PayloadError(`${entry.name} in size ${size} is out of stock.`);
-
-    const qty = Math.floor(Number(line.qty));
-    if (!Number.isFinite(qty) || qty < 1) throw new PayloadError("Invalid quantity.");
-    if (qty > 10) throw new PayloadError("Maximum 10 units per item.");
     if (qty > available) throw new PayloadError(`Only ${available} left of ${entry.name} in size ${size}.`);
 
     return {
@@ -671,6 +693,11 @@ function publicOrder(order: OrderRecord) {
     created_at: order.created_at,
     payment_id: order.payment_id,
     payment_reference: order.payment_reference,
+    // The receipt token in the URL is the guest credential. Returning their own
+    // saved selection and address lets the payment page show a read-only review
+    // before the customer pays, even after a refresh.
+    items: order.items ?? [],
+    shipping_address: order.shipping_address ?? null,
   };
 }
 
@@ -728,6 +755,12 @@ Deno.serve(async (req: Request) => {
       // compares it with the approved website, so this makes a mismatch
       // diagnosable from the Razorpay dashboard instead of being invisible.
       const checkoutOrigin = req.headers.get("origin")?.trim() || "unknown";
+      if (checkoutOrigin !== APPROVED_CHECKOUT_ORIGIN) {
+        return json(
+          { error: "Payments are only available on https://www.triosworld.in." },
+          403,
+        );
+      }
 
       // --- requirement: collect name, mobile and delivery address ---
       if (isBlank(customer.name)) return json({ error: "Full name is required" }, 400);

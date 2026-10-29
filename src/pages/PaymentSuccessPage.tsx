@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Check, X, Loader2, Download, RefreshCw, Clock, ArrowRight, AlertTriangle, ShieldCheck,
+  MapPin, PackageCheck,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import SEO from '@/components/SEO';
@@ -10,8 +11,9 @@ import { EASE } from '@/components/Motion';
 import { formatINR } from '@/data/catalog';
 import { useStore } from '@/store/StoreContext';
 import {
-  PaymentServiceUnavailableError, demoSettle, findOrderToken, getReceipt, getStatus,
-  takePendingOrder, type StatusResult,
+  PaymentServiceUnavailableError, clearOrderReview, demoSettle, findOrderToken, getReceipt,
+  getStatus, readOrderReview, takePendingOrder, type OrderItemSummary, type OrderReviewAddress,
+  type StatusResult,
 } from '@/lib/payments';
 import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
 import { downloadReceipt } from '@/lib/receipt';
@@ -140,6 +142,7 @@ export default function PaymentSuccessPage() {
     if (result?.payment_status !== 'paid' || clearedRef.current) return;
     clearedRef.current = true;
     if (takePendingOrder() === orderNumber) clearCart();
+    clearOrderReview(orderNumber);
   }, [result?.payment_status, orderNumber, clearCart]);
 
   // Stock was decremented server-side when the payment was captured. Refresh
@@ -460,6 +463,12 @@ export default function PaymentSuccessPage() {
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
+  // The server returns the saved lines and address with the order. During a
+  // rolling deployment the short-lived checkout snapshot fills any gap.
+  const localReview = readOrderReview(order.order_number);
+  const reviewItems = (order.items?.length ? order.items : localReview?.items) ?? [];
+  const reviewAddress = order.shipping_address ?? localReview?.address ?? null;
+
   return (
     <div className="page-container py-12 md:py-20">
       <SEO title={paymentStatus === 'paid' ? 'Payment successful' : 'Complete payment'} noindex />
@@ -563,6 +572,8 @@ export default function PaymentSuccessPage() {
                   <span className="font-semibold text-ink">{formatINR(order.total)}</span>
                 </p>
               </div>
+
+              <OrderReviewPanel items={reviewItems} address={reviewAddress} />
 
               <div className="rounded-2xl border border-ink/10 bg-ivory p-6 md:p-8">
                 <div className="flex flex-col md:flex-row items-center gap-8">
@@ -750,6 +761,91 @@ export default function PaymentSuccessPage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+function OrderReviewPanel({
+  items,
+  address,
+}: {
+  items: OrderItemSummary[];
+  address: OrderReviewAddress | null;
+}) {
+  if (items.length === 0 && !address) return null;
+
+  const cityState = address
+    ? [address.city, address.state].filter(Boolean).join(', ')
+    : '';
+
+  return (
+    <section
+      aria-labelledby="order-review-title"
+      className="mb-6 rounded-2xl border border-lime/50 bg-lime/10 p-5 md:p-6"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-ivory">
+          <PackageCheck size={16} />
+        </span>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id="order-review-title" className="font-display text-lg font-semibold">
+              Please confirm your selection
+            </h2>
+            <span className="rounded-full border border-ink/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-ink/60">
+              Read-only
+            </span>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-ink/65">
+            Check the colour, size, quantity and delivery address before paying.
+          </p>
+        </div>
+      </div>
+
+      {items.length > 0 && (
+        <ul aria-label="Selected items" className="mt-4 divide-y divide-ink/10 rounded-xl border border-ink/10 bg-ivory">
+          {items.map((item, index) => (
+            <li key={`${item.productId}-${item.color}-${item.size}-${index}`} className="flex items-start gap-3 p-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{item.name}</p>
+                <p className="mt-0.5 text-xs text-ink/65">
+                  {item.color} · {item.size} · Qty {item.qty}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold">{formatINR(item.lineTotal)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {address && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-ink/10 bg-ivory p-3.5">
+          <MapPin size={16} className="mt-0.5 shrink-0 text-ink/60" />
+          <div className="min-w-0 text-sm">
+            <p className="text-[10px] uppercase tracking-widest text-ink/50">Delivery address</p>
+            <p className="mt-0.5 font-medium">{address.fullName || 'Customer'}</p>
+            <address className="mt-1 not-italic text-xs leading-relaxed text-ink/65">
+              {address.address && <span className="block">{address.address}</span>}
+              {cityState && (
+                <span className="block">
+                  {cityState}{address.pincode ? ` - ${address.pincode}` : ''}
+                </span>
+              )}
+              {!cityState && address.pincode && <span className="block">{address.pincode}</span>}
+              {address.mobile && <span className="mt-1 block">{address.mobile}</span>}
+              {address.email && <span className="block break-all">{address.email}</span>}
+            </address>
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-[11px] text-ink/60">
+        If anything is wrong, don&rsquo;t pay yet —{' '}
+        <Link to="/contact" className="font-medium underline text-ink hover:text-ink/70">
+          contact us on WhatsApp
+        </Link>{' '}
+        and we&rsquo;ll correct the order.
+      </p>
+    </section>
   );
 }
 

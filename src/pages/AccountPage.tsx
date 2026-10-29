@@ -5,6 +5,7 @@ import SEO from '@/components/SEO';
 import { useStore } from '@/store/StoreContext';
 import { useAuth, supabase } from '@/store/AuthContext';
 import { formatINR } from '@/data/catalog';
+import { INDIAN_STATES } from '@/lib/indianStates';
 
 type Tab = 'profile' | 'orders' | 'wishlist' | 'addresses' | 'settings';
 
@@ -28,13 +29,6 @@ interface Order {
   payment_method: string;
   created_at: string;
 }
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
-  'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Chandigarh', 'Jammu & Kashmir',
-];
 
 export default function AccountPage() {
   const navigate = useNavigate();

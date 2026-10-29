@@ -233,7 +233,14 @@ export default function ProductCard({ product }: Props) {
         </div>
         {(product.fit || product.fabric) && (
           <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.08em] text-ink/65">
-            {[product.fit ? `${product.fit} fit` : null, product.fabric].filter(Boolean).join(' · ')}
+            {[
+              product.fit
+                ? /\sfit$/i.test(product.fit.trim())
+                  ? product.fit.trim()
+                  : `${product.fit.trim()} fit`
+                : null,
+              product.fabric,
+            ].filter(Boolean).join(' · ')}
           </p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-1" role="group" aria-label="Colours">

@@ -112,16 +112,19 @@ export default function HomePage() {
         </Stagger>
       </section>
 
-      {/* BESTSELLERS */}
-      <section className="page-container py-16 md:py-20">
-        <Reveal className="flex items-end justify-between mb-10">
-          <h2 className="font-display fluid-h2 font-semibold">{content.bestsellersHeading}</h2>
-          <Link to="/shop/bestsellers" className="link-underline text-sm font-medium text-ink/70 hover:text-ink inline-flex items-center gap-1">Shop all <ArrowRight size={16} /></Link>
-        </Reveal>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
-          {bestsellers.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
-        </div>
-      </section>
+      {/* BESTSELLERS — skip the whole rail while the operator has no flagged
+          products, rather than leaving a heading over empty white space. */}
+      {bestsellers.length > 0 && (
+        <section className="page-container py-16 md:py-20">
+          <Reveal className="flex items-end justify-between mb-10">
+            <h2 className="font-display fluid-h2 font-semibold">{content.bestsellersHeading}</h2>
+            <Link to="/shop/bestsellers" className="link-underline text-sm font-medium text-ink/70 hover:text-ink inline-flex items-center gap-1">Shop all <ArrowRight size={16} /></Link>
+          </Reveal>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
+            {bestsellers.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
+          </div>
+        </section>
+      )}
 
       {/* EDITORIAL SPLIT */}
       <section className="page-container py-16 md:py-24">

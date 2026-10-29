@@ -16,14 +16,9 @@ import { uploadOrderImage, orderImageUrl } from '@/lib/orderImageUpload';
 import { saveWhatsAppOrder, setWhatsAppOrderImage } from '@/lib/whatsappOrders';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
+  rememberOrderReview,
 } from '@/lib/payments';
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
-  'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Chandigarh', 'Jammu & Kashmir',
-];
+import { INDIAN_STATES } from '@/lib/indianStates';
 
 interface FormState {
   fullName: string;
@@ -295,6 +290,21 @@ export default function CheckoutPage() {
         total: order.amount,
         createdAt: new Date().toISOString(),
       });
+      // The payment page repeats this exact selection and address before the
+      // customer pays. The server response is the durable copy; this local
+      // snapshot keeps the page complete during a rolling deployment.
+      rememberOrderReview(order.order_number, {
+        items: order.items,
+        address: {
+          fullName: form.fullName.trim(),
+          mobile: form.mobile,
+          email: form.email.trim() || null,
+          pincode: form.pincode,
+          address: form.address.trim(),
+          city: form.city.trim(),
+          state: form.state,
+        },
+      });
       markPendingOrder(order.order_number);
 
       navigate(`/order/${order.order_number}?token=${order.receipt_token}`);
@@ -360,80 +370,6 @@ export default function CheckoutPage() {
               </p>
             </div>
           )}
-
-          {/* The customer chose colour, size and quantity on the product page.
-              Repeat that exact selection here, read-only, so they can check it
-              before entering the delivery address. */}
-          <section
-            aria-labelledby="selection-confirm"
-            className="rounded-xl border border-lime/50 bg-lime/10 p-4 sm:p-5"
-          >
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-ivory">
-                <Check size={16} />
-              </span>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 id="selection-confirm" className="font-display text-lg font-semibold">
-                    Please confirm your selection
-                  </h2>
-                  <span className="text-[10px] uppercase tracking-wide text-ink/60 border border-ink/15 rounded-full px-2 py-0.5">
-                    Read-only
-                  </span>
-                </div>
-                <p className="text-xs text-ink/65 mt-1 leading-relaxed">
-                  These are the exact colour, size and quantity you chose on the product page.
-                  They are shown here as a reminder and can&rsquo;t be changed on this page.
-                </p>
-              </div>
-            </div>
-
-            <ul aria-label="Selected items" className="mt-4 divide-y divide-ink/10 rounded-lg border border-ink/10 bg-ivory">
-              {cart.map(item => {
-                const p = resolveProduct(item.productId);
-                if (!p) return null;
-                const v = p.variants.find(x => x.color === item.color);
-                const image = v?.colorImage ?? v?.images?.[0];
-                return (
-                  <li key={`${item.productId}-${item.color}-${item.size}`} className="flex items-center gap-3 p-3">
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={`${p.name} in ${item.color}`}
-                        className="w-12 h-14 rounded object-cover shrink-0"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-12 h-14 rounded bg-stone shrink-0" aria-hidden="true" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{p.name}</p>
-                      <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65">
-                        <div>
-                          <dt className="inline text-ink/50">Colour: </dt>
-                          <dd className="inline font-semibold text-ink">{item.color}</dd>
-                        </div>
-                        <div>
-                          <dt className="inline text-ink/50">Size: </dt>
-                          <dd className="inline font-semibold text-ink">{item.size}</dd>
-                        </div>
-                        <div>
-                          <dt className="inline text-ink/50">Qty: </dt>
-                          <dd className="inline font-semibold text-ink">{item.qty}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                    <span className="text-sm font-semibold shrink-0">{formatINR(p.price * item.qty)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-
-            <p className="mt-3 text-[11px] text-ink/60">
-              To change something, go back to the product page or edit the item in your bag.
-              The delivery details below are the only new information we need.
-            </p>
-          </section>
 
           <section>
             <h2 className="font-display text-xl font-semibold mb-4">Delivery details</h2>
@@ -553,8 +489,8 @@ export default function CheckoutPage() {
                   Your order goes to our WhatsApp as a picture — nothing to type, nothing to change.
                 </p>
                 <p className="text-[11px] text-ink/65 mt-1 text-center">
-                  You’ll be taken to Razorpay’s secure UPI checkout on the next screen. Nothing is
-                  charged until you confirm the payment in your UPI app.
+                  Our team will confirm your order and share the payment details with you on
+                  WhatsApp. Nothing is charged here.
                 </p>
               </>
             )}

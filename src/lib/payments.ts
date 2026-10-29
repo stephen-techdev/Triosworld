@@ -21,6 +21,26 @@ export interface CheckoutCustomer {
   state: string;
 }
 
+export interface OrderItemSummary {
+  productId: string;
+  name: string;
+  color: string;
+  size: string;
+  qty: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface OrderReviewAddress {
+  fullName?: string;
+  mobile?: string;
+  email?: string | null;
+  pincode?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+}
+
 export interface CreateOrderResult {
   order_number: string;
   order_id: string;
@@ -29,7 +49,7 @@ export interface CreateOrderResult {
   subtotal: number;
   shipping: number;
   expires_at: string;
-  items: { productId: string; name: string; color: string; size: string; qty: number; unitPrice: number; lineTotal: number }[];
+  items: OrderItemSummary[];
   payment: {
     mode: 'live' | 'demo';
     demo: boolean;
@@ -55,6 +75,13 @@ export interface OrderSummary {
   created_at: string;
   payment_id: string | null;
   payment_reference: string | null;
+  /**
+   * The exact lines and delivery address saved with the order. Optional so a
+   * cached response from an older deployment still renders; the order page
+   * falls back to the short-lived checkout copy in that case.
+   */
+  items?: OrderItemSummary[];
+  shipping_address?: OrderReviewAddress | null;
 }
 
 export interface PaymentInfo {
@@ -263,6 +290,49 @@ export function readOrders(): StoredOrderRef[] {
 
 export function findOrderToken(orderNumber: string): string | null {
   return readOrders().find(o => o.orderNumber === orderNumber)?.token ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Short-lived checkout review
+//
+// The delivery address and selected lines are needed on the payment page so the
+// customer can check them before paying. They are kept in sessionStorage only:
+// the server is the durable copy, and this local copy disappears with the tab.
+// ---------------------------------------------------------------------------
+
+const REVIEW_PREFIX = 'triosworld-order-review:';
+
+export interface OrderReview {
+  items: OrderItemSummary[];
+  address: OrderReviewAddress;
+}
+
+export function rememberOrderReview(orderNumber: string, review: OrderReview) {
+  try {
+    sessionStorage.setItem(`${REVIEW_PREFIX}${orderNumber}`, JSON.stringify(review));
+  } catch {
+    // Storage unavailable — the server copy still powers the order page.
+  }
+}
+
+export function readOrderReview(orderNumber: string): OrderReview | null {
+  try {
+    const raw = sessionStorage.getItem(`${REVIEW_PREFIX}${orderNumber}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<OrderReview>;
+    if (!Array.isArray(parsed.items) || !parsed.address) return null;
+    return { items: parsed.items, address: parsed.address };
+  } catch {
+    return null;
+  }
+}
+
+export function clearOrderReview(orderNumber: string) {
+  try {
+    sessionStorage.removeItem(`${REVIEW_PREFIX}${orderNumber}`);
+  } catch {
+    // ignore
+  }
 }
 
 // ---------------------------------------------------------------------------

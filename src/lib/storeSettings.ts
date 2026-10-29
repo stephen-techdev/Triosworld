@@ -19,8 +19,10 @@ export interface StoreSettings {
 }
 
 export const DEFAULT_SETTINGS: StoreSettings = {
-  shippingFee: 79,
-  freeShippingThreshold: 1499,
+  // The live store is currently free shipping on every order. A failed
+  // settings read must never invent a ₹79 charge that the server would not add.
+  shippingFee: 0,
+  freeShippingThreshold: 0,
   // Empty means "derive it": the bar then shows the free-shipping line built
   // from the threshold, so the operator never has to retype it after a change.
   announcement: '',

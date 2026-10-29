@@ -507,7 +507,7 @@ export default function CheckoutPage() {
                 const v = p.variants.find(x => x.color === item.color);
                 return (
                   <div key={`${item.productId}-${item.color}-${item.size}`} className="flex gap-3">
-                    <img src={v?.images[0]} alt={p.name} className="w-14 h-16 object-cover rounded" loading="lazy" />
+                    <img src={v?.colorImage ?? v?.images[0]} alt={p.name} className="w-14 h-16 object-cover rounded" loading="lazy" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p.name}</p>
                       <p className="text-xs text-ink/65">{item.color} · {item.size} · Qty {item.qty}</p>

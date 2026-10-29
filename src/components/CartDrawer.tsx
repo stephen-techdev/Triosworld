@@ -51,7 +51,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                     return (
                       <div key={`${item.productId}-${item.color}-${item.size}`} className="flex gap-4">
                         <Link to={`/product/${p.slug}`} onClick={onClose} className="shrink-0">
-                          <img src={v?.images[0]} alt={p.name} className="w-20 h-24 object-cover rounded" />
+                          <img src={v?.colorImage ?? v?.images[0]} alt={p.name} className="w-20 h-24 object-cover rounded" />
                         </Link>
                         <div className="flex-1 min-w-0">
                           <Link to={`/product/${p.slug}`} onClick={onClose} className="text-sm font-medium hover:text-ink/60">{p.name}</Link>

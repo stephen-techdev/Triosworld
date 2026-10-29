@@ -323,9 +323,6 @@ export const getOrders = (params: { status?: string; q?: string } = {}) => {
 export const updateOrder = (id: string, patch: { status?: string; payment_status?: string }) =>
   adminRequest<{ ok: boolean }>('/order', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
 
-export const clearOrders = (params: { scope?: 'all' | 'paid' | 'failed' | 'pending' | 'guests' } = {}) =>
-  adminRequest<{ ok: boolean; deleted: number }>('/orders-clear', { method: 'POST', body: JSON.stringify(params) });
-
 export const deleteOrder = (id: string) =>
   adminRequest<{ ok: boolean }>('/order-delete', { method: 'POST', body: JSON.stringify({ id }) });
 
@@ -336,9 +333,6 @@ export const getOrderEvents = (id: string) =>
 
 export const getCustomers = () =>
   adminRequest<{ customers: AdminCustomer[] }>('/customers').then(r => r.customers);
-
-export const clearGuests = () =>
-  adminRequest<{ ok: boolean; deleted: number }>('/customers-clear-guests', { method: 'POST', body: JSON.stringify({}) });
 
 export const getProducts = () =>
   adminRequest<{ products: AdminProduct[] }>('/products').then(r => r.products);
@@ -376,6 +370,18 @@ export const muteCustomer = (mobile: string, muted: boolean, reason?: string) =>
 
 export const deleteCustomer = (mobile: string) =>
   adminRequest<{ ok: boolean; orders_preserved: number }>('/customer-delete', {
+    method: 'POST',
+    body: JSON.stringify({ mobile }),
+  });
+
+/**
+ * Remove a guest profile by mobile. A guest has no `profiles` row; the admin
+ * customer list is derived from orders, so deleting the guest's orders is what
+ * removes the profile. This is the per-customer replacement for the old bulk
+ * "clear guest history" action.
+ */
+export const deleteGuest = (mobile: string) =>
+  adminRequest<{ ok: boolean; deleted: number }>('/customer-guest-delete', {
     method: 'POST',
     body: JSON.stringify({ mobile }),
   });

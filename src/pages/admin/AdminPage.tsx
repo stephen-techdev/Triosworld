@@ -25,7 +25,7 @@ import ContentSection from '@/pages/admin/ContentSection';
  */
 const BUILTIN_COLLECTIONS = ['shop-all', 'men', 'bestsellers', 'new-arrivals'];
 import {
-  AdminAuthError, adminLogout, changeAdminPassword, clearFeedback, clearGuests, clearOrders, createProduct, deleteCustomer,
+  AdminAuthError, adminLogout, changeAdminPassword, clearFeedback, createProduct, deleteCustomer, deleteGuest,
   deleteFeedback, deleteOrder, deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
   getProducts, getSettings, muteCustomer, normalizeProductColors, readSession, saveSettings,
   setFeedbackStatus, updateOrder, updateProduct,
@@ -326,8 +326,9 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
 
   const [openId, setOpenId] = useState<string | null>(null);
-  const [clearing, setClearing] = useState(false);
-  const [clearErr, setClearErr] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
   const [receiptErr, setReceiptErr] = useState<string | null>(null);
 
   const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
@@ -340,13 +341,17 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   };
 
   const removeOrder = async (order: AdminOrder) => {
-    if (!confirm(`Delete order ${order.order_number}? This cannot be undone.`)) return;
+    setDeletingId(order.id);
+    setDeleteErr(null);
     try {
       await deleteOrder(order.id);
+      setDeleteId(null);
       await reload();
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
-      alert(err instanceof Error ? err.message : 'Failed to delete order');
+      setDeleteErr(err instanceof Error ? err.message : 'Failed to delete order');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -359,33 +364,21 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
     }
   };
 
-  const doClear = async (scope: 'all' | 'paid' | 'failed' | 'pending' | 'guests') => {
-    const label = scope === 'all' ? 'ALL orders' : scope === 'guests' ? 'all GUEST orders' : `all ${scope} orders`;
-    if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
-    setClearing(true); setClearErr(null);
-    try {
-      await clearOrders({ scope });
-      await reload();
-    } catch (e) {
-      if (e instanceof AdminAuthError) { onAuthFail(); return; }
-      setClearErr(e instanceof Error ? e.message : 'Failed to clear');
-    } finally {
-      setClearing(false);
-    }
-  };
-
   return (
     <div>
       <SectionHead title="Orders & Payments" subtitle="Every order, guest and registered" onRefresh={reload} loading={loading} />
 
       <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
         Download a PDF receipt for any order — it includes the delivery address and every item&rsquo;s
-        colour, size and quantity. Receipts are generated on your device and are never stored on the
-        server, so there is no copy left behind to auto-delete.
+        colour, size and quantity. Orders and payment records stay here until you delete them
+        individually; nothing is cleared automatically.
       </p>
 
       {receiptErr && (
         <p className="text-xs text-red-600 mb-3" role="alert">{receiptErr}</p>
+      )}
+      {deleteErr && (
+        <p className="text-xs text-red-600 mb-3" role="alert">{deleteErr}</p>
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -412,16 +405,6 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
             className="w-full text-sm bg-ivory border border-ink/10 rounded-full pl-9 pr-3 py-2.5 focus:outline-none focus:border-ink"
           />
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-[11px] text-ink/65">Clear:</span>
-        <button type="button" disabled={clearing} onClick={() => doClear('guests')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Guest orders</button>
-        <button type="button" disabled={clearing} onClick={() => doClear('pending')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Pending</button>
-        <button type="button" disabled={clearing} onClick={() => doClear('failed')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Failed</button>
-        <button type="button" disabled={clearing} onClick={() => doClear('paid')} className="px-2.5 py-1 rounded-full text-[11px] border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Paid</button>
-        <button type="button" disabled={clearing} onClick={() => doClear('all')} className="px-2.5 py-1 rounded-full text-[11px] border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40">Clear all</button>
-        {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
       </div>
 
       {error && <ErrorNote message={error} onRetry={reload} />}
@@ -477,10 +460,14 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeOrder(order)}
+                    onClick={() => {
+                      setDeleteErr(null);
+                      setDeleteId(deleteId === order.id ? null : order.id);
+                    }}
                     className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition"
                     title={`Delete order ${order.order_number}`}
                     aria-label={`Delete order ${order.order_number}`}
+                    aria-expanded={deleteId === order.id}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -495,6 +482,33 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                   </button>
                 </div>
               </div>
+
+              {deleteId === order.id && (
+                <div className="border-t border-red-200 bg-red-50/70 px-4 py-3">
+                  <p className="text-xs text-red-800">
+                    Delete <strong>{order.order_number}</strong> permanently? This also removes its
+                    payment trail and receipt data. It cannot be undone.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteId(null)}
+                      disabled={deletingId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs border border-red-200 bg-ivory hover:bg-red-50 disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeOrder(order)}
+                      disabled={deletingId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deletingId === order.id ? 'Deleting…' : 'Delete order'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <AnimatePresence initial={false}>
                 {open && (
@@ -677,8 +691,6 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const { data, error, loading, reload } = useAdminData<AdminCustomer[]>(loader, onAuthFail);
   const [query, setQuery] = useState('');
   const [openMobile, setOpenMobile] = useState<string | null>(null);
-  const [clearing, setClearing] = useState(false);
-  const [clearErr, setClearErr] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -686,20 +698,6 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
     if (!q) return data;
     return data.filter(c => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
   }, [data, query]);
-
-  const clearGuestHistory = async () => {
-    if (!confirm('Clear all guest order history? This cannot be undone.')) return;
-    setClearing(true); setClearErr(null);
-    try {
-      await clearGuests();
-      await reload();
-    } catch (e) {
-      if (e instanceof AdminAuthError) { onAuthFail(); return; }
-      setClearErr(e instanceof Error ? e.message : 'Failed to clear');
-    } finally {
-      setClearing(false);
-    }
-  };
 
   return (
     <div>
@@ -715,10 +713,10 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
         />
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <button type="button" disabled={clearing} onClick={clearGuestHistory} className="px-3 py-1.5 rounded-full text-xs border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Clear guest history</button>
-        {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
-      </div>
+      <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
+        Guest profiles stay here until you remove them. Use the bin icon on a guest to delete that
+        guest&rsquo;s order history individually — there is no bulk clear.
+      </p>
 
       {error && <ErrorNote message={error} onRetry={reload} />}
       {loading && !data && <Centered><Loader2 className="animate-spin" /></Centered>}
@@ -740,6 +738,7 @@ function CustomersSection({ onAuthFail }: { onAuthFail: () => void }) {
         <CustomerDrawer
           mobile={openMobile}
           onClose={() => setOpenMobile(null)}
+          onChanged={reload}
           onAuthFail={onAuthFail}
         />
       )}
@@ -761,8 +760,12 @@ function CustomerRow({ customer: c, onChanged, onView }: {
   const run = async (kind: 'mute' | 'unmute' | 'delete') => {
     setBusy(kind); setErr(null);
     try {
-      if (kind === 'delete') await deleteCustomer(c.mobile);
-      else await muteCustomer(c.mobile, kind === 'mute', reason);
+      if (kind === 'delete') {
+        if (c.type === 'guest') await deleteGuest(c.mobile);
+        else await deleteCustomer(c.mobile);
+      } else {
+        await muteCustomer(c.mobile, kind === 'mute', reason);
+      }
       setAskingMute(false); setAskingDelete(false); setReason('');
       onChanged();
     } catch (e) {
@@ -811,30 +814,26 @@ function CustomerRow({ customer: c, onChanged, onView }: {
             <ChevronDown size={16} className="-rotate-90" />
           </button>
 
-          {c.type === 'registered' ? (
-            <>
-              <button
-                onClick={() => (askingMute ? run('mute') : setAskingMute(v => !v))}
-                disabled={busy !== null}
-                className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition disabled:opacity-40"
-                aria-label={askingMute ? 'Confirm mute' : `Mute ${c.name}`}
-                title={askingMute ? 'Confirm mute' : 'Mute'}
-              >
-                {busy === 'mute' ? <Loader2 size={16} className="animate-spin" /> : <AlertTriangle size={16} />}
-              </button>
-              <button
-                onClick={() => (askingDelete ? run('delete') : setAskingDelete(v => !v))}
-                disabled={busy !== null}
-                className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition disabled:opacity-40"
-                aria-label={askingDelete ? 'Confirm delete' : `Delete ${c.name}`}
-                title={askingDelete ? 'Confirm delete' : 'Delete'}
-              >
-                {busy === 'delete' ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              </button>
-            </>
-          ) : (
-            <span className="text-[10px] text-ink/35 px-2">guest</span>
+          {c.type === 'registered' && (
+            <button
+              onClick={() => (askingMute ? run('mute') : setAskingMute(v => !v))}
+              disabled={busy !== null}
+              className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition disabled:opacity-40"
+              aria-label={askingMute ? 'Confirm mute' : `Mute ${c.name}`}
+              title={askingMute ? 'Confirm mute' : 'Mute'}
+            >
+              {busy === 'mute' ? <Loader2 size={16} className="animate-spin" /> : <AlertTriangle size={16} />}
+            </button>
           )}
+          <button
+            onClick={() => (askingDelete ? run('delete') : setAskingDelete(v => !v))}
+            disabled={busy !== null}
+            className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+            aria-label={askingDelete ? 'Confirm delete' : `Delete ${c.name}`}
+            title={askingDelete ? 'Confirm delete' : 'Delete'}
+          >
+            {busy === 'delete' ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+          </button>
         </div>
       </div>
 
@@ -861,8 +860,19 @@ function CustomerRow({ customer: c, onChanged, onView }: {
       {askingDelete && (
         <div className="mt-3 pt-3 border-t border-ink/10">
           <p className="text-xs text-red-700 mb-2">
-            Delete <strong>{c.name}</strong>? Their past orders and invoices are kept so revenue reporting
-            stays correct, but they will be signed out permanently and cannot sign in again.
+            {c.type === 'guest' ? (
+              <>
+                Delete guest profile <strong>{c.name}</strong> and all <strong>{c.orders}</strong>{' '}
+                order{c.orders === 1 ? '' : 's'}? This removes their guest orders, payment trail and
+                receipt data permanently. It cannot be undone.
+              </>
+            ) : (
+              <>
+                Delete <strong>{c.name}</strong>? Their past orders and invoices are kept so revenue
+                reporting stays correct, but they will be signed out permanently and cannot sign in
+                again.
+              </>
+            )}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setAskingDelete(false)} className="px-3 py-2 text-sm rounded-lg border border-ink/15 hover:bg-stone/50">
@@ -870,7 +880,7 @@ function CustomerRow({ customer: c, onChanged, onView }: {
             </button>
             <button onClick={() => run('delete')} disabled={busy !== null}
               className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
-              {busy === 'delete' ? 'Deleting…' : 'Yes, delete'}
+              {busy === 'delete' ? 'Deleting…' : c.type === 'guest' ? 'Yes, delete guest' : 'Yes, delete'}
             </button>
           </div>
         </div>
@@ -883,13 +893,14 @@ function CustomerRow({ customer: c, onChanged, onView }: {
 
 // ───────────────────────── customer detail drawer ──────────────────────────
 
-function CustomerDrawer({ mobile, onClose, onAuthFail }: {
-  mobile: string; onClose: () => void; onAuthFail: () => void;
+function CustomerDrawer({ mobile, onClose, onChanged, onAuthFail }: {
+  mobile: string; onClose: () => void; onChanged: () => void; onAuthFail: () => void;
 }) {
   const [data, setData] = useState<AdminCustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [askingDelete, setAskingDelete] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -923,7 +934,9 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
     if (!data) return;
     setBusy(true); setError(null);
     try {
-      await deleteCustomer(data.mobile);
+      if (data.has_account) await deleteCustomer(data.mobile);
+      else await deleteGuest(data.mobile);
+      onChanged();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not delete');
@@ -984,18 +997,53 @@ function CustomerDrawer({ mobile, onClose, onAuthFail }: {
                 {data.google_id && <p>Linked Google ID: <span className="font-mono text-[10px]">{data.google_id}</span></p>}
               </div>
 
-              {data.has_account && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-ink/10">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-ink/10">
+                {data.has_account ? (
                   <button onClick={toggleMute} disabled={busy || Boolean(data.deleted_at)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-amber-300 text-amber-800 hover:bg-amber-50 disabled:opacity-40">
                     {busy ? <Loader2 size={13} className="animate-spin" /> : <AlertTriangle size={13} />}
                     {data.is_muted ? 'Unmute account' : 'Mute account'}
                   </button>
-                  <button onClick={remove} disabled={busy}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-40">
-                    {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    Delete account
-                  </button>
+                ) : (
+                  <span className="inline-flex items-center px-2 text-[11px] text-ink/55">
+                    Guest profile — no sign-in account
+                  </span>
+                )}
+                <button onClick={() => setAskingDelete(true)} disabled={busy}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-40">
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  {data.has_account ? 'Delete account' : 'Delete guest profile'}
+                </button>
+              </div>
+
+              {askingDelete && (
+                <div className="rounded-lg border border-red-200 bg-red-50/70 p-3">
+                  <p className="text-xs text-red-800">
+                    {data.has_account ? (
+                      <>
+                        Delete <strong>{data.full_name}</strong>? Their past orders and invoices are kept
+                        so revenue reporting stays correct, but they will be signed out permanently and
+                        cannot sign in again.
+                      </>
+                    ) : (
+                      <>
+                        Delete guest profile <strong>{data.full_name}</strong> and all{' '}
+                        <strong>{data.stats.order_count}</strong> order
+                        {data.stats.order_count === 1 ? '' : 's'}? This removes their guest orders,
+                        payment trail and receipt data permanently. It cannot be undone.
+                      </>
+                    )}
+                  </p>
+                  <div className="flex gap-2 mt-2.5">
+                    <button onClick={() => setAskingDelete(false)} disabled={busy}
+                      className="px-3 py-1.5 text-xs rounded-full border border-red-200 bg-ivory hover:bg-red-50 disabled:opacity-40">
+                      Cancel
+                    </button>
+                    <button onClick={remove} disabled={busy}
+                      className="px-3 py-1.5 text-xs font-medium rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                      {busy ? 'Deleting…' : data.has_account ? 'Yes, delete' : 'Yes, delete guest'}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1426,6 +1474,9 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
   const { data, error, loading, reload } = useAdminData<AdminFeedback[]>(loader, onAuthFail);
   const [clearing, setClearing] = useState(false);
   const [clearErr, setClearErr] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [askClear, setAskClear] = useState(false);
 
   const setStatus = async (id: string, status: 'new' | 'read' | 'resolved') => {
     try {
@@ -1437,22 +1488,24 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
   };
 
   const removeFeedback = async (f: AdminFeedback) => {
-    if (!confirm('Delete this feedback? This cannot be undone.')) return;
+    setDeletingId(f.id); setClearErr(null);
     try {
       await deleteFeedback(f.id);
+      setDeleteId(null);
       await reload();
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
-      alert(err instanceof Error ? err.message : 'Failed to delete');
+      setClearErr(err instanceof Error ? err.message : 'Failed to delete');
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const doClear = async () => {
-    const label = filter === 'all' ? 'all feedback' : `all ${filter} feedback`;
-    if (!confirm(`Clear ${label}? This cannot be undone.`)) return;
     setClearing(true); setClearErr(null);
     try {
       await clearFeedback(filter);
+      setAskClear(false);
       await reload();
     } catch (e) {
       if (e instanceof AdminAuthError) { onAuthFail(); return; }
@@ -1481,9 +1534,27 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
             </button>
           ))}
         </div>
-        <button type="button" disabled={clearing} onClick={doClear} className="px-3 py-1.5 rounded-full text-xs border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Clear {filter === 'all' ? 'all' : filter}</button>
+        <button type="button" disabled={clearing} onClick={() => setAskClear(v => !v)} className="px-3 py-1.5 rounded-full text-xs border border-ink/15 hover:bg-stone/40 disabled:opacity-40">Clear {filter === 'all' ? 'all' : filter}</button>
         {clearErr && <span className="text-[11px] text-red-600">{clearErr}</span>}
       </div>
+
+      {askClear && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50/70 p-3">
+          <p className="text-xs text-red-800">
+            Clear {filter === 'all' ? 'all feedback' : `all ${filter} feedback`}? This cannot be undone.
+          </p>
+          <div className="flex gap-2 mt-2.5">
+            <button type="button" onClick={() => setAskClear(false)} disabled={clearing}
+              className="px-3 py-1.5 text-xs rounded-full border border-red-200 bg-ivory hover:bg-red-50 disabled:opacity-40">
+              Cancel
+            </button>
+            <button type="button" onClick={doClear} disabled={clearing}
+              className="px-3 py-1.5 text-xs font-medium rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+              {clearing ? 'Clearing…' : 'Yes, clear'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <ErrorNote message={error} onRetry={reload} />}
       {loading && !data && <Centered><Loader2 className="animate-spin" /></Centered>}
@@ -1518,14 +1589,27 @@ function FeedbackSection({ onAuthFail }: { onAuthFail: () => void }) {
                   {f.status}
                 </span>
               </div>
-              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
-                <Trash2 size={13} />
-              </button>
-              <button type="button" onClick={() => removeFeedback(f)} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback">
+              <button type="button" onClick={() => setDeleteId(deleteId === f.id ? null : f.id)} className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition" title="Delete feedback" aria-expanded={deleteId === f.id}>
                 <Trash2 size={13} />
               </button>
               <span className="text-[11px] text-ink/65 shrink-0">{shortDate(f.created_at)}</span>
             </div>
+
+            {deleteId === f.id && (
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50/70 p-3">
+                <p className="text-xs text-red-800">Delete this feedback? This cannot be undone.</p>
+                <div className="flex gap-2 mt-2.5">
+                  <button type="button" onClick={() => setDeleteId(null)} disabled={deletingId === f.id}
+                    className="px-3 py-1.5 text-xs rounded-full border border-red-200 bg-ivory hover:bg-red-50 disabled:opacity-40">
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => removeFeedback(f)} disabled={deletingId === f.id}
+                    className="px-3 py-1.5 text-xs font-medium rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                    {deletingId === f.id ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <p className="text-sm text-ink/85 whitespace-pre-wrap">{f.message}</p>
 

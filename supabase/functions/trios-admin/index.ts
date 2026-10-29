@@ -423,44 +423,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // ==================== ORDERS / PAYMENTS ====================
-    if (path === "/orders-clear" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const scope = String(body.scope ?? "all").trim();
-      try {
-        if (scope === "guests") {
-          const { data: guestOrders } = await supabase.from("orders").select("id").is("user_id", null);
-          const ids = (guestOrders ?? []).map((o) => o.id).filter(Boolean);
-          if (ids.length) {
-            await supabase.from("order_events").delete().in("order_id", ids);
-            const { error } = await supabase.from("orders").delete().in("id", ids);
-            if (error) return json({ error: error.message }, 500);
-            await audit(session.email, "orders.clear", "orders", null, { scope, count: ids.length });
-            return json({ ok: true, deleted: ids.length });
-          }
-          return json({ ok: true, deleted: 0 });
-        } else if (scope === "all") {
-          await supabase.from("order_events").delete().not("id", "is", null);
-          const { error } = await supabase.from("orders").delete().not("id", "is", null);
-          if (error) return json({ error: error.message }, 500);
-          await audit(session.email, "orders.clear", "orders", null, { scope });
-          return json({ ok: true, deleted: 0 });
-        } else {
-          const { data: rows } = await supabase.from("orders").select("id").eq("payment_status", scope);
-          const ids = (rows ?? []).map((o) => o.id).filter(Boolean);
-          if (ids.length) {
-            await supabase.from("order_events").delete().in("order_id", ids);
-            const { error } = await supabase.from("orders").delete().in("id", ids);
-            if (error) return json({ error: error.message }, 500);
-            await audit(session.email, "orders.clear", "orders", null, { scope, count: ids.length });
-            return json({ ok: true, deleted: ids.length });
-          }
-          return json({ ok: true, deleted: 0 });
-        }
-      } catch (e) {
-        return json({ error: e instanceof Error ? e.message : "Failed to clear orders" }, 500);
-      }
-    }
-
+    // There is deliberately no bulk-clear endpoint. An operator can delete one
+    // order from its row, or one guest's full history from the guest profile.
+    // Orders and payment records are never removed on a schedule.
     if (path === "/orders" && req.method === "GET") {
       const status = url.searchParams.get("status");
       const search = (url.searchParams.get("q") ?? "").trim();
@@ -1113,24 +1078,48 @@ function storageKeyFromUrl(url: string): string | null {
       return json({ ok: true, is_muted: data.is_muted });
     }
 
-    // ==================== CUSTOMERS CLEAR (GUESTS) ====================
-    if (path === "/customers-clear-guests" && req.method === "POST") {
+    // ==================== GUEST PROFILE DELETE (INDIVIDUAL) ====================
+    // A guest has no profiles row — they exist only as orders. Deleting one
+    // guest therefore means deleting that mobile's guest orders (and their
+    // events); registered profiles are handled by /customer-delete and never
+    // reach this branch. No automatic cleanup runs here.
+    if (path === "/customer-guest-delete" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const mobile = String(body.mobile ?? "").replace(/\D/g, "").slice(-10);
+      if (!/^[6-9]\d{9}$/.test(mobile)) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("mobile", mobile)
+        .maybeSingle();
+      if (profile) {
+        return json(
+          { error: "This mobile has a registered account. Delete the account instead so its orders are preserved." },
+          409,
+        );
+      }
+
       try {
         const { data: guestOrders } = await supabase
           .from("orders")
           .select("id")
+          .eq("customer_mobile", mobile)
           .is("user_id", null);
         const ids = (guestOrders ?? []).map((o) => o.id).filter(Boolean);
-        if (ids.length) {
-          await supabase.from("order_events").delete().in("order_id", ids);
-          const { error } = await supabase.from("orders").delete().in("id", ids);
-          if (error) return json({ error: error.message }, 500);
-          await audit(session.email, "customers.clear_guests", "orders", null, { count: ids.length });
-          return json({ ok: true, deleted: ids.length });
-        }
-        return json({ ok: true, deleted: 0 });
+        if (!ids.length) return json({ error: "No guest orders found for that mobile" }, 404);
+
+        await supabase.from("order_events").delete().in("order_id", ids);
+        const { error } = await supabase.from("orders").delete().in("id", ids);
+        if (error) return json({ error: error.message }, 500);
+
+        await audit(session.email, "customer.delete_guest", "orders", null, {
+          mobile,
+          count: ids.length,
+        });
+        return json({ ok: true, deleted: ids.length });
       } catch (e) {
-        return json({ error: e instanceof Error ? e.message : "Failed to clear guests" }, 500);
+        return json({ error: e instanceof Error ? e.message : "Failed to delete guest" }, 500);
       }
     }
 

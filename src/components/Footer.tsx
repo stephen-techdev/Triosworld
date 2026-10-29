@@ -121,7 +121,9 @@ export default function Footer() {
               <p className="text-sm text-ivory/80 flex items-center gap-2"><Phone size={16} /> {footer.phone}</p>
             )}
             {footer.email && (
-              <p className="text-sm text-ivory/80 flex items-center gap-2"><Mail size={16} /> {footer.email}</p>
+              <a href={`mailto:${footer.email}`} className="text-sm text-ivory/80 flex items-center gap-2 hover:text-lime transition-colors">
+                <Mail size={16} /> {footer.email}
+              </a>
             )}
 
             {/* WhatsApp CTA — right side of the footer */}

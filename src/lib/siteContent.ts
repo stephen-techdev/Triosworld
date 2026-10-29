@@ -347,10 +347,10 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         { label: 'Terms & Conditions', to: '/terms' },
       ] },
     ],
-    address: 'Mumbai, India',
+    address: 'Ammapettai, Erode, Tamil Nadu, India',
     phone: '+91 63838 83727',
     whatsapp: '916383883727',
-    email: '',
+    email: 'santhoshsandy8883@gmail.com',
     socials: [
       { icon: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/triosworld_?utm_source=qr&vrfl=bmhsOGE1MGFteG8z' },
       { icon: 'whatsapp', label: 'WhatsApp', href: '' },
@@ -423,7 +423,8 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       body: [
         { p: 'We are here to help. Reach us any of the ways below — typical response time is under 24 hours on business days.' },
         { h: 'WhatsApp / Phone', p: '+91 63838 83727 (Mon–Sat, 10am–7pm IST)' },
-        { h: 'Address', p: 'TriosWorld, Mumbai, India' },
+        { h: 'Email', p: 'santhoshsandy8883@gmail.com' },
+        { h: 'Address', p: 'TriosWorld, Ammapettai, Erode, Tamil Nadu, India' },
       ],
     },
     faqs: {

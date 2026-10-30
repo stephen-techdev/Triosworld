@@ -109,8 +109,8 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       {slides.map((s, i) => !mounted.has(i) ? null : (
         <motion.img
           key={`${s.image}-${i}`}
-          src={sizedImage(s.image, i === 0 ? 900 : 1600) ?? s.image}
-          srcSet={i === 0 ? imageSrcSet(s.image, [640, 900, 1400, 2000]) : undefined}
+          src={sizedImage(s.image, i === 0 ? 900 : 1200) ?? s.image}
+          srcSet={i === 0 ? imageSrcSet(s.image, [640, 900, 1280]) : undefined}
           sizes="100vw"
           alt=""
           aria-hidden={i !== idx}

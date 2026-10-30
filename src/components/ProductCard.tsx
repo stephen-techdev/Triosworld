@@ -100,7 +100,7 @@ export default function ProductCard({ product }: Props) {
               />
               {!allSoldOut && soldOutImage(img) && (
                 <span className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-ink/30">
-                  <span className="rounded-full bg-ivory/95 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
+                  <span className="rounded-full bg-ivory/95 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-ink shadow-card ring-1 ring-ink/10">
                     Out of stock
                   </span>
                 </span>
@@ -122,7 +122,7 @@ export default function ProductCard({ product }: Props) {
 
         {allSoldOut && (
           <span className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-ink/35">
-            <span className="rounded-full bg-ivory/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink shadow-card ring-1 ring-ink/10 backdrop-blur">
+            <span className="rounded-full bg-ivory/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink shadow-card ring-1 ring-ink/10">
               Out of stock
             </span>
           </span>
@@ -139,7 +139,7 @@ export default function ProductCard({ product }: Props) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                className="origin-bottom-right rounded-2xl bg-ivory/95 p-2.5 shadow-lift backdrop-blur"
+                className="origin-bottom-right rounded-2xl bg-ivory/95 p-2.5 shadow-lift"
               >
                 <div className="mb-2 flex items-start justify-between gap-2 px-0.5">
                   <div className="min-w-0">
@@ -189,7 +189,7 @@ export default function ProductCard({ product }: Props) {
                   onClick={() => { if (!selectedSoldOut) setSheetOpen(true); }}
                   disabled={selectedSoldOut}
                   aria-label={selectedSoldOut ? 'Out of stock' : 'Quick add — choose a size'}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 ${selectedSoldOut ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95'}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-ivory text-ink shadow-card transition-all duration-200 ${selectedSoldOut ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95'}`}
                 >
                   {addedSize ? <Check size={16} /> : <Plus size={16} />}
                 </motion.button>
@@ -202,7 +202,7 @@ export default function ProductCard({ product }: Props) {
         <button
           onClick={() => toggleWishlist(product.id)}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className={`absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-ivory/75 backdrop-blur-sm transition-all duration-200 active:scale-90 ${wished ? 'text-red-600' : 'text-ink/70 hover:text-red-600'}`}
+          className={`absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-ivory/90 transition-all duration-200 active:scale-90 ${wished ? 'text-red-600' : 'text-ink/70 hover:text-red-600'}`}
         >
           <Heart size={16} fill={wished ? 'currentColor' : 'none'} />
         </button>

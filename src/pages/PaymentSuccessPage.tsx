@@ -5,7 +5,6 @@ import {
   Check, X, Loader2, Download, RefreshCw, Clock, ArrowRight, AlertTriangle, ShieldCheck,
   MapPin, PackageCheck,
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
 import { formatINR } from '@/data/catalog';
@@ -71,7 +70,6 @@ export default function PaymentSuccessPage() {
   const [openingCheckout, setOpeningCheckout] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(0);
   /** Bumped when the customer confirms a WhatsApp order, to re-read it. */
   const [confirmedTick, setConfirmedTick] = useState(0);
@@ -152,24 +150,6 @@ export default function PaymentSuccessPage() {
     if (result?.payment_status !== 'paid') return;
     void refreshLiveCatalog();
   }, [result?.payment_status]);
-
-  // Draw the QR locally when the gateway did not supply a hosted image.
-  useEffect(() => {
-    const intent = result?.payment?.upi_intent ?? null;
-    if (!intent || result?.payment?.qr_image_url) {
-      setQrDataUrl(null);
-      return;
-    }
-    let cancelled = false;
-    QRCode.toDataURL(intent, {
-      width: 480,
-      margin: 1,
-      color: { dark: '#171717', light: '#ffffff' },
-    })
-      .then(url => { if (!cancelled) setQrDataUrl(url); })
-      .catch(() => { if (!cancelled) setQrDataUrl(null); });
-    return () => { cancelled = true; };
-  }, [result?.payment?.upi_intent, result?.payment?.qr_image_url]);
 
   const handleDemoSettle = async () => {
     if (!token) return;
@@ -576,111 +556,66 @@ export default function PaymentSuccessPage() {
               <OrderReviewPanel items={reviewItems} address={reviewAddress} />
 
               <div className="rounded-2xl border border-ink/10 bg-ivory p-6 md:p-8">
-                <div className="flex flex-col md:flex-row items-center gap-8">
-                  <div className="shrink-0">
-                    <div className="w-56 h-56 rounded-xl border border-ink/10 bg-white p-3 grid place-items-center">
-                      {payment.qr_image_url ? (
-                        <img
-                          src={payment.qr_image_url}
-                          alt="UPI payment QR code"
-                          className="w-full h-full object-contain"
-                        />
-                      ) : qrDataUrl ? (
-                        <img src={qrDataUrl} alt="UPI payment QR code" className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="text-center px-4">
-                          <ShieldCheck size={34} className="mx-auto mb-2 text-ink/60" />
-                          <p className="text-xs font-semibold text-ink">
-                            {payment.mode === 'live' ? 'Razorpay secure checkout' : 'Demo mode'}
-                          </p>
-                          <p className="text-[11px] text-ink/55 mt-1">
-                            {payment.mode === 'live' ? 'UPI, cards and netbanking' : 'No real payment will be taken'}
-                          </p>
-                        </div>
-                      )}
+                <div className="max-w-md mx-auto text-center">
+                  <p className="text-xs uppercase tracking-widest text-ink/65 mb-2">Amount to pay</p>
+                  <p className="font-display text-4xl font-bold mb-6">{formatINR(order.total)}</p>
+
+                  {payment.mode === 'live' ? (
+                    <ul className="text-sm text-ink/60 space-y-2 mb-7 text-left inline-block">
+                      <li>1. Tap “Pay securely” below</li>
+                      <li>2. Choose UPI or your bank in Razorpay</li>
+                      <li>3. This page confirms automatically once the bank responds</li>
+                    </ul>
+                  ) : (
+                    <div className="mb-7 text-left p-4 rounded-xl bg-amber-50 border border-amber-200">
+                      <p className="text-xs font-semibold text-amber-900 mb-1">Demo mode</p>
+                      <p className="text-xs text-amber-800">
+                        No gateway is configured, so no real payment can be taken. Use the button
+                        below to settle this order server-side and see the full paid flow.
+                      </p>
                     </div>
-                    <p className="text-[11px] text-ink/65 text-center mt-3">
-                      {payment.qr_image_url || qrDataUrl
-                        ? 'Scan with any UPI app'
-                        : payment.mode === 'live'
-                          ? 'Secure payment window'
-                          : 'Demo payment'}
-                    </p>
-                  </div>
+                  )}
 
-                  <div className="flex-1 text-center md:text-left">
-                    <p className="text-xs uppercase tracking-widest text-ink/65 mb-2">Amount to pay</p>
-                    <p className="font-display text-4xl font-bold mb-5">{formatINR(order.total)}</p>
-
-                    {payment.mode === 'live' ? (
-                      qrDataUrl || payment.qr_image_url ? (
-                        <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
-                          <li>1. Scan the QR with any UPI app</li>
-                          <li>2. Pay the exact amount shown</li>
-                          <li>3. This page confirms automatically once the bank responds</li>
-                        </ul>
-                      ) : (
-                        <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
-                          <li>1. Tap “Pay securely” below</li>
-                          <li>2. Choose UPI or your bank in Razorpay</li>
-                          <li>3. This page confirms automatically once the bank responds</li>
-                        </ul>
-                      )
-                    ) : (
-                      <div className="mb-6 text-left p-4 rounded-xl bg-amber-50 border border-amber-200">
-                        <p className="text-xs font-semibold text-amber-900 mb-1">Demo mode</p>
-                        <p className="text-xs text-amber-800">
-                          No gateway is configured, so a real scan cannot be charged. Use the button
-                          below to settle this order server-side and see the full paid flow.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                      {payment.mode === 'live' && (
-                        <button
-                          type="button"
-                          onClick={handleCheckout}
-                          disabled={openingCheckout}
-                          className="px-6 py-3.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center gap-2"
-                        >
-                          {openingCheckout
-                            ? <Loader2 size={16} className="animate-spin" />
-                            : <ShieldCheck size={16} />}
-                          {openingCheckout
-                            ? 'Opening secure payment…'
-                            : qrDataUrl || payment.qr_image_url
-                              ? 'Open secure checkout instead'
-                              : `Pay ${formatINR(order.total)} securely`}
-                        </button>
-                      )}
-
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
+                    {payment.mode === 'live' && (
                       <button
                         type="button"
-                        onClick={() => refresh()}
-                        disabled={checking}
-                        className={
-                          payment.mode === 'live'
-                            ? 'px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition disabled:opacity-50 inline-flex items-center gap-2'
-                            : 'px-5 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center gap-2'
-                        }
+                        onClick={handleCheckout}
+                        disabled={openingCheckout}
+                        className="px-6 py-3.5 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
                       >
-                        {checking ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                        I’ve paid — check now
+                        {openingCheckout
+                          ? <Loader2 size={16} className="animate-spin" />
+                          : <ShieldCheck size={16} />}
+                        {openingCheckout ? 'Opening secure payment…' : 'Pay securely'}
                       </button>
+                    )}
 
-                      {payment.mode === 'demo' && (
-                        <button
-                          type="button"
-                          onClick={handleDemoSettle}
-                          disabled={settling}
-                          className="px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition disabled:opacity-50 inline-flex items-center gap-2"
-                        >
-                          {settling ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                          Complete demo payment
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => refresh()}
+                      disabled={checking}
+                      className={
+                        payment.mode === 'live'
+                          ? 'px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition disabled:opacity-50 inline-flex items-center justify-center gap-2'
+                          : 'px-5 py-3 rounded-full bg-ink text-ivory text-sm font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2'
+                      }
+                    >
+                      {checking ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                      I’ve paid — check now
+                    </button>
+
+                    {payment.mode === 'demo' && (
+                      <button
+                        type="button"
+                        onClick={handleDemoSettle}
+                        disabled={settling}
+                        className="px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                      >
+                        {settling ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                        Complete demo payment
+                      </button>
+                    )}
                   </div>
                 </div>
 

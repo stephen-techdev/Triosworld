@@ -295,6 +295,16 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
                     </motion.div>
                   </>
                 )}
+                {/* The order tracker is deliberately reachable from exactly one
+                    place — this menu — as the operator decided. The footer used
+                    to carry it too; that link was removed so shoppers never
+                    meet two conflicting entry points. */}
+                <motion.div variants={fadeUp}>
+                  <Link to="/track" onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-between py-3.5 text-base font-medium hover:text-ink/60 transition-colors">
+                    Track Order
+                  </Link>
+                </motion.div>
               </motion.nav>
             </motion.aside>
           </>

@@ -335,7 +335,6 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ] },
       { title: 'Help', links: [
         { label: 'Contact Us', to: '/contact' },
-        { label: 'Track Order', to: '/track' },
         { label: 'Shipping Policy', to: '/shipping' },
         { label: 'Return Policy', to: '/returns' },
         { label: 'FAQs', to: '/faqs' },
@@ -433,7 +432,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. Track your order any time with the order ID on our Track Order page.' },
         { h: 'Can I exchange for a different size?', p: 'Yes — within 7 days, as long as the item is unworn with tags. Message us on WhatsApp to start an exchange.' },
         { h: 'Do you ship internationally?', p: 'We currently ship within India only. International shipping is coming soon.' },
-        { h: 'How do I track my order?', p: 'Open the Track Order page (link in the footer) and enter your order ID — it looks like TW-345678 and is in your confirmation message. The page shows whether the order is placed, dispatched or delivered, and updates live as we move it forward.' },
+        { h: 'How do I track my order?', p: 'Open the menu (≡) and tap Track Order, then enter your order ID — it looks like TW-345678 and is in your confirmation message. That menu entry is the one place to track: the page shows whether the order is placed, dispatched or delivered, and updates live as we move it forward.' },
       ],
     },
   },

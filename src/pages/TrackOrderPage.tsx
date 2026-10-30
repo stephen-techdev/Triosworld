@@ -13,10 +13,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  SearchCheck, RefreshCw, PackageCheck, Truck, Home, Ban, Loader2, XCircle,
+  SearchCheck, RefreshCw, PackageCheck, Truck, Home, Ban, Loader2, XCircle, FileText,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { trackOrder, canonicalOrderId, type TrackResult } from '@/lib/payments';
+import { formatINR } from '@/data/catalog';
 
 /** "Thu, 30 Oct, 6:42 PM" â€” the shop's audience reads India Standard Time. */
 function istTime(iso: string): string {
@@ -45,6 +46,7 @@ export default function TrackOrderPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
   const trackedId = useRef<string | null>(null);
 
   /** Fetch (or re-fetch) tracking for the given order id. */
@@ -52,7 +54,7 @@ export default function TrackOrderPage() {
     if (refresh) setRefreshing(true);
     else { setLoading(true); setError(null); }
     try {
-      const data = await trackOrder(id);
+      const data = await trackOrder(id, true);
       setResult(data);
       setError(null);
     } catch (err) {
@@ -74,6 +76,7 @@ export default function TrackOrderPage() {
       return;
     }
     trackedId.current = id;
+    setShowReceipt(false);
     load(id);
   };
 
@@ -258,11 +261,85 @@ export default function TrackOrderPage() {
               </ol>
             )}
 
-            {/* Footer info â€” supportive, status-only. */}
+            {/* Footer info — supportive, status-only. */}
             <div className="mt-6 pt-5 border-t border-ink/10 flex flex-wrap items-center justify-between gap-3 text-xs text-ink/60">
               <p>Status syncs automatically until the order reaches its final stage.</p>
               <Link to="/contact" className="underline hover:text-ink">Need help? Contact us</Link>
             </div>
+
+            {result?.receipt && (
+              <div className="mt-6 pt-5 border-t border-ink/10">
+                {!showReceipt ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowReceipt(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-ink text-ivory text-sm font-semibold hover:bg-ink/85 transition-colors"
+                  >
+                    <FileText size={16} /> View your order receipt
+                  </button>
+                ) : (
+                  <div className="rounded-lg border border-ink/10 bg-stone/20 p-4 space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60">Receipt</p>
+                        <p className="font-display text-lg font-bold tracking-wide">{result.receipt.order_number}</p>
+                        <p className="text-[11px] text-ink/60">Issued {istTime(result.receipt.order_date)} IST · view only</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowReceipt(false)}
+                        className="text-[11px] font-medium text-ink/60 hover:text-ink transition-colors"
+                      >
+                        Hide
+                      </button>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-ink/55 uppercase tracking-wide text-[10px]">Placed by</p>
+                        <p className="font-medium">{result.receipt.customer.name}</p>
+                      </div>
+                      {result.receipt.customer.mobile && (
+                        <div>
+                          <p className="text-ink/55 uppercase tracking-wide text-[10px]">Mobile</p>
+                          <p className="font-medium">{result.receipt.customer.mobile}</p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-ink/60">
+                      For your privacy, the delivery address is not shown here.
+                    </p>
+
+                    <div className="space-y-2">
+                      {result.receipt.items.map((item, i) => (
+                        <div key={i} className="flex justify-between gap-3 text-sm">
+                          <span className="min-w-0">
+                            <span className="font-medium">{item.name}</span>
+                            <span className="text-ink/65"> · {item.color} · {item.size} · ×{item.qty}</span>
+                          </span>
+                          <span className="font-medium shrink-0">{formatINR(item.lineTotal)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t border-ink/10 space-y-1 text-xs text-ink/60">
+                      <div className="flex justify-between"><span>Subtotal</span><span>{formatINR(result.receipt.subtotal)}</span></div>
+                      <div className="flex justify-between"><span>Shipping</span><span>{result.receipt.shipping ? formatINR(result.receipt.shipping) : 'Free'}</span></div>
+                      {result.receipt.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>−{formatINR(result.receipt.discount)}</span></div>}
+                      <div className="flex justify-between"><span>Tax (incl.)</span><span>{formatINR(result.receipt.tax_included)}</span></div>
+                      <div className="flex justify-between font-semibold text-ink text-sm pt-1"><span>Total</span><span>{formatINR(result.receipt.total)}</span></div>
+                    </div>
+
+                    <dl className="grid sm:grid-cols-2 gap-2 text-xs pt-3 border-t border-ink/10">
+                      <div><dt className="text-ink/55">Status</dt><dd className="font-medium capitalize">{result.receipt.payment_status}</dd></div>
+                      <div><dt className="text-ink/55">Method</dt><dd className="font-medium uppercase">{result.receipt.payment_method}</dd></div>
+                      {result.receipt.paid_at && <div><dt className="text-ink/55">Paid at</dt><dd className="font-medium">{istTime(result.receipt.paid_at)} IST</dd></div>}
+                      {result.receipt.payment_id && <div><dt className="text-ink/55">Txn ref</dt><dd className="font-mono break-all">{result.receipt.payment_id}</dd></div>}
+                    </dl>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}

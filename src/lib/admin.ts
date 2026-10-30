@@ -57,6 +57,8 @@ export interface AdminOrder {
   paid_at: string | null;
   created_at: string;
   user_id: string | null;
+  /** Set when the operator moved a delivered order to Trash; cleared on restore. */
+  trashed_at?: string | null;
   shipping_address: {
     fullName?: string;
     mobile?: string;
@@ -325,6 +327,23 @@ export const updateOrder = (id: string, patch: { status?: string; payment_status
 
 export const deleteOrder = (id: string) =>
   adminRequest<{ ok: boolean }>('/order-delete', { method: 'POST', body: JSON.stringify({ id }) });
+
+/**
+ * Trash lifecycle: a DELIVERED order can be moved to Trash, which takes it
+ * out of Orders & Payments immediately. It waits there 48 hours — the server
+ * purges it automatically (and is the only scheduled deletion in the system) —
+ * and Restore puts it back at any point before that.
+ */
+export const getTrash = () =>
+  adminRequest<{ orders: AdminOrder[] }>('/orders?trash=1').then(r => r.orders);
+
+export const trashOrder = (id: string) =>
+  adminRequest<{ ok: boolean; auto_delete_at: string }>('/order-trash', {
+    method: 'POST', body: JSON.stringify({ id }),
+  });
+
+export const restoreOrder = (id: string) =>
+  adminRequest<{ ok: boolean }>('/order-restore', { method: 'POST', body: JSON.stringify({ id }) });
 
 export const getOrderEvents = (id: string) =>
   adminRequest<{ events: { id: string; event: string; detail: unknown; created_at: string }[] }>(

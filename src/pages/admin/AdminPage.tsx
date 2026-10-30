@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ShoppingBag, Users, Package, MessageSquare, Settings, LogOut,
   Loader2, Search, ChevronDown, Check, RefreshCw, Star, AlertTriangle, Save, Lock,
   ArrowLeft, TrendingUp, UserRound, X, Trash2, Download, Truck, FileText, Pencil, ImagePlus,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, RotateCcw,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
@@ -27,8 +27,8 @@ const BUILTIN_COLLECTIONS = ['shop-all', 'men', 'bestsellers', 'new-arrivals'];
 import {
   AdminAuthError, adminLogout, changeAdminPassword, clearFeedback, createProduct, deleteCustomer, deleteGuest,
   deleteFeedback, deleteOrder, deleteProduct, getCustomer, getCustomers, getFeedback, getOrderEvents, getOrders, getOverview,
-  getProducts, getSettings, muteCustomer, normalizeProductColors, readSession, saveSettings,
-  setFeedbackStatus, updateOrder, updateProduct,
+  getProducts, getSettings, getTrash, muteCustomer, normalizeProductColors, readSession, restoreOrder, saveSettings,
+  setFeedbackStatus, trashOrder, updateOrder, updateProduct,
   uploadProductImage,
   type AdminCustomer, type AdminCustomerDetail, type AdminFeedback, type AdminOrder, type AdminProduct,
   type AdminSession, type Overview, type ProductColor,
@@ -36,11 +36,12 @@ import {
 import { ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
 import { downloadAdminReceipt } from '@/lib/adminReceipt';
 
-type Tab = 'overview' | 'orders' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
+type Tab = 'overview' | 'orders' | 'trash' | 'customers' | 'products' | 'content' | 'feedback' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders & Payments', icon: ShoppingBag },
+  { id: 'trash', label: 'Trash', icon: Trash2 },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'content', label: 'Content', icon: FileText },
@@ -161,6 +162,7 @@ export default function AdminPage() {
             >
               {tab === 'overview' && <OverviewSection />}
               {tab === 'orders' && <OrdersSection onAuthFail={signOut} />}
+              {tab === 'trash' && <TrashSection onAuthFail={signOut} />}
               {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
               {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
               {tab === 'content' && <ContentSection onAuthFail={signOut} />}
@@ -330,6 +332,9 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteErr, setDeleteErr] = useState<string | null>(null);
   const [receiptErr, setReceiptErr] = useState<string | null>(null);
+  const [trashId, setTrashId] = useState<string | null>(null);
+  const [trashingId, setTrashingId] = useState<string | null>(null);
+  const [trashErr, setTrashErr] = useState<string | null>(null);
 
   const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
     try {
@@ -337,6 +342,22 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
       await reload();
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
+    }
+  };
+
+  /** Move a DELIVERED order to Trash: it leaves this list, waits 48h, then is removed. */
+  const moveToTrash = async (order: AdminOrder) => {
+    setTrashingId(order.id);
+    setTrashErr(null);
+    try {
+      await trashOrder(order.id);
+      setTrashId(null);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      setTrashErr(err instanceof Error ? err.message : 'Could not move the order to Trash');
+    } finally {
+      setTrashingId(null);
     }
   };
 
@@ -370,8 +391,9 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
 
       <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
         Download a PDF receipt for any order — it includes the delivery address and every item&rsquo;s
-        colour, size and quantity. Orders and payment records stay here until you delete them
-        individually; nothing is cleared automatically.
+        colour, size and quantity. Once an order is marked <strong>Delivered</strong> you can move it
+        to Trash from its detail view; Trash keeps it 48 hours and then deletes it automatically
+        (see the Trash tab). Nothing else is cleared on a schedule.
       </p>
 
       {receiptErr && (
@@ -379,6 +401,9 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
       )}
       {deleteErr && (
         <p className="text-xs text-red-600 mb-3" role="alert">{deleteErr}</p>
+      )}
+      {trashErr && (
+        <p className="text-xs text-red-600 mb-3" role="alert">{trashErr}</p>
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -523,10 +548,41 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
                       order={order}
                       onPatch={patch => setStatus(order, patch)}
                       onDownload={() => downloadReceipt(order)}
+                      onTrash={() => setTrashId(trashId === order.id ? null : order.id)}
+                      trashing={trashingId === order.id}
                     />
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {trashId === order.id && (
+                <div className="border-t border-ink/10 bg-stone/60 px-4 py-3">
+                  <p className="text-xs text-ink/80">
+                    Move <strong>{order.order_number}</strong> to Trash? It leaves Orders &amp;
+                    Payments now, waits 48 hours in Trash, and is then deleted automatically.
+                    Restore from the Trash tab until then.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setTrashId(null)}
+                      disabled={trashingId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs border border-ink/15 bg-ivory hover:bg-stone/60 disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveToTrash(order)}
+                      disabled={trashingId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-ink text-ivory hover:bg-ink/85 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {trashingId === order.id && <Loader2 size={13} className="animate-spin" />}
+                      {trashingId === order.id ? 'Moving…' : 'Move to Trash'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -535,7 +591,147 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   );
 }
 
-function OrderDetail({ order, onPatch, onDownload }: { order: AdminOrder; onPatch: (patch: { status?: string; payment_status?: string }) => void; onDownload: () => void }) {
+function TrashSection({ onAuthFail }: { onAuthFail: () => void }) {
+  const loader = useCallback(() => getTrash(), []);
+  const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const restore = async (order: AdminOrder) => {
+    setBusyId(order.id); setErr(null);
+    try { await restoreOrder(order.id); await reload(); }
+    catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not restore the order');
+    } finally { setBusyId(null); }
+  };
+
+  const purgeNow = async (order: AdminOrder) => {
+    setBusyId(order.id); setErr(null);
+    try { await deleteOrder(order.id); setConfirmId(null); await reload(); }
+    catch (e) {
+      if (e instanceof AdminAuthError) { onAuthFail(); return; }
+      setErr(e instanceof Error ? e.message : 'Could not delete the order');
+    } finally { setBusyId(null); }
+  };
+
+  const countdown = (trashedAt: string | null | undefined): string => {
+    if (!trashedAt) return '—';
+    const at = new Date(trashedAt).getTime();
+    if (!Number.isFinite(at)) return '—';
+    const left = at + 48 * 60 * 60 * 1000 - Date.now();
+    if (left <= 0) return 'Deleting now…';
+    const h = Math.floor(left / 3_600_000);
+    const m = Math.floor((left % 3_600_000) / 60_000);
+    return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+  };
+
+  return (
+    <div>
+      <SectionHead title="Trash" subtitle="Delivered orders waiting for permanent deletion" onRefresh={reload} loading={loading} />
+
+      <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
+        Only delivered orders you moved here from Orders &amp; Payments appear in this list. Each one
+        waits 48 hours, then deletes itself automatically; Restore puts it straight back into
+        Orders &amp; Payments at any point before that. Delete now skips the wait.
+        <strong className="text-ink/70"> Deleting an order does not refund or restock it.</strong>
+      </p>
+
+      {err && <p className="text-xs text-red-600 mb-3" role="alert">{err}</p>}
+      {error && <ErrorNote message={error} onRetry={reload} />}
+      {loading && !data && <Centered><Loader2 className="animate-spin" /></Centered>}
+
+      {data && data.length === 0 && (
+        <div className="rounded-xl border border-ink/10 bg-ivory p-12 text-center">
+          <Trash2 size={26} className="mx-auto text-ink/30 mb-3" />
+          <p className="text-sm text-ink/65">Trash is empty.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {data?.map(order => {
+          const open = confirmId === order.id;
+          return (
+            <div key={order.id} className="rounded-xl border border-ink/10 bg-ivory overflow-hidden">
+              <div className="p-4 flex items-center gap-3 hover:bg-stone/20 transition">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-mono text-xs font-semibold">{order.order_number}</span>
+                    <PaymentChip status={order.payment_status} />
+                    <span className="text-[10px] uppercase tracking-wide text-ink/60 border border-ink/15 rounded-full px-2 py-0.5">
+                      In trash
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium truncate">
+                    {order.customer_name ?? 'Customer'}
+                    {order.customer_mobile && <span className="text-ink/65 font-normal"> · {order.customer_mobile}</span>}
+                  </p>
+                  <p className="text-[11px] text-ink/60 mt-0.5">
+                    Moved {shortDate(order.trashed_at ?? null)} · auto-deletes in <strong>{countdown(order.trashed_at)}</strong>
+                  </p>
+                </div>
+                <p className="font-semibold text-sm shrink-0">{formatINR(order.amount_paid ?? order.total)}</p>
+                <div className="shrink-0 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => restore(order)}
+                    disabled={busyId === order.id}
+                    className="p-1.5 rounded-full text-ink/65 hover:text-ink hover:bg-stone/50 transition disabled:opacity-40"
+                    title={`Restore ${order.order_number} to Orders & Payments`}
+                    aria-label={`Restore ${order.order_number}`}
+                  >
+                    {busyId === order.id ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(open ? null : order.id)}
+                    className="p-1.5 rounded-full text-ink/65 hover:text-red-600 hover:bg-red-50 transition"
+                    title={`Delete ${order.order_number} now`}
+                    aria-label={`Delete ${order.order_number} now`}
+                    aria-expanded={open}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {open && (
+                <div className="border-t border-red-200 bg-red-50/70 px-4 py-3">
+                  <p className="text-xs text-red-800">
+                    Delete <strong>{order.order_number}</strong> right now? This skips the 48-hour wait and cannot be undone.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(null)}
+                      disabled={busyId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs border border-red-200 bg-ivory hover:bg-red-50 disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => purgeNow(order)}
+                      disabled={busyId === order.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {busyId === order.id && <Loader2 size={13} className="animate-spin" />}
+                      {busyId === order.id ? 'Deleting…' : 'Delete now'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrderDetail({ order, onPatch, onDownload, onTrash, trashing }: { order: AdminOrder; onPatch: (patch: { status?: string; payment_status?: string }) => void; onDownload: () => void; onTrash: () => void; trashing: boolean }) {
   const [events, setEvents] = useState<{ id: string; event: string; detail: unknown; created_at: string }[] | null>(null);
   const [showEvents, setShowEvents] = useState(false);
 
@@ -656,6 +852,24 @@ function OrderDetail({ order, onPatch, onDownload }: { order: AdminOrder; onPatc
           {showEvents ? 'Hide' : 'Payment'} trail
         </button>
       </div>
+
+      {/* Housekeeping — only a finished (delivered) order can be tidied away.
+          Moving it to Trash removes it from Orders & Payments and arms the
+          48-hour auto-delete; the trash icon on the row is a delete-now. */}
+      {order.status === 'delivered' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-ink/65 mr-1">Cleanup</span>
+          <button
+            type="button"
+            onClick={onTrash}
+            disabled={trashing}
+            className="px-3 py-1.5 rounded-full text-xs font-medium bg-ivory border border-ink/15 text-ink/70 hover:text-ink hover:bg-stone/40 transition disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            <Trash2 size={13} /> Move to Trash
+          </button>
+          <span className="text-[11px] text-ink/55">Waits 48 hours in Trash, then deletes itself automatically.</span>
+        </div>
+      )}
 
       {showEvents && (
         <div className="rounded-lg border border-ink/10 bg-ivory p-3 max-h-56 overflow-y-auto">

@@ -271,6 +271,40 @@ export interface TrackResult {
     cancelled_at: string | null;
   };
   events: TrackTimelineEntry[];
+  /**
+   * Read-only receipt for a paid order, only present when the lookup asked
+   * for one (and only while the order is paid). The server masks the buyer:
+   * initials-only name, last three mobile digits, and no address or email —
+   * the same items/money/payment metadata the order actually carried.
+   */
+  receipt?: TrackReceipt | null;
+}
+
+export interface TrackReceipt {
+  order_number: string;
+  order_date: string;
+  paid_at: string | null;
+  payment_status: string;
+  payment_method: string;
+  payment_provider: string | null;
+  payment_id: string | null;
+  amount_paid: number | null;
+  is_demo: boolean;
+  customer: { name: string; mobile: string };
+  items: {
+    name: string;
+    color: string;
+    size: string;
+    qty: number;
+    unitPrice: number;
+    lineTotal: number;
+    gst: { rate: number; tax: number; cgst: number; sgst: number };
+  }[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  tax_included: number;
 }
 
 /**
@@ -278,9 +312,12 @@ export interface TrackResult {
  *
  * The response deliberately carries no personal details — the same payload is
  * served to anyone who types the number, so only the delivery state travels.
+ * `withReceipt` opts into the masked receipt block (still no address, and
+ * the buyer's identity is masked server-side).
  */
-export async function trackOrder(orderId: string): Promise<TrackResult> {
+export async function trackOrder(orderId: string, withReceipt = false): Promise<TrackResult> {
   const qs = new URLSearchParams({ order: orderId });
+  if (withReceipt) qs.set('receipt', '1');
   return request<TrackResult>(`/track?${qs.toString()}`, { method: 'GET' });
 }
 

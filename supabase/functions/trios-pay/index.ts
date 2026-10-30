@@ -3,7 +3,9 @@
 // Responsibilities
 //   POST /create         create an order + a dynamic UPI QR / gateway order
 //   GET  /status         server-verified payment status for polling
-//   GET  /track          public order tracking by order number (status only)
+//   GET  /track          public order tracking by order number (status only;
+//                        with receipt=1 adds a masked receipt: no address
+//                        goes out, and the customer's name and mobile are hidden)
 //   POST /webhook        signed gateway callback (source of truth)
 //   POST /demo-settle    settlement when no gateway is configured (see below)
 //   GET  /receipt        full order payload for the PDF receipt (paid orders only)
@@ -415,6 +417,24 @@ function totalsFor(lines: PricedLine[], shipping: ShippingRule) {
   const tax = lines.reduce((s, l) => s + gstForLine(l.unitPrice, l.lineTotal).tax, 0);
 
   return { subtotal, shipping: shippingAmount, total, tax };
+}
+
+// ───────────────────── masked public receipt (for /track) ──────────────────
+// The tracking page answers anyone who types the order number, so its optional
+// receipt shows money and items but keeps the buyer anonymous: name → "S.K.",
+// mobile → only its last three digits, address/email → never leaves the server.
+
+function maskName(name: unknown): string {
+  const s = String(name ?? "").trim().replace(/\s+/g, " ");
+  if (!s) return "Customer";
+  return s.split(" ").map((w) => `${w[0] ?? ""}.`).slice(0, 3).join("");
+}
+
+function maskMobile(mobile: unknown): string {
+  const digits = String(mobile ?? "").replace(/\D/g, "");
+  if (!digits.length) return "";
+  const tail = digits.slice(-3);
+  return `${"•".repeat(Math.max(2, digits.length - tail.length))}${tail}`;
 }
 
 /** Basic-auth REST call against Razorpay. Never throws; returns { ok, data }. */
@@ -1079,6 +1099,12 @@ Deno.serve(async (req: Request) => {
     // guessed or shared id reveals nothing but a delivery state. The
     // fulfilment `status` is whatever Admin → Orders set (placed /
     // dispatched / delivered / cancelled).
+    //
+    // Optional `receipt=1` adds a read-only receipt for paid orders, with
+    // every personal detail masked: the buyer's name becomes their initials,
+    // the mobile keeps only its last three digits, and the delivery address
+    // never leaves the server. Items, money and payment metadata travel; the
+    // identity does not.
     if (path === "/track" && req.method === "GET") {
       const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
       if (trackThrottled(ip)) return json({ error: "Too many requests. Try again in a minute." }, 429);
@@ -1092,6 +1118,52 @@ Deno.serve(async (req: Request) => {
         .eq("order_number", id)
         .maybeSingle();
       if (!data) return json({ error: "We could not find an order with that ID. Check the digits, or message us on WhatsApp." }, 404);
+
+      // Optional read-only receipt: identical shape to /receipt's payload, but
+      // every personal detail is masked and the address stays on the server.
+      const withReceipt = url.searchParams.get("receipt") === "1";
+      let receipt: Record<string, unknown> | null = null;
+      if (withReceipt && (data as { payment_status?: string }).payment_status === "paid") {
+        const { data: rr } = await supabase
+          .from("orders")
+          .select(
+            "order_number, items, subtotal, shipping, discount, total, amount_paid, payment_method, payment_provider, payment_id, payment_reference, paid_at, created_at, shipping_address",
+          )
+          .eq("order_number", id)
+          .maybeSingle();
+        if (rr) {
+          const r = rr as (typeof data & {
+            items: unknown; subtotal: number; shipping: number; discount: number; total: number;
+            amount_paid: number | null; payment_method: string; payment_provider: string | null;
+            payment_id: string | null; payment_reference: string | null; paid_at: string | null;
+            created_at: string; shipping_address: Record<string, unknown>;
+          });
+          const lines = ((r.items ?? []) as PricedLine[]).filter((l) => l && typeof l === "object");
+          const gstLines = lines.map((l) => ({ ...l, gst: gstForLine(Number(l.unitPrice) || 0, Number(l.lineTotal) || 0) }));
+          const addr = r.shipping_address ?? {};
+          const nameIn = addr.fullName ?? "";
+          const mobileIn = addr.mobile ?? "";
+          receipt = {
+            order_number: r.order_number,
+            order_date: r.created_at,
+            paid_at: r.paid_at,
+            payment_status: (data as { payment_status: string }).payment_status,
+            payment_method: r.payment_method,
+            payment_provider: r.payment_provider,
+            payment_id: r.payment_id,
+            amount_paid: r.amount_paid,
+            is_demo: r.payment_provider === "demo",
+            // Masked identity — no address, no email, name as initials only.
+            customer: { name: maskName(nameIn), mobile: maskMobile(mobileIn) },
+            items: gstLines,
+            subtotal: r.subtotal,
+            shipping: r.shipping,
+            discount: r.discount,
+            total: r.total,
+            tax_included: gstLines.reduce((s, l) => s + l.gst.tax, 0),
+          };
+        }
+      }
 
       // Milestone timestamps come from the admin trail, so the page can show
       // when each stage actually happened rather than just the latest state.
@@ -1141,6 +1213,7 @@ Deno.serve(async (req: Request) => {
           cancelled_at: cancelledAt,
         },
         events: timeline,
+        receipt,
       });
     }
 

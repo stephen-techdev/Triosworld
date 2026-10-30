@@ -302,7 +302,7 @@ Deno.serve(async (req: Request) => {
   }
   // Distinct path used to defeat stale edge caching while diagnosing.
   if (path === "/health-canary") {
-    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 3 });
+    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 4 });
   }
 
   try {
@@ -407,6 +407,113 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ==================== ORDER TRASH ====================
+    // Move to Trash is the operator's tidy-up for delivered orders: the row
+    // disappears from Orders & Payments, waits 48 hours in Trash, and is then
+    // deleted automatically (single-row delete — the period purge never touches
+    // an order the operator did not trash). Restore pulls it back at any time.
+    const TRASH_TTL_MS = 48 * 60 * 60 * 1000;
+
+    /**
+     * Permanently delete every order that has been in trash for 48+ hours.
+     * Runs lazily whenever an operator lists orders or trash, so the 48-hour
+     * promise holds even if the scheduled database job has not fired yet.
+     * Never throws — a purge failure must not break the listing.
+     */
+    async function purgeExpiredTrash(): Promise<void> {
+      try {
+        const cutoff = new Date(Date.now() - TRASH_TTL_MS).toISOString();
+        const { data: doomed } = await supabase
+          .from("orders")
+          .select("id")
+          .lt("trashed_at", cutoff);
+        const ids = (doomed ?? []).map((o) => String((o as { id: string }).id));
+        if (!ids.length) return;
+        await supabase.from("order_events").delete().in("order_id", ids);
+        const { error } = await supabase.from("orders").delete().in("id", ids);
+        if (!error) {
+          for (const id of ids) await audit("system", "order.purge.auto", "order", id, {});
+        }
+      } catch {
+        // intentionally ignored — the cron schedule is the primary purge
+      }
+    }
+
+    if (path === "/order-trash" && req.method === "POST") {
+      try {
+        const body = await req.json().catch(() => ({}));
+        const id = String(body.id ?? "").trim();
+        if (!id) return json({ error: "id required" }, 400);
+
+        const { data } = await supabase
+          .from("orders")
+          .select("id, order_number, status, trashed_at")
+          .eq("id", id)
+          .maybeSingle();
+        const row = data as { order_number: string; status: string; trashed_at: string | null } | null;
+        if (!row) return json({ error: "Order not found — it may already be gone." }, 404);
+        if (row.trashed_at) return json({ error: "That order is already in Trash." }, 409);
+        if (String(row.status ?? "") !== "delivered") {
+          return json({ error: "Only delivered orders can be moved to Trash." }, 409);
+        }
+
+        const nowIso = new Date().toISOString();
+        const autoDeleteAt = new Date(Date.now() + TRASH_TTL_MS).toISOString();
+        const { error } = await supabase
+          .from("orders")
+          .update({ trashed_at: nowIso, updated_at: nowIso })
+          .eq("id", id);
+        if (error) return json({ error: error.message }, 500);
+
+        await supabase.from("order_events").insert({
+          order_id: id,
+          event: "order_trash",
+          detail: { by: session.email, auto_delete_at: autoDeleteAt },
+        });
+        await audit(session.email, "order.trash", "order", id, {
+          order_number: row.order_number,
+          auto_delete_at: autoDeleteAt,
+        });
+        return json({ ok: true, auto_delete_at: autoDeleteAt });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed" }, 500);
+      }
+    }
+
+    if (path === "/order-restore" && req.method === "POST") {
+      try {
+        const body = await req.json().catch(() => ({}));
+        const id = String(body.id ?? "").trim();
+        if (!id) return json({ error: "id required" }, 400);
+
+        const { data } = await supabase
+          .from("orders")
+          .select("id, order_number, trashed_at")
+          .eq("id", id)
+          .maybeSingle();
+        const row = data as { order_number: string; trashed_at: string | null } | null;
+        if (!row) return json({ error: "Order not found — it may already be gone." }, 404);
+        if (!row.trashed_at) return json({ error: "That order is not in Trash." }, 409);
+
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase
+          .from("orders")
+          .update({ trashed_at: null, updated_at: nowIso })
+          .eq("id", id);
+        if (error) return json({ error: error.message }, 500);
+
+        await supabase.from("order_events").insert({
+          order_id: id,
+          event: "order_restore",
+          detail: { by: session.email },
+        });
+        await audit(session.email, "order.restore", "order", id, { order_number: row.order_number });
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "Failed" }, 500);
+      }
+    }
+
     // ==================== FEEDBACK DELETE (INDIVIDUAL) ====================
     if (path === "/feedback-delete" && req.method === "POST") {
       try {
@@ -425,18 +532,24 @@ Deno.serve(async (req: Request) => {
     // ==================== ORDERS / PAYMENTS ====================
     // There is deliberately no bulk-clear endpoint. An operator can delete one
     // order from its row, or one guest's full history from the guest profile.
-    // Orders and payment records are never removed on a schedule.
+    // The ONLY automatic deletion is the Trash purge below: an order the
+    // operator moved to trash is removed 48 hours later, one by one —
+    // nothing outside trash is ever touched by a schedule.
     if (path === "/orders" && req.method === "GET") {
       const status = url.searchParams.get("status");
       const search = (url.searchParams.get("q") ?? "").trim();
       const limit = Math.min(Number(url.searchParams.get("limit") ?? 100), 200);
+      const isTrashView = url.searchParams.get("trash") === "1";
+
+      // The 48-hour promise holds even if the database schedule has not fired.
+      await purgeExpiredTrash();
 
       let query = supabase
         .from("orders")
         .select(
-          "id, order_number, customer_name, customer_mobile, customer_email, items, subtotal, shipping, discount, total, amount_paid, status, payment_status, payment_method, payment_provider, payment_id, payment_reference, paid_at, created_at, user_id, shipping_address",
+          "id, order_number, customer_name, customer_mobile, customer_email, items, subtotal, shipping, discount, total, amount_paid, status, payment_status, payment_method, payment_provider, payment_id, payment_reference, paid_at, created_at, user_id, shipping_address, trashed_at",
         )
-        .order("created_at", { ascending: false })
+        .order(isTrashView ? "trashed_at" : "created_at", { ascending: false })
         .limit(limit);
 
       if (status && status !== "all") query = query.eq("payment_status", status);
@@ -445,6 +558,9 @@ Deno.serve(async (req: Request) => {
           `order_number.ilike.%${search}%,customer_mobile.ilike.%${search}%,customer_name.ilike.%${search}%`,
         );
       }
+
+      // A trashed order is live only in Trash. Restore removes the trash mark.
+      query = isTrashView ? query.not("trashed_at", "is", null) : query.is("trashed_at", null);
 
       const { data, error } = await query;
       if (error) return json({ error: error.message }, 500);

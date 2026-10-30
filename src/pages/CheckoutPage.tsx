@@ -17,7 +17,7 @@ import { uploadOrderImage, orderImageUrl } from '@/lib/orderImageUpload';
 import { saveWhatsAppOrder, setWhatsAppOrderImage } from '@/lib/whatsappOrders';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
-  rememberOrderReview,
+  rememberOrderReview, rememberPendingPayment, FUNCTIONS_URL,
 } from '@/lib/payments';
 import { INDIAN_STATES } from '@/lib/indianStates';
 
@@ -57,6 +57,12 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // Warm the payment edge function so the first order creation is not slowed
+  // down by a cold start. Fire and forget.
+  useEffect(() => {
+    void fetch(`${FUNCTIONS_URL}/trios-pay/`, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
+  }, []);
   /**
    * WhatsApp ordering. We open WhatsApp with the full order details so the
    * customer only has to press "send". We cannot read their chat, so the
@@ -305,6 +311,16 @@ export default function CheckoutPage() {
           city: form.city.trim(),
           state: form.state,
         },
+      });
+      rememberPendingPayment({
+        order_number: order.order_number,
+        amount: order.amount,
+        subtotal: order.subtotal,
+        shipping: order.shipping,
+        expires_at: order.expires_at,
+        payment: order.payment,
+        items: order.items,
+        created_at: new Date().toISOString(),
       });
       markPendingOrder(order.order_number);
 

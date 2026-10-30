@@ -12,14 +12,14 @@ import { useStore } from '@/store/StoreContext';
 import {
   PaymentServiceUnavailableError, clearOrderReview, demoSettle, findOrderToken, getReceipt,
   getStatus, readOrderReview, takePendingOrder, type OrderItemSummary, type OrderReviewAddress,
-  type StatusResult,
+  type StatusResult, readPendingPayment, clearPendingPayment,
 } from '@/lib/payments';
 import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
 import { downloadReceipt } from '@/lib/receipt';
 import { refreshLiveCatalog } from '@/lib/storefrontCatalog';
 import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
 
-const POLL_MS = 5000;
+const POLL_MS = 8000;
 const LIVE_ORIGIN = 'https://www.triosworld.in';
 
 /**
@@ -61,8 +61,25 @@ export default function PaymentSuccessPage() {
 
   const token = searchParams.get('token') ?? findOrderToken(orderNumber) ?? '';
 
-  const [result, setResult] = useState<StatusResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialSeed = readPendingPayment(orderNumber);
+  const [result, setResult] = useState<StatusResult | null>(() =>
+    initialSeed
+      ? {
+          payment_status: 'pending',
+          verified: false,
+          order: {
+            order_number: initialSeed.order_number,
+            total: initialSeed.amount,
+            subtotal: initialSeed.subtotal,
+            shipping: initialSeed.shipping,
+            items: initialSeed.items,
+            created_at: initialSeed.created_at,
+          } as unknown as StatusResult['order'],
+          payment: initialSeed.payment as StatusResult['payment'],
+        }
+      : null,
+  );
+  const [loading, setLoading] = useState(() => !initialSeed);
   const [error, setError] = useState<string | null>(null);
   const [serviceDown, setServiceDown] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -81,6 +98,19 @@ export default function PaymentSuccessPage() {
   const [imageGone, setImageGone] = useState(false);
 
   const clearedRef = useRef(false);
+
+  // Clear the short-lived seed once we've used it, so a later revisit re-fetches.
+  useEffect(() => {
+    if (initialSeed) clearPendingPayment(orderNumber);
+  }, [orderNumber, initialSeed]);
+
+  // Start fetching Razorpay's checkout script as soon as we know we need it,
+  // so the Pay securely button opens without a download wait.
+  useEffect(() => {
+    if (result?.payment?.mode === 'live') {
+      void loadRazorpayCheckout().catch(() => {});
+    }
+  }, [result?.payment?.mode]);
 
   const refresh = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (!token) {
@@ -108,8 +138,8 @@ export default function PaymentSuccessPage() {
 
   // Initial check + auto-poll while the payment is still pending.
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refresh(initialSeed ? { silent: true } : {});
+  }, [refresh, initialSeed]);
 
   // A new order starts with a fresh picture — the "gone" flag belongs to the
   // previous reference only.
@@ -432,7 +462,7 @@ export default function PaymentSuccessPage() {
       <div className="page-container py-28 text-center">
         <SEO title="Confirming payment" noindex />
         <Loader2 size={32} className="animate-spin mx-auto text-ink/65 mb-4" />
-        <p className="text-sm text-ink/65">Confirming your payment with the bank…</p>
+        <p className="text-sm text-ink/65">Loading your payment…</p>
       </div>
     );
   }

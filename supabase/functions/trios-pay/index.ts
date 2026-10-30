@@ -842,19 +842,27 @@ Deno.serve(async (req: Request) => {
       // --- admin overrides (price + per-size stock) ---
       // Optional refinements on top of the sellable catalog. A row here no
       // longer decides whether the store trades at all.
-      const { data: overrides } = await supabase
-        .from("product_overrides")
-        .select("product_id, price, stock");
+      const authHeader = req.headers.get("Authorization");
+      const [overridesRes, catalog, shippingRule, userId] = await Promise.all([
+        supabase.from("product_overrides").select("product_id, price, stock"),
+        loadSellableCatalog(),
+        loadShippingRule(),
+        authHeader?.startsWith("Bearer ") ? (async () => {
+          const userClient = createClient(supabaseUrl, anonKey, {
+            global: { headers: { Authorization: authHeader } },
+            auth: { autoRefreshToken: false, persistSession: false },
+          });
+          const { data } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
+          return data.user?.id ?? null;
+        })() : Promise.resolve(null),
+      ]);
+      const overrides = (overridesRes.data ?? []) as { product_id: string; price?: number; stock?: Record<string, number> }[];
       const priceOverrides: Record<string, number> = {};
       const stockOverrides: Record<string, Record<string, number>> = {};
-      for (const o of overrides ?? []) {
+      for (const o of overrides) {
         if (typeof o.price === "number") priceOverrides[String(o.product_id)] = o.price;
         if (o.stock) stockOverrides[String(o.product_id)] = o.stock as Record<string, number>;
       }
-
-      // Dashboard products included, so an admin-created item can be ordered.
-      const catalog = await loadSellableCatalog();
-      const shippingRule = await loadShippingRule();
 
       let lines: PricedLine[];
       try {
@@ -865,18 +873,6 @@ Deno.serve(async (req: Request) => {
       }
 
       const totals = totalsFor(lines, shippingRule);
-
-      // --- link the order to an account when the customer is signed in ---
-      let userId: string | null = null;
-      const authHeader = req.headers.get("Authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        const userClient = createClient(supabaseUrl, anonKey, {
-          global: { headers: { Authorization: authHeader } },
-          auth: { autoRefreshToken: false, persistSession: false },
-        });
-        const { data } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
-        userId = data.user?.id ?? null;
-      }
 
       const receiptToken = randomHex(16);
       const expiresAt = new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60 * 1000).toISOString();

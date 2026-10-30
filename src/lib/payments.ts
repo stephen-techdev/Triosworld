@@ -159,7 +159,7 @@ export class PaymentServiceUnavailableError extends Error {
   }
 }
 
-const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+export const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 /** Attach the customer's session when signed in, so the order links to their account. */
 async function authHeaders(): Promise<Record<string, string>> {
@@ -409,6 +409,51 @@ export function readOrderReview(orderNumber: string): OrderReview | null {
 export function clearOrderReview(orderNumber: string) {
   try {
     sessionStorage.removeItem(`${REVIEW_PREFIX}${orderNumber}`);
+  } catch {
+    // ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Short-lived seed so the payment page can paint instantly after checkout
+// instead of waiting for the first server round trip.
+// ---------------------------------------------------------------------------
+export interface PendingPaymentSeed {
+  order_number: string;
+  amount: number;
+  subtotal: number;
+  shipping: number;
+  expires_at: string;
+  payment: CreateOrderResult['payment'];
+  items?: OrderItemSummary[];
+  created_at: string;
+}
+
+const PENDING_PAYMENT_PREFIX = 'pendingPayment:';
+
+export function rememberPendingPayment(seed: PendingPaymentSeed) {
+  try {
+    sessionStorage.setItem(`${PENDING_PAYMENT_PREFIX}${seed.order_number}`, JSON.stringify(seed));
+  } catch {
+    // Storage unavailable — the page will just fetch from the server.
+  }
+}
+
+export function readPendingPayment(orderNumber: string): PendingPaymentSeed | null {
+  try {
+    const raw = sessionStorage.getItem(`${PENDING_PAYMENT_PREFIX}${orderNumber}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingPaymentSeed>;
+    if (typeof parsed.order_number !== 'string' || typeof parsed.amount !== 'number' || !parsed.payment) return null;
+    return parsed as PendingPaymentSeed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingPayment(orderNumber: string) {
+  try {
+    sessionStorage.removeItem(`${PENDING_PAYMENT_PREFIX}${orderNumber}`);
   } catch {
     // ignore
   }

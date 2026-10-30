@@ -96,7 +96,7 @@ export default function TrackOrderPage() {
 
   const open = Boolean(result);
   const track = result?.track;
-  const cancelled = track?.cancelled_at || track?.status === 'cancelled';
+  const cancelled = track?.status === 'cancelled';
 
   // Which stages are complete. Payment confirmed counts when the operator has
   // been paid; dispatched/delivered come straight from the admin trail.
@@ -186,7 +186,7 @@ export default function TrackOrderPage() {
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-lime/15 text-ink px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] ring-1 ring-lime/40">
-                    {track.status === 'delivered' ? 'Delivered' : track.status === 'dispatched' ? 'Dispatched' : 'Placed'}
+                    {track.status === 'delivered' ? 'Delivered' : track.status === 'dispatched' ? 'Dispatched' : track.status === 'cancelled' ? 'Cancelled' : 'Placed'}
                   </span>
                 )}
                 <button

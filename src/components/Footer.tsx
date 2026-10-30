@@ -118,7 +118,9 @@ export default function Footer() {
               <p className="text-sm text-ivory/80 flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0" /> {footer.address}</p>
             )}
             {footer.phone && (
-              <p className="text-sm text-ivory/80 flex items-center gap-2"><Phone size={16} /> {footer.phone}</p>
+              <a href={`tel:${footer.phone.replace(/\s+/g, '')}`} className="text-sm text-ivory/80 flex items-center gap-2 hover:text-lime transition-colors">
+                <Phone size={16} /> {footer.phone}
+              </a>
             )}
             {footer.email && (
               <a href={`mailto:${footer.email}`} className="text-sm text-ivory/80 flex items-center gap-2 hover:text-lime transition-colors">

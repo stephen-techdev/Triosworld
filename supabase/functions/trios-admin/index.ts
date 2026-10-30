@@ -572,16 +572,87 @@ Deno.serve(async (req: Request) => {
       const id = String(body.id ?? "");
       if (!id) return json({ error: "Order id is required" }, 400);
 
+      const { data: current, error: readError } = await supabase
+        .from("orders")
+        .select("id, order_number, total, payment_status, paid_at, amount_paid, items")
+        .eq("id", id)
+        .maybeSingle();
+      if (readError) return json({ error: readError.message }, 500);
+      if (!current) return json({ error: "Order not found" }, 404);
+
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof body.status === "string") patch.status = body.status;
       if (typeof body.payment_status === "string") patch.payment_status = body.payment_status;
+      if (typeof body.payment_reference === "string") {
+        patch.payment_reference = body.payment_reference.trim() || null;
+      }
+      if (typeof body.payment_provider === "string") patch.payment_provider = body.payment_provider;
 
-      const { error } = await supabase.from("orders").update(patch).eq("id", id);
-      if (error) return json({ error: error.message }, 500);
+      // A manual mark-paid (typically a direct UPI transfer the operator has
+      // checked in the bank statement) must behave like a gateway capture:
+      // record the paid facts and take the sold units out of stock exactly once.
+      const markingPaid =
+        body.payment_status === "paid" && current.payment_status !== "paid";
+      if (markingPaid) {
+        patch.paid_at = current.paid_at ?? new Date().toISOString();
+        patch.amount_paid = current.amount_paid ?? current.total;
+        if (typeof body.payment_reference === "string" && body.payment_reference.trim()) {
+          patch.payment_provider = "upi";
+        }
+      }
+
+      if (markingPaid) {
+        // The condition makes the pending -> paid transition single-winner, so
+        // a double click (or two admins) cannot decrement stock twice.
+        const { data: updated, error } = await supabase
+          .from("orders")
+          .update(patch)
+          .eq("id", id)
+          .neq("payment_status", "paid")
+          .select("id");
+        if (error) return json({ error: error.message }, 500);
+
+        if (Array.isArray(updated) && updated.length > 0) {
+          const lines = Array.isArray(current.items) ? current.items : [];
+          for (const line of lines) {
+            const qty = Math.max(0, Math.floor(Number((line as { qty?: number }).qty) || 0));
+            if (qty === 0) continue;
+            const { error: stockError } = await supabase.rpc("decrement_variant_stock", {
+              p_product_id: String((line as { productId?: string }).productId ?? ""),
+              p_color: String((line as { color?: string }).color ?? ""),
+              p_size: String((line as { size?: string }).size ?? ""),
+              p_qty: qty,
+            });
+            if (stockError) {
+              await supabase.from("order_events").insert({
+                order_id: id,
+                event: "stock_decrement_failed",
+                detail: { source: "admin_mark_paid", line, error: stockError.message },
+              });
+            }
+          }
+          await supabase.from("order_events").insert({
+            order_id: id,
+            event: "stock_decremented",
+            detail: {
+              source: "admin_mark_paid",
+              lines: lines.map((line) => ({
+                product_id: (line as { productId?: string }).productId,
+                color: (line as { color?: string }).color,
+                size: (line as { size?: string }).size,
+                qty: (line as { qty?: number }).qty,
+              })),
+            },
+          });
+        }
+      } else {
+        const { error } = await supabase.from("orders").update(patch).eq("id", id);
+        if (error) return json({ error: error.message }, 500);
+      }
 
       await supabase.from("order_events").insert({
         order_id: id,
-        event: "admin_update",
+        event: markingPaid ? "admin_mark_paid" : "admin_update",
         detail: { by: session.email, ...patch },
       });
 

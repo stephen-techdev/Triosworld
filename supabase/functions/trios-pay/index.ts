@@ -45,7 +45,8 @@ const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") ?? "";
 const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "";
 const razorpayWebhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
 
-// Fallback UPI collect address, used only when the gateway cannot issue a QR.
+// Direct UPI collect address. The QR is a convenience fallback shown
+// alongside Razorpay; it is never treated as proof of payment on its own.
 const upiVpa = Deno.env.get("UPI_VPA") ?? "";
 const upiPayeeName = Deno.env.get("UPI_PAYEE_NAME") ?? "TriosWorld";
 
@@ -724,13 +725,16 @@ async function markPaid(
 }
 
 /**
- * Raw UPI intent, used only as a pre-gateway fallback.
+ * Direct UPI intent for the operator's own VPA.
  *
- * Never expose this in live mode: a direct VPA transfer bypasses Razorpay, so
- * the signed webhook and server-side verification cannot confirm the payment.
+ * Shown as a second option beside Razorpay so a gateway script failure can
+ * never leave the customer with no way to pay. It is deliberately NOT a source
+ * of truth: a direct VPA transfer carries no gateway signature, so the order
+ * stays `pending` until the operator verifies the UTR in the bank statement
+ * and marks it paid in the dashboard.
  */
-function upiIntentFor(orderNumber: string, amount: number): string | null {
-  if (razorpayConfigured || !upiVpa) return null;
+function directUpiIntentFor(orderNumber: string, amount: number): string | null {
+  if (!upiVpa) return null;
   const params = new URLSearchParams({
     pa: upiVpa,
     pn: upiPayeeName,
@@ -773,18 +777,31 @@ function paymentInfo(order: OrderRecord) {
     new Date(order.created_at).getTime() + PAYMENT_WINDOW_MINUTES * 60 * 1000,
   ).toISOString();
 
+  const razorpayIntent =
+    typeof meta.upi_intent === "string" && meta.upi_intent ? meta.upi_intent : null;
+  const razorpayOrderId =
+    typeof meta.razorpay_order_id === "string" && meta.razorpay_order_id
+      ? meta.razorpay_order_id
+      : null;
+  const directIntent = demoMode ? null : directUpiIntentFor(order.order_number, order.total);
+
   return {
     mode: demoMode ? 'demo' : 'live',
     demo: demoMode,
-    provider: demoMode ? 'demo' : 'razorpay',
+    // No gateway order means the gateway was unreachable at checkout; the
+    // direct VPA is then the only (manually verified) route.
+    provider: demoMode ? 'demo' : razorpayOrderId ? 'razorpay' : 'upi',
     expires_at: expiresAt,
-    upi_intent:
-      typeof meta.upi_intent === "string" && meta.upi_intent
-        ? meta.upi_intent
-        : upiIntentFor(order.order_number, order.total),
+    // Razorpay's dynamic UPI intent when the account can issue one; otherwise
+    // the operator's direct VPA. The customer page labels the direct one as
+    // manually verified.
+    upi_intent: razorpayIntent ?? directIntent,
+    upi_direct: !razorpayIntent && Boolean(directIntent),
+    upi_vpa: upiVpa || null,
+    upi_payee_name: upiPayeeName,
     qr_image_url: meta.qr_image_url ?? null,
     qr_id: meta.qr_id ?? null,
-    razorpay_order_id: meta.razorpay_order_id ?? null,
+    razorpay_order_id: razorpayOrderId,
     razorpay_key_id: razorpayKeyId || null,
     failure_reason: meta.last_failure_reason ?? null,
     failure_payment_id: meta.last_failed_payment_id ?? null,
@@ -935,12 +952,16 @@ Deno.serve(async (req: Request) => {
       });
 
       // --- create the payment intent ---
+      const directIntent = demoMode ? null : directUpiIntentFor(order.order_number, totals.total);
       const payment: Record<string, unknown> = {
         mode: demoMode ? "demo" : "live",
         demo: demoMode,
         provider: demoMode ? "demo" : "razorpay",
         expires_at: expiresAt,
-        upi_intent: upiIntentFor(order.order_number, totals.total),
+        upi_intent: directIntent,
+        upi_direct: Boolean(directIntent),
+        upi_vpa: upiVpa || null,
+        upi_payee_name: upiPayeeName,
       };
 
       if (!demoMode) {
@@ -958,60 +979,67 @@ Deno.serve(async (req: Request) => {
         });
 
         if (!rzpOrder.ok) {
+          // A gateway outage must never stop the sale. Keep the order pending
+          // and let the customer pay the direct VPA above; the operator checks
+          // the UTR and marks it paid, so no money is ever left unattributed.
           await recordEvent(order.id, "gateway_order_failed", rzpOrder.data);
-          await supabase.from("orders").update({ payment_status: "failed" }).eq("id", order.id);
-          return json({ error: "Payment gateway is unavailable right now. Please try again." }, 502);
-        }
+          await supabase
+            .from("orders")
+            .update({ payment_provider: "upi" })
+            .eq("id", order.id);
+          payment.provider = "upi";
+        } else {
+          const rzpOrderId = String(rzpOrder.data.id);
+          const gatewayMeta: Record<string, unknown> = {
+            razorpay_order_id: rzpOrderId,
+            checkout_origin: checkoutOrigin,
+          };
 
-        const rzpOrderId = String(rzpOrder.data.id);
-        const gatewayMeta: Record<string, unknown> = {
-          razorpay_order_id: rzpOrderId,
-          checkout_origin: checkoutOrigin,
-        };
+          // Razorpay's QR Codes and S2S UPI intent products are both on-demand.
+          // Both currently return "requested URL was not found" on this account,
+          // so the QR path is gated. Once Razorpay enables it, set
+          // RAZORPAY_UPI_INTENT_ENABLED=true and the page will render the
+          // Razorpay-issued upi:// link as a QR again; verification stays
+          // server-side through the payment id / order / webhook.
+          const upiIntentEnabled = Deno.env.get("RAZORPAY_UPI_INTENT_ENABLED") === "true";
+          if (upiIntentEnabled) {
+            const upi = await rzp("/payments/create/upi", {
+              method: "POST",
+              body: JSON.stringify({
+                amount: totals.total * 100,
+                currency: "INR",
+                order_id: rzpOrderId,
+                email: email || "orders@triosworld.com",
+                contact: mobile,
+                method: "upi",
+                description: `TriosWorld order ${order.order_number}`,
+                notes: { order_number: order.order_number },
+                upi: { flow: "intent" },
+              }),
+            });
 
-        // Razorpay's QR Codes and S2S UPI intent products are both on-demand.
-        // Both currently return "requested URL was not found" on this account,
-        // so the QR path is gated. Once Razorpay enables it, set
-        // RAZORPAY_UPI_INTENT_ENABLED=true and the page will render the
-        // Razorpay-issued upi:// link as a QR again; verification stays
-        // server-side through the payment id / order / webhook.
-        const upiIntentEnabled = Deno.env.get("RAZORPAY_UPI_INTENT_ENABLED") === "true";
-        if (upiIntentEnabled) {
-          const upi = await rzp("/payments/create/upi", {
-            method: "POST",
-            body: JSON.stringify({
-              amount: totals.total * 100,
-              currency: "INR",
-              order_id: rzpOrderId,
-              email: email || "orders@triosworld.com",
-              contact: mobile,
-              method: "upi",
-              description: `TriosWorld order ${order.order_number}`,
-              notes: { order_number: order.order_number },
-              upi: { flow: "intent" },
-            }),
-          });
-
-          if (upi.ok && typeof upi.data.link === "string" && upi.data.link) {
-            gatewayMeta.upi_intent = upi.data.link;
-            if (typeof upi.data.razorpay_payment_id === "string") {
-              gatewayMeta.razorpay_payment_id = upi.data.razorpay_payment_id;
+            if (upi.ok && typeof upi.data.link === "string" && upi.data.link) {
+              gatewayMeta.upi_intent = upi.data.link;
+              if (typeof upi.data.razorpay_payment_id === "string") {
+                gatewayMeta.razorpay_payment_id = upi.data.razorpay_payment_id;
+              }
+              payment.upi_intent = upi.data.link;
+              payment.upi_direct = false;
+              payment.razorpay_payment_id = upi.data.razorpay_payment_id ?? null;
+            } else {
+              // Hosted Checkout remains available if UPI intent is disabled.
+              await recordEvent(order.id, "upi_intent_unavailable", upi.data);
             }
-            payment.upi_intent = upi.data.link;
-            payment.razorpay_payment_id = upi.data.razorpay_payment_id ?? null;
-          } else {
-            // Hosted Checkout remains available if UPI intent is disabled.
-            await recordEvent(order.id, "upi_intent_unavailable", upi.data);
           }
+
+          await supabase
+            .from("orders")
+            .update({ gateway_meta: gatewayMeta })
+            .eq("id", order.id);
+
+          payment.razorpay_order_id = rzpOrderId;
+          payment.razorpay_key_id = razorpayKeyId;
         }
-
-        await supabase
-          .from("orders")
-          .update({ gateway_meta: gatewayMeta })
-          .eq("id", order.id);
-
-        payment.razorpay_order_id = rzpOrderId;
-        payment.razorpay_key_id = razorpayKeyId;
       }
 
       return json({

@@ -978,10 +978,14 @@ Deno.serve(async (req: Request) => {
           }),
         });
 
-        if (!rzpOrder.ok) {
-          // A gateway outage must never stop the sale. Keep the order pending
-          // and let the customer pay the direct VPA above; the operator checks
-          // the UTR and marks it paid, so no money is ever left unattributed.
+        const rzpOrderId =
+          typeof rzpOrder.data.id === "string" ? rzpOrder.data.id.trim() : "";
+
+        if (!rzpOrder.ok || !rzpOrderId) {
+          // A gateway outage (or a malformed reply) must never stop the sale.
+          // Keep the order pending and let the customer pay the direct VPA
+          // above; the operator checks the UTR and marks it paid, so no money
+          // is ever left unattributed.
           await recordEvent(order.id, "gateway_order_failed", rzpOrder.data);
           await supabase
             .from("orders")
@@ -989,7 +993,6 @@ Deno.serve(async (req: Request) => {
             .eq("id", order.id);
           payment.provider = "upi";
         } else {
-          const rzpOrderId = String(rzpOrder.data.id);
           const gatewayMeta: Record<string, unknown> = {
             razorpay_order_id: rzpOrderId,
             checkout_origin: checkoutOrigin,

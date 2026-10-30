@@ -117,7 +117,7 @@ export default function TrackOrderPage() {
 
   return (
     <div className="page-container py-10 md:py-16 max-w-2xl">
-      <SEO title="Track Order" description="Track your TriosWorld order with your order ID â€” placed, dispatched and delivered, exactly as the store updates it." />
+      <SEO title="Track Order" description="Track your TriosWorld order with your order ID — placed, dispatched and delivered, exactly as the store updates it." />
 
       <header className="text-center mb-8">
         <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-ivory border border-ink/10 shadow-card mb-4">
@@ -129,7 +129,7 @@ export default function TrackOrderPage() {
         </p>
       </header>
 
-      <form onSubmit={submit} className="flex flex-col sm:flex-row gap-3">
+      <form onSubmit={submit} className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3">
         <input
           type="text"
           inputMode="text"
@@ -141,7 +141,7 @@ export default function TrackOrderPage() {
           onChange={e => { setValue(e.target.value.toUpperCase()); setError(null); }}
           placeholder="TW-345678"
           aria-label="Order ID"
-          className="flex-1 h-12 px-4 rounded-lg border border-ink/20 bg-ivory text-sm font-semibold tracking-[0.14em] uppercase placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20"
+          className="w-full sm:w-80 h-14 px-5 rounded-lg border border-ink/20 bg-ivory text-base font-semibold tracking-[0.2em] uppercase placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20"
         />
         <button
           type="submit"

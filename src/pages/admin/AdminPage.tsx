@@ -83,7 +83,7 @@ export default function AdminPage() {
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <Link to="/" className="text-lg shrink-0">
-              <img src="/logo-ivory.png" alt="TriosWorld" className="h-7 w-auto" />
+              <img src="/logo-ivory-opt.webp" alt="TriosWorld" className="h-7 w-auto" />
             </Link>
             <span className="hidden sm:inline text-[11px] uppercase tracking-widest text-ivory/60 border border-ivory/20 rounded-full px-2.5 py-1">
               Admin
@@ -2061,7 +2061,7 @@ function GalleryField({ images, onChange, max = 10, onDetectedColor }: {
       setProgress({ done, total: prepared.length, label: 'Uploading' });
       const results = await Promise.all(
         prepared.map(async (p) => {
-          const res = await uploadProductImage(p.filename, p.contentType, p.data);
+          const res = await uploadProductImage(p.filename, p.contentType, p.data, p.thumbData);
           done += 1;
           setProgress({ done, total: prepared.length, label: 'Uploading' });
           return { p, res };

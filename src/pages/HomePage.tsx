@@ -9,7 +9,7 @@ import { formatINR } from '@/data/catalog';
 import { liveCollection, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useSiteContent, type BenefitIconKey } from '@/lib/siteContent';
-import { sizedImage } from '@/lib/imgUrl';
+import { sizedImage, productThumb, thumbFallback } from '@/lib/imgUrl';
 import ProductCard, { ProductCardMotion } from '@/components/ProductCard';
 import HeroSlider from '@/components/HeroSlider';
 import { Reveal, Stagger, StaggerItem } from '@/components/Motion';
@@ -131,7 +131,10 @@ export default function HomePage() {
       <section className="page-container py-16 md:py-24">
         <Reveal className="grid md:grid-cols-2 gap-1 md:gap-0 rounded-3xl overflow-hidden bg-ink shadow-lift">
           <div className="relative min-h-[320px] md:min-h-[560px] overflow-hidden">
-            <img src={sizedImage(content.editorial.image, 1000) ?? content.editorial.image} alt="Men's editorial campaign" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" loading="lazy" decoding="async" />
+            {/* The editorial photo may be an uploaded store image (full size in
+                storage), so it renders through the thumb variant like cards do
+                and falls back to the original if that variant is absent. */}
+            <img src={productThumb(sizedImage(content.editorial.image, 1000) ?? content.editorial.image)} data-original-src={content.editorial.image} onError={thumbFallback} alt="Men's editorial campaign" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" loading="lazy" decoding="async" />
           </div>
           <div className="flex flex-col justify-center p-6 sm:p-8 md:p-16 text-ivory">
             <p className="text-xs tracking-widest uppercase text-lime mb-4">{content.editorial.kicker}</p>
@@ -163,7 +166,7 @@ export default function HomePage() {
       <section className="page-container py-16 md:py-24">
         <div className="grid sm:grid-cols-2 gap-8 md:gap-16 items-center">
           <Reveal y={30} className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-card">
-            <img src={sizedImage(content.story.image, 800) ?? content.story.image} alt="TriosWorld men's community" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+            <img src={productThumb(sizedImage(content.story.image, 800) ?? content.story.image)} data-original-src={content.story.image} onError={thumbFallback} alt="TriosWorld men's community" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           </Reveal>
           <Reveal y={30} delay={0.1}>
             <p className="text-xs tracking-widest uppercase text-ink/65 mb-3">{content.story.kicker}</p>

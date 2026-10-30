@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { type Product, formatINR, SIZES } from '@/data/catalog';
 import { useStore } from '@/store/StoreContext';
 import { EASE } from '@/components/Motion';
+import { productThumb, thumbFallback } from '@/lib/imgUrl';
 
 interface Props {
   product: Product;
@@ -55,6 +56,12 @@ export default function ProductCard({ product }: Props) {
 
   const stockOf = (size: string) => v.sizes.find(x => x.size === size)?.stock ?? 0;
 
+  // The hover photos (views 2-5 of the selected colour) are a desktop nicety.
+  // Rendering them up front meant every visible card downloaded its whole
+  // gallery even though the extra views are hidden behind opacity-0 — so they
+  // mount only when the pointer actually reaches the card.
+  const [hovered, setHovered] = useState(false);
+
   const handleQuickAdd = (size: string) => {
     if (selectedSoldOut) return;
     if (stockOf(size) < 1) return;
@@ -67,23 +74,29 @@ export default function ProductCard({ product }: Props) {
   return (
     <div className="group">
       {/* Image + overlays share one stacking context so the quick-add stays on the image */}
-      <div className="relative">
+      <div className="relative" onMouseEnter={() => setHovered(true)}>
         <Link
           to={`/product/${product.slug}`}
           className="block relative overflow-hidden bg-stone/50 aspect-[3/4]"
         >
-          {gallery.map((img, i) => (
+          {gallery.map((img, i) => {
+            const primary = i === 0;
+            if (!primary && !hovered) return null;
+            return (
             <div
               key={`${img}-${i}`}
-              className={`absolute inset-0 transition-opacity duration-[350ms] ease-out ${i === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              className={`absolute inset-0 transition-opacity duration-[350ms] ease-out ${primary ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
               style={{ transitionDelay: `${i * 50}ms` }}
             >
               <img
-                src={img}
+                src={productThumb(img)}
+                data-original-src={img}
+                onError={thumbFallback}
                 alt={`${product.name} ${v.color} view ${i + 1}`}
                 className="w-full h-full object-cover object-top transition-transform duration-[350ms] ease-out group-hover:scale-[1.02]"
                 style={{ objectPosition: 'center top' }}
                 loading="lazy"
+                decoding="async"
               />
               {!allSoldOut && soldOutImage(img) && (
                 <span className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-ink/30">
@@ -93,7 +106,8 @@ export default function ProductCard({ product }: Props) {
                 </span>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {/* Badge — top left, clean pill. Only rendered when set, so a
               dashboard product without a badge shows no empty pill. */}

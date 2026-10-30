@@ -8,6 +8,7 @@ import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalo
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useStore } from '@/store/StoreContext';
 import { MAX_UNITS_PER_LINE } from '@/lib/stock';
+import { productThumb, thumbFallback } from '@/lib/imgUrl';
 import { useSiteContent } from '@/lib/siteContent';
 import { ProductCardMotion } from '@/components/ProductCard';
 import SEO, { productJsonLd, breadcrumbJsonLd } from '@/components/SEO';
@@ -377,7 +378,7 @@ export default function ProductPage() {
             {viewerImages.map((img, i) => (
               <button key={img + i} onClick={() => selectImage(i)}
                 className={`shrink-0 w-20 h-24 rounded overflow-hidden border-2 transition ${imageIdx === i ? 'border-ink' : 'border-transparent hover:border-ink/30'}`}>
-                <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+                <img src={productThumb(img)} data-original-src={img} onError={thumbFallback} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
               </button>
             ))}
           </div>

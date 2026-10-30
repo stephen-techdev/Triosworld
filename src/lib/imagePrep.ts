@@ -44,6 +44,12 @@ export interface PreparedImage {
   originalBytes: number;
   /** Size in bytes after preparation. */
   bytes: number;
+  /**
+   * Optional compact variant (700px WebP) for storefront card slots. Uploaded
+   * alongside the display image into `product-images-opt` under the same
+   * path; null when the browser could not produce one.
+   */
+  thumbData: string | null;
 }
 
 function readAsBytes(file: Blob): Promise<ArrayBuffer> {
@@ -125,6 +131,7 @@ async function decode(file: File): Promise<{ bitmap: CanvasImageSource; width: n
 async function reencode(
   file: File,
   maxEdge: number,
+  quality: number = QUALITY,
 ): Promise<{ dataUrl: string; contentType: string } | null> {
   let decoded: Awaited<ReturnType<typeof decode>> | null = null;
   try {
@@ -157,10 +164,10 @@ async function reencode(
     // Prefer WebP (smallest at this quality); fall back to JPEG when the
     // browser writes WebP under a different type name.
     let outType = 'image/webp';
-    let encoded = canvas.toDataURL(outType, QUALITY);
+    let encoded = canvas.toDataURL(outType, quality);
     if (!encoded.startsWith(`data:${outType}`)) {
       outType = 'image/jpeg';
-      encoded = canvas.toDataURL(outType, 0.86);
+      encoded = canvas.toDataURL(outType, Math.min(0.9, quality + 0.1));
     }
     return { dataUrl: encoded, contentType: outType };
   } catch {
@@ -188,12 +195,14 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
       const ext = done.contentType === 'image/jpeg' ? 'jpg' : done.contentType.split('/')[1];
       // Only keep the re-encode when it is genuinely smaller.
       if (data.length * 0.75 < originalBytes) {
+        const thumb = await thumbEncode(file);
         return {
           data,
           contentType: done.contentType,
           filename: `${base}.${ext}`,
           originalBytes,
           bytes: Math.round(data.length * 0.75),
+          thumbData: thumb,
         };
       }
     }
@@ -208,5 +217,17 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
     filename: file.name || `${base}.jpg`,
     originalBytes,
     bytes: originalBytes,
+    thumbData: null,
   };
+}
+
+/**
+ * Card-size companion for a display upload: 700px WebP, drawn from the same
+ * source photo. Pass-through when the browser cannot produce it — the store
+ * falls back to the display image in that case.
+ */
+async function thumbEncode(file: File): Promise<string | null> {
+  const thumb = await reencode(file, 700, 0.72);
+  if (!thumb || !thumb.dataUrl) return null;
+  return base64FromDataUrl(thumb.dataUrl);
 }

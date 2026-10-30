@@ -391,10 +391,15 @@ export const deleteGuest = (mobile: string) =>
  * Upload a product image. Goes through the admin function rather than Storage
  * directly so the `product-images` bucket never needs a public write policy.
  */
-export const uploadProductImage = (filename: string, contentType: string, data: string) =>
-  adminRequest<{ ok: true; path: string; url: string }>('/image-upload', {
+export const uploadProductImage = (
+  filename: string,
+  contentType: string,
+  data: string,
+  thumbData?: string | null,
+) =>
+  adminRequest<{ ok: true; path: string; url: string; thumb?: string | null }>('/image-upload', {
     method: 'POST',
-    body: JSON.stringify({ filename, contentType, data }),
+    body: JSON.stringify(thumbData ? { filename, contentType, data, thumbData } : { filename, contentType, data }),
   });
 
 export const createProduct = (payload: {

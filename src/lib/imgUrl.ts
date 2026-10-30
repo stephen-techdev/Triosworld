@@ -39,3 +39,30 @@ export function imageSrcSet(url: string | undefined, widths: number[]): string |
     .map(([src, w]) => `${src} ${w}w`);
   return entries.length ? entries.join(', ') : undefined;
 }
+
+/**
+ * A storefront card thumbnail.
+ *
+ * The dashboard stores display uploads at 896-1500px. Cards, cart lines and
+ * PDP thumbnails render slots far smaller than that, so every product photo
+ * also exists as a 700px q70 WebP in the sibling `product-images-opt` bucket
+ * under the same path. `productThumb` maps an original URL onto its thumb;
+ * callers pair it with an onError fallback to the original so a missing thumb
+ * (a photo uploaded before the bucket existed) can never appear broken.
+ */
+export function productThumb(url: string | undefined): string | undefined {
+  if (!url) return url;
+  const m = url.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/product-images\/(.+)$/);
+  if (!m) return url;
+  const clean = m[2].split('?')[0].replace(/\.(jpe?g|png|webp)$/i, '');
+  return `${m[1]}/storage/v1/object/public/product-images-opt/${clean}.webp`;
+}
+
+/** Swap a failed thumb back to its original — attach as the img's onError. */
+export function thumbFallback(event: { currentTarget: HTMLImageElement }) {
+  const el = event.currentTarget;
+  if (el.dataset.thumbFellBack) return;
+  el.dataset.thumbFellBack = '1';
+  const original = el.dataset.originalSrc;
+  if (original) el.src = original;
+}

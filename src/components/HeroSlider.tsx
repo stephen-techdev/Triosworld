@@ -48,6 +48,21 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
   const go = (next: number) => setIdx(((next % count) + count) % count);
 
+  // Off-screen slides stay unmounted until the reel approaches them. All
+  // photos are stacked and absolutely positioned, so without this every
+  // campaign image downloaded at load even though only one is visible. The
+  // next slide always preloads during the visible one's display time, so the
+  // cross-fade still has its photo ready.
+  const [mounted, setMounted] = useState<Set<number>>(() => new Set([0]));
+  useEffect(() => {
+    setMounted(prev => {
+      const next = new Set(prev);
+      next.add(idx);
+      if (count > 1) next.add((idx + 1) % count);
+      return next.size === prev.size ? prev : next;
+    });
+  }, [idx, count]);
+
   // One timer per slide: the duration is the slide's own, so the campaign shot
   // lingers and the supporting angles keep moving.
   useEffect(() => {
@@ -91,7 +106,7 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           hint (set as a raw attribute — React 18 does not forward the JSX
           prop) and a device-sized srcset: a phone pulls a ~800px crop, not
           the 2400px showcase upload the operator's default points at. */}
-      {slides.map((s, i) => (
+      {slides.map((s, i) => !mounted.has(i) ? null : (
         <motion.img
           key={`${s.image}-${i}`}
           src={sizedImage(s.image, i === 0 ? 900 : 1600) ?? s.image}

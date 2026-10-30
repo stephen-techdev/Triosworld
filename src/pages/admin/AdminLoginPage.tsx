@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
       >
         <div className="text-center mb-8">
           <p className="flex justify-center">
-            <img src="/logo-ivory.png" alt="TriosWorld" className="h-12 w-auto" />
+            <img src="/logo-ivory-opt.webp" alt="TriosWorld" className="h-12 w-auto" />
           </p>
           <p className="text-[11px] uppercase tracking-[0.2em] text-ivory/60 mt-2">Operator access</p>
         </div>

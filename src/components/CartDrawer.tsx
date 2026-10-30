@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, resolveProduct } from '@/store/StoreContext';
 import { formatINR } from '@/data/catalog';
 import { amountToFreeShipping, shippingFor, useStoreSettings } from '@/lib/storeSettings';
+import { productThumb, thumbFallback } from '@/lib/imgUrl';
 
 interface Props {
   open: boolean;
@@ -51,7 +52,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                     return (
                       <div key={`${item.productId}-${item.color}-${item.size}`} className="flex gap-4">
                         <Link to={`/product/${p.slug}`} onClick={onClose} className="shrink-0">
-                          <img src={v?.colorImage ?? v?.images[0]} alt={p.name} className="w-20 h-24 object-cover rounded" />
+                          <img src={productThumb(v?.colorImage ?? v?.images[0])} data-original-src={v?.colorImage ?? v?.images[0]} onError={thumbFallback} alt={p.name} className="w-20 h-24 object-cover rounded" loading="lazy" decoding="async" />
                         </Link>
                         <div className="flex-1 min-w-0">
                           <Link to={`/product/${p.slug}`} onClick={onClose} className="text-sm font-medium hover:text-ink/60">{p.name}</Link>

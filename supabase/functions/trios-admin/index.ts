@@ -772,14 +772,30 @@ Deno.serve(async (req: Request) => {
 
       if (upErr) return json({ error: upErr.message }, 500);
 
+      // Storefront card slots are much smaller than a display upload, so the
+      // client also encodes a compact WebP thumb; it goes into the sibling
+      // `product-images-opt` bucket under the SAME path, which is what
+      // `productThumb()` maps a card to at render time. A failed thumb write
+      // does not fail the upload — the store falls back to the original.
+      let thumbPath: string | null = null;
+      const thumbBase64 = String(body.thumbData ?? "");
+      if (thumbBase64 && thumbBase64.length * 3 / 4 <= 1024 * 1024) {
+        const thumbBytes = Uint8Array.from(atob(thumbBase64), (c) => c.charCodeAt(0));
+        const { error: thumbErr } = await supabase.storage
+          .from("product-images-opt")
+          .upload(`${stamp}/${safeBase}.webp`, thumbBytes, { contentType: "image/webp", upsert: true });
+        if (!thumbErr) thumbPath = `${stamp}/${safeBase}.webp`;
+      }
+
       const { data: pub } = supabase.storage.from("product-images").getPublicUrl(key);
 
       await audit(session.email, "image.upload", "storage", key, {
         filename,
         bytes: bytes.length,
+        thumb: thumbPath ?? "original-only",
       });
 
-      return json({ ok: true, path: key, url: pub.publicUrl });
+      return json({ ok: true, path: key, url: pub.publicUrl, thumb: thumbPath });
     }
 
     // ==================== PRODUCT DELETE IMAGE ====================

@@ -320,7 +320,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
 
   benefits: [
-    { icon: 'shield', title: 'Secure Checkout', text: 'Encrypted payments you can trust.', to: '/cart' },
+    { icon: 'shield', title: 'Secure Checkout', text: 'Encrypted payments you can trust.', to: '/checkout' },
     { icon: 'badge', title: 'Product Quality', text: 'Premium fabrics, built to last.', to: '/about' },
     { icon: 'truck', title: 'Order Tracking', text: 'Track every order, end to end.', to: '/track' },
     { icon: 'headphones', title: 'Customer Support', text: 'Real humans, here to help.', to: '/contact' },

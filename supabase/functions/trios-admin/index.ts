@@ -537,7 +537,7 @@ Deno.serve(async (req: Request) => {
     // nothing outside trash is ever touched by a schedule.
     if (path === "/orders" && req.method === "GET") {
       const status = url.searchParams.get("status");
-      const search = (url.searchParams.get("q") ?? "").trim();
+      const search = (url.searchParams.get("q") ?? "").trim().replace(/[^a-zA-Z0-9 \-]/g, "").slice(0, 40);
       const limit = Math.min(Number(url.searchParams.get("limit") ?? 100), 200);
       const isTrashView = url.searchParams.get("trash") === "1";
 

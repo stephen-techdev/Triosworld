@@ -1184,8 +1184,18 @@ Deno.serve(async (req: Request) => {
       }
 
       // Same read the admin uses: `status` is the fulfilment word, so the
-      // customer sees exactly what the operator set in the dashboard.
+      // customer sees exactly what the operator set in the dashboard. The
+      // milestone timestamps are derived from the admin trail, but only the
+      // stages the current status actually implies are surfaced — an order
+      // the operator moved back to "placed" must not still show "Delivered".
       const fulfilment = String((data as { status?: string }).status ?? "placed");
+
+      const allowsDispatched = fulfilment === "dispatched" || fulfilment === "delivered";
+      const allowsDelivered = fulfilment === "delivered";
+      const allowsCancelled = fulfilment === "cancelled";
+      if (!allowsDispatched) dispatchedAt = null;
+      if (!allowsDelivered) deliveredAt = null;
+      if (!allowsCancelled) cancelledAt = null;
 
       const timeline: { at: string; label: string }[] = [
         { at: (data as { created_at: string }).created_at, label: "Order placed" },

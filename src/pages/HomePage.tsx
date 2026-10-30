@@ -184,13 +184,23 @@ export default function HomePage() {
         <Stagger className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6" stagger={0.07}>
           {content.benefits.map(b => {
             const Icon = BENEFIT_ICONS[b.icon] ?? ShieldCheck;
+            /* Same classes for both shells — the link never changes box size,
+               it only adds pointer + keyboard navigation. */
+            const cardClasses = 'group flex flex-col items-center text-center p-6 rounded-2xl border border-ink/10 bg-ivory shadow-soft transition-all duration-500 ease-smooth hover:-translate-y-1 hover:shadow-card h-full';
+            const inner = (
+              <>
+                <Icon size={26} className="text-ink mb-3 transition-transform duration-500 ease-smooth group-hover:-translate-y-0.5" />
+                <h3 className="font-medium text-sm">{b.title}</h3>
+                <p className="text-xs text-ink/65 mt-1">{b.text}</p>
+              </>
+            );
             return (
               <StaggerItem key={`${b.title}-${b.text}`}>
-                <div className="group flex flex-col items-center text-center p-6 rounded-2xl border border-ink/10 bg-ivory shadow-soft transition-all duration-500 ease-smooth hover:-translate-y-1 hover:shadow-card h-full">
-                  <Icon size={26} className="text-ink mb-3 transition-transform duration-500 ease-smooth group-hover:-translate-y-0.5" />
-                  <h3 className="font-medium text-sm">{b.title}</h3>
-                  <p className="text-xs text-ink/65 mt-1">{b.text}</p>
-                </div>
+                {b.to ? (
+                  <Link to={b.to} className={cardClasses} aria-label={`${b.title} — learn more`}>{inner}</Link>
+                ) : (
+                  <div className={cardClasses}>{inner}</div>
+                )}
               </StaggerItem>
             );
           })}

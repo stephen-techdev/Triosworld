@@ -101,6 +101,8 @@ export interface BenefitContent {
   icon: BenefitIconKey;
   title: string;
   text: string;
+  /** Optional destination — when set the whole card acts as a link. */
+  to?: string;
 }
 
 export interface FooterLink {
@@ -318,10 +320,10 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
 
   benefits: [
-    { icon: 'shield', title: 'Secure Checkout', text: 'Encrypted payments you can trust.' },
-    { icon: 'badge', title: 'Product Quality', text: 'Premium fabrics, built to last.' },
-    { icon: 'truck', title: 'Order Tracking', text: 'Track every order, end to end.' },
-    { icon: 'headphones', title: 'Customer Support', text: 'Real humans, here to help.' },
+    { icon: 'shield', title: 'Secure Checkout', text: 'Encrypted payments you can trust.', to: '/cart' },
+    { icon: 'badge', title: 'Product Quality', text: 'Premium fabrics, built to last.', to: '/about' },
+    { icon: 'truck', title: 'Order Tracking', text: 'Track every order, end to end.', to: '/track' },
+    { icon: 'headphones', title: 'Customer Support', text: 'Real humans, here to help.', to: '/contact' },
   ],
 
   footer: {
@@ -432,7 +434,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. Track your order any time with the order ID on our Track Order page.' },
         { h: 'Can I exchange for a different size?', p: 'Yes — within 7 days, as long as the item is unworn with tags. Message us on WhatsApp to start an exchange.' },
         { h: 'Do you ship internationally?', p: 'We currently ship within India only. International shipping is coming soon.' },
-        { h: 'How do I track my order?', p: 'Open the menu (≡) and tap Track Order, then enter your order ID — it looks like TW-345678 and is in your confirmation message. That menu entry is the one place to track: the page shows whether the order is placed, dispatched or delivered, and updates live as we move it forward.' },
+        { h: 'How do I track my order?', p: 'Open the menu (≡) and tap Track Order, or use the Order Tracking card on our home page, then enter your order ID — it looks like TW-345678 and is in your confirmation message. The page shows whether the order is placed, dispatched or delivered, and updates live as we move it forward.' },
       ],
     },
   },

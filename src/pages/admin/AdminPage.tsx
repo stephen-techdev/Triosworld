@@ -243,9 +243,10 @@ function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (silent) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
       setData(await loader());
@@ -253,12 +254,13 @@ function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
       setError(err instanceof Error ? err.message : 'Could not load data');
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false); else setLoading(false);
     }
   }, [loader, onAuthFail]);
 
-  useEffect(() => { void load(); }, [load]);
-  return { data, error, loading, reload: load };
+  useEffect(() => { void load(false); }, [load]);
+  const reload = useCallback(() => load(true), [load]);
+  return { data, setData, error, loading, refreshing, reload };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -325,7 +327,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   }, [search]);
 
   const loader = useCallback(() => getOrders({ status: filter, q: debounced }), [filter, debounced]);
-  const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
+  const { data, error, loading, refreshing, reload, setData } = useAdminData<AdminOrder[]>(loader, onAuthFail);
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -337,11 +339,15 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [trashErr, setTrashErr] = useState<string | null>(null);
 
   const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
+    // Optimistic: flip the chip immediately so the UI feels instant, then
+    // reconcile with the server. A failure restores via the silent reload.
+    setData(prev => (prev ? prev.map(o => o.id === order.id ? { ...o, ...patch } : o) : prev));
     try {
       await updateOrder(order.id, patch);
       await reload();
     } catch (err) {
       if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      await reload();
     }
   };
 
@@ -387,7 +393,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
 
   return (
     <div>
-      <SectionHead title="Orders & Payments" subtitle="Every order, guest and registered" onRefresh={reload} loading={loading} />
+      <SectionHead title="Orders & Payments" subtitle="Every order, guest and registered" onRefresh={reload} loading={refreshing} />
 
       <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
         Download a PDF receipt for any order — it includes the delivery address and every item&rsquo;s
@@ -593,7 +599,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
 
 function TrashSection({ onAuthFail }: { onAuthFail: () => void }) {
   const loader = useCallback(() => getTrash(), []);
-  const { data, error, loading, reload } = useAdminData<AdminOrder[]>(loader, onAuthFail);
+  const { data, error, loading, refreshing, reload, setData } = useAdminData<AdminOrder[]>(loader, onAuthFail);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -630,7 +636,7 @@ function TrashSection({ onAuthFail }: { onAuthFail: () => void }) {
 
   return (
     <div>
-      <SectionHead title="Trash" subtitle="Delivered orders waiting for permanent deletion" onRefresh={reload} loading={loading} />
+      <SectionHead title="Trash" subtitle="Delivered orders waiting for permanent deletion" onRefresh={reload} loading={refreshing} />
 
       <p className="text-[11px] text-ink/60 mb-4 -mt-1 leading-relaxed">
         Only delivered orders you moved here from Orders &amp; Payments appear in this list. Each one

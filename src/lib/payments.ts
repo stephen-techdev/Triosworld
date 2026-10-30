@@ -249,6 +249,48 @@ export async function getReceipt(orderNumber: string, token: string): Promise<Re
 }
 
 // ---------------------------------------------------------------------------
+// Public order tracking
+// ---------------------------------------------------------------------------
+
+/** One stage in the tracking timeline, times shipped as ISO strings. */
+export interface TrackTimelineEntry {
+  at: string;
+  label: string;
+}
+
+export interface TrackResult {
+  track: {
+    order_number: string;
+    /** Fulfilment word the operator set in Admin → Orders. */
+    status: string;
+    payment_status: string;
+    created_at: string;
+    updated_at: string;
+    dispatched_at: string | null;
+    delivered_at: string | null;
+    cancelled_at: string | null;
+  };
+  events: TrackTimelineEntry[];
+}
+
+/**
+ * Track an order by its public ID (TW-000000).
+ *
+ * The response deliberately carries no personal details — the same payload is
+ * served to anyone who types the number, so only the delivery state travels.
+ */
+export async function trackOrder(orderId: string): Promise<TrackResult> {
+  const qs = new URLSearchParams({ order: orderId });
+  return request<TrackResult>(`/track?${qs.toString()}`, { method: 'GET' });
+}
+
+/** Accepts "tw 345678", "TW345678", "345678" … and returns the canonical form or null. */
+export function canonicalOrderId(raw: string): string | null {
+  const digits = (raw ?? '').replace(/\s+/g, '').toUpperCase().replace(/[^0-9]/g, '');
+  return /^[0-9]{4,8}$/.test(digits) ? `TW-${digits}` : null;
+}
+
+// ---------------------------------------------------------------------------
 // Local order references
 //
 // The receipt token is the guest's proof of ownership, handed out once at

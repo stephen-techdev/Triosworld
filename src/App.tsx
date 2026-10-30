@@ -5,22 +5,27 @@ import { Loader2 } from 'lucide-react';
 import { StoreProvider } from '@/store/StoreContext';
 import { AuthProvider } from '@/store/AuthContext';
 import Layout from '@/components/Layout';
-import HomePage from '@/pages/HomePage';
-import ShopPage from '@/pages/ShopPage';
-import ProductPage from '@/pages/ProductPage';
-import WishlistPage from '@/pages/WishlistPage';
-import CollectionsPage from '@/pages/CollectionsPage';
-import CheckoutPage from '@/pages/CheckoutPage';
-import AccountPage from '@/pages/AccountPage';
-import LoginPage from '@/pages/LoginPage';
-import RegisterPage from '@/pages/RegisterPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import StaticPage from '@/pages/StaticPage';
-import NotFoundPage from '@/pages/NotFoundPage';
 import { ADMIN_BASE, ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
 
+// Every route is its own chunk so a visitor downloads only the page they
+// opened. This keeps the main bundle (app shell, header, footer, shared
+// stores) the only thing in the initial request and is worth a large chunk of
+// the Lighthouse "unused JavaScript" the homepage was penalised for.
 // Split the heavy, rarely-visited routes out of the main bundle: the order page
 // pulls in the QR renderer and jsPDF, and the dashboard is admin-only.
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const ShopPage = lazy(() => import('@/pages/ShopPage'));
+const ProductPage = lazy(() => import('@/pages/ProductPage'));
+const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
+const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'));
+const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
+const AccountPage = lazy(() => import('@/pages/AccountPage'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const StaticPage = lazy(() => import('@/pages/StaticPage'));
+const TrackOrderPage = lazy(() => import('@/pages/TrackOrderPage'));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 const PaymentSuccessPage = lazy(() => import('@/pages/PaymentSuccessPage'));
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
 const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
@@ -60,6 +65,7 @@ export default function App() {
                   <Route path="/collections" element={<CollectionsPage />} />
                   <Route path="/wishlist" element={<WishlistPage />} />
                   <Route path="/checkout" element={<CheckoutPage />} />
+                  <Route path="/track" element={<TrackOrderPage />} />
                   <Route path="/order/:orderNumber" element={<PaymentSuccessPage />} />
                   <Route path="/account" element={<AccountPage />} />
                   <Route path="/login" element={<LoginPage />} />

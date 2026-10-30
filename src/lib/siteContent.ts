@@ -335,7 +335,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       ] },
       { title: 'Help', links: [
         { label: 'Contact Us', to: '/contact' },
-        { label: 'Order Tracking', to: '/account' },
+        { label: 'Track Order', to: '/track' },
         { label: 'Shipping Policy', to: '/shipping' },
         { label: 'Return Policy', to: '/returns' },
         { label: 'FAQs', to: '/faqs' },
@@ -391,7 +391,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
         // Rendered from the operator's live shipping settings while unedited;
         // once saved from the dashboard it becomes plain text like the rest.
         { h: 'Domestic shipping (India)', p: '{{shipping}}' },
-        { h: 'Tracking', p: 'Every order ships with a tracking number. We share tracking details on WhatsApp once your order is dispatched.' },
+        { h: 'Tracking', p: 'Every order has an order ID (TW-000000) shared in your confirmation. Customers can track it themselves on the Track Order page — placed, dispatched and delivered, updating live as the admin dashboard changes.' },
       ],
     },
     returns: {
@@ -430,10 +430,10 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     faqs: {
       title: 'FAQs',
       body: [
-        { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. We share tracking details on WhatsApp.' },
+        { h: 'When will my order arrive?', p: 'Standard delivery takes 3–5 business days across India. Track your order any time with the order ID on our Track Order page.' },
         { h: 'Can I exchange for a different size?', p: 'Yes — within 7 days, as long as the item is unworn with tags. Message us on WhatsApp to start an exchange.' },
         { h: 'Do you ship internationally?', p: 'We currently ship within India only. International shipping is coming soon.' },
-        { h: 'How do I track my order?', p: 'Once dispatched, we share a tracking link on WhatsApp. You can also view order status from your account.' },
+        { h: 'How do I track my order?', p: 'Open the Track Order page (link in the footer) and enter your order ID — it looks like TW-345678 and is in your confirmation message. The page shows whether the order is placed, dispatched or delivered, and updates live as we move it forward.' },
       ],
     },
   },

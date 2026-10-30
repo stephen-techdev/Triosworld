@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { COLLECTIONS } from '@/data/catalog';
 import { useSiteContent } from '@/lib/siteContent';
+import { sizedImage } from '@/lib/imgUrl';
 
 export default function CollectionsPage() {
   // The operator's own category cards lead; the built-in shop pages follow so
@@ -30,7 +31,7 @@ export default function CollectionsPage() {
         {operatorCats.map((c, i) => (
           <motion.div key={c.slug} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}>
             <Link to={`/shop/${c.slug}`} className="group relative block overflow-hidden rounded-2xl aspect-[4/5] bg-stone/40 shadow-soft hover:shadow-lift transition-shadow duration-500">
-              <img src={c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+              <img src={sizedImage(c.image, 800) ?? c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent" />
               <div className="absolute bottom-0 p-5 md:p-6">
                 <h3 className="font-display font-semibold text-ivory text-xl">{c.name}</h3>

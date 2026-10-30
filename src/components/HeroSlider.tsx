@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import type { HeroSlide } from '@/lib/siteContent';
+import { sizedImage, imageSrcSet } from '@/lib/imgUrl';
 
 /** Multi-line display headings: each entry becomes its own line. */
 const lines = (arr: string[]) =>
@@ -84,18 +85,26 @@ export default function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           next image is already decoded when its turn comes and there is never
           a white flash between campaign shots. The active one gets a slow push
           — the Ken-Burns feel — via a CSS animation instead of a JS one, so
-          it cannot fight the cross-fade. */}
+          it cannot fight the cross-fade.
+
+          The first photo is the LCP on every landing, so it gets a priority
+          hint (set as a raw attribute — React 18 does not forward the JSX
+          prop) and a device-sized srcset: a phone pulls a ~800px crop, not
+          the 2400px showcase upload the operator's default points at. */}
       {slides.map((s, i) => (
         <motion.img
           key={`${s.image}-${i}`}
-          src={s.image}
+          src={sizedImage(s.image, i === 0 ? 900 : 1600) ?? s.image}
+          srcSet={i === 0 ? imageSrcSet(s.image, [640, 900, 1400, 2000]) : undefined}
+          sizes="100vw"
           alt=""
           aria-hidden={i !== idx}
           loading={i === 0 ? 'eager' : 'lazy'}
-          fetchPriority={i === 0 ? 'high' : 'low'}
+          decoding="async"
           initial={false}
           animate={{ opacity: i === idx ? 0.8 : 0 }}
           transition={{ duration: reduced ? 0 : 1.4, ease: 'easeInOut' }}
+          ref={i === 0 ? (el) => { el?.setAttribute('fetchpriority', 'high'); } : undefined}
           className={`absolute inset-0 w-full h-full object-cover object-[50%_32%] md:object-[50%_28%] ${i === idx && !reduced ? 'hero-kenburns' : ''}`}
         />
       ))}

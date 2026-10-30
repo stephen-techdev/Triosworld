@@ -9,6 +9,7 @@ import { formatINR } from '@/data/catalog';
 import { liveCollection, useLiveCatalog } from '@/lib/storefrontCatalog';
 import { freeShippingLabel, useStoreSettings } from '@/lib/storeSettings';
 import { useSiteContent, type BenefitIconKey } from '@/lib/siteContent';
+import { sizedImage } from '@/lib/imgUrl';
 import ProductCard, { ProductCardMotion } from '@/components/ProductCard';
 import HeroSlider from '@/components/HeroSlider';
 import { Reveal, Stagger, StaggerItem } from '@/components/Motion';
@@ -99,7 +100,7 @@ export default function HomePage() {
           {content.categories.map(c => (
             <StaggerItem key={c.slug}>
               <Link to={`/shop/${c.slug}`} className="group relative block overflow-hidden rounded-2xl aspect-[4/5] bg-stone/40 shadow-soft transition-shadow duration-500 ease-smooth hover:shadow-lift">
-                <img src={c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105" loading="lazy" />
+                <img src={sizedImage(c.image, 640) ?? c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 ease-smooth group-hover:scale-105" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
                   <h3 className="font-display font-semibold text-ivory text-lg md:text-xl">{c.name}</h3>
@@ -130,7 +131,7 @@ export default function HomePage() {
       <section className="page-container py-16 md:py-24">
         <Reveal className="grid md:grid-cols-2 gap-1 md:gap-0 rounded-3xl overflow-hidden bg-ink shadow-lift">
           <div className="relative min-h-[320px] md:min-h-[560px] overflow-hidden">
-            <img src={content.editorial.image} alt="Men's editorial campaign" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" />
+            <img src={sizedImage(content.editorial.image, 1000) ?? content.editorial.image} alt="Men's editorial campaign" className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1200ms] ease-smooth hover:scale-105" loading="lazy" decoding="async" />
           </div>
           <div className="flex flex-col justify-center p-6 sm:p-8 md:p-16 text-ivory">
             <p className="text-xs tracking-widest uppercase text-lime mb-4">{content.editorial.kicker}</p>
@@ -162,7 +163,7 @@ export default function HomePage() {
       <section className="page-container py-16 md:py-24">
         <div className="grid sm:grid-cols-2 gap-8 md:gap-16 items-center">
           <Reveal y={30} className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-card">
-            <img src={content.story.image} alt="TriosWorld men's community" className="w-full h-full object-cover" loading="lazy" />
+            <img src={sizedImage(content.story.image, 800) ?? content.story.image} alt="TriosWorld men's community" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           </Reveal>
           <Reveal y={30} delay={0.1}>
             <p className="text-xs tracking-widest uppercase text-ink/65 mb-3">{content.story.kicker}</p>

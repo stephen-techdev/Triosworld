@@ -23,18 +23,17 @@ const badgeStyles: Record<string, string> = {
 export default function ProductCard({ product }: Props) {
   const { toggleWishlist, isWishlisted, addToCart } = useStore();
   const wished = isWishlisted(product.id);
-  const [activeColor, setActiveColor] = useState(0);
   const colorSoldOut = product.variants.map(
     (variant) => variant.sizes.reduce((sum, entry) => sum + entry.stock, 0) === 0,
   );
   const allSoldOut = colorSoldOut.length > 0 && colorSoldOut.every(Boolean);
-  // If the chosen colour has just sold out, fall back to the first colour that
-  // can still be bought. This keeps the card from opening on a disabled colour
-  // and its out-of-stock photo.
-  const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
-  const activeIdx = firstAvailable >= 0 && colorSoldOut[activeColor] ? firstAvailable : activeColor;
-  const v = product.variants[activeIdx] ?? product.variants[0];
-  const selectedSoldOut = colorSoldOut[activeIdx] ?? true;
+  // Open the card on the first colour a visitor can actually buy. Only the
+  // first paint falls back — a sold-out colour stays reachable by tapping its
+  // swatch, so its photo and its "Out of stock" badge can be seen.
+  const firstBoughtable = colorSoldOut.findIndex((soldOut) => !soldOut);
+  const [activeColor, setActiveColor] = useState(firstBoughtable >= 0 ? firstBoughtable : 0);
+  const v = product.variants[activeColor] ?? product.variants[0];
+  const selectedSoldOut = colorSoldOut[activeColor] ?? true;
   // The selected colour's photo leads, then the rest of the gallery follows.
   // A sold-out colour's photo stays in the gallery, but it carries an
   // "Out of stock" badge; the swatch below it stays disabled with a cross.
@@ -42,7 +41,11 @@ export default function ProductCard({ product }: Props) {
     const owners = product.variants
       .map((variant, i) => (variant.colorImage === src ? i : -1))
       .filter((i) => i >= 0);
-    return owners.length > 0 && owners.every((i) => colorSoldOut[i]);
+    if (owners.length > 0) return owners.every((i) => colorSoldOut[i]);
+    // Shared gallery — the operator gave fewer photos than colours, so no
+    // photo is owned by a colour. The badge then follows the colour the card
+    // is showing: a sold-out colour seen through shared shots is still marked.
+    return selectedSoldOut && !allSoldOut;
   };
   const gallery = Array.from(new Set([...(v.colorImage ? [v.colorImage] : []), ...v.images])).slice(0, 5);
   const hasDiscount = product.mrp > product.price;
@@ -169,10 +172,10 @@ export default function ProductCard({ product }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.18 }}
-                  onClick={() => { if (!allSoldOut) setSheetOpen(true); }}
-                  disabled={allSoldOut}
-                  aria-label={allSoldOut ? 'Out of stock' : 'Quick add — choose a size'}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 ${allSoldOut ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95'}`}
+                  onClick={() => { if (!selectedSoldOut) setSheetOpen(true); }}
+                  disabled={selectedSoldOut}
+                  aria-label={selectedSoldOut ? 'Out of stock' : 'Quick add — choose a size'}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-ivory/95 text-ink shadow-card backdrop-blur transition-all duration-200 ${selectedSoldOut ? 'opacity-40 cursor-not-allowed' : 'hover:scale-110 hover:bg-ink hover:text-ivory active:scale-95'}`}
                 >
                   {addedSize ? <Check size={16} /> : <Plus size={16} />}
                 </motion.button>
@@ -250,15 +253,14 @@ export default function ProductCard({ product }: Props) {
               <button
                 key={variant.color}
                 type="button"
-                disabled={soldOut}
                 onClick={() => setActiveColor(i)}
                 aria-label={soldOut ? `${variant.color} out of stock` : `Show ${variant.color}`}
-                aria-pressed={activeIdx === i}
-                title={soldOut ? `${variant.color} out of stock` : variant.color}
-                className={`relative flex h-4 w-4 items-center justify-center rounded-full transition-transform ${soldOut ? 'opacity-35 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+                aria-pressed={activeColor === i}
+                title={soldOut ? `${variant.color} — out of stock` : variant.color}
+                className={`relative flex h-4 w-4 items-center justify-center rounded-full transition-transform ${soldOut ? 'opacity-35' : 'hover:scale-110 active:scale-95'}`}
               >
                 <span
-                  className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeIdx === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
+                  className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
                   style={{ backgroundColor: variant.hex }}
                 />
                 {soldOut && (

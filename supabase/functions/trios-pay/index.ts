@@ -3,6 +3,7 @@
 // Responsibilities
 //   POST /create         create an order + a dynamic UPI QR / gateway order
 //   GET  /status         server-verified payment status for polling
+//   GET  /track          public order tracking by order number (status only)
 //   POST /webhook        signed gateway callback (source of truth)
 //   POST /demo-settle    settlement when no gateway is configured (see below)
 //   GET  /receipt        full order payload for the PDF receipt (paid orders only)
@@ -456,6 +457,47 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 async function recordEvent(orderId: string, event: string, detail: unknown) {
   await supabase.from("order_events").insert({ order_id: orderId, event, detail });
+}
+
+// ─────────────────────────── /track rate limiting ─────────────────────────
+// A public endpoint that answers "is there an order with number X" is always
+// going to be worth hammering, so calls are throttled per client IP. The
+// counter lives in this instance's memory; it is not shared across replicas,
+// which is fine — a single instance already makes brute enumeration slow, and
+// the response leaks nothing personal even when it succeeds.
+
+const TRACK_WINDOW_MS = 60_000;
+const TRACK_MAX_PER_WINDOW = 12;
+const trackHits = new Map<string, { count: number; resetAt: number }>();
+
+function trackThrottled(ip: string): boolean {
+  const now = Date.now();
+  const entry = trackHits.get(ip);
+
+  if (!entry || entry.resetAt < now) {
+    // Keep the map from growing forever on a busy instance.
+    if (trackHits.size > 5_000) {
+      for (const [key, value] of trackHits) {
+        if (value.resetAt < now) trackHits.delete(key);
+        if (trackHits.size <= 5_000) break;
+      }
+    }
+    trackHits.set(ip, { count: 1, resetAt: now + TRACK_WINDOW_MS });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > TRACK_MAX_PER_WINDOW;
+}
+
+/**
+ * Accept any spelling of an order id a customer might type — "TW345678",
+ * "tw-345678", "TW 345678", "345678" — and return it in the canonical
+ * `TW-000000` shape, or "" when nothing plausible was given.
+ */
+function canonicalOrderId(raw: string): string {
+  const digits = (raw ?? "").replace(/\s+/g, "").toUpperCase().replace(/[^0-9]/g, "");
+  return /^[0-9]{4,8}$/.test(digits) ? `TW-${digits}` : "";
 }
 
 /** Look up an order by number + receipt token (the guest credential). */
@@ -1028,6 +1070,77 @@ Deno.serve(async (req: Request) => {
         verified: false,
         order: publicOrder(order),
         payment: paymentInfo(order),
+      });
+    }
+
+    // ==================== TRACK (public, status-only) ====================
+    // India-Post-style order tracking. A customer needs only their order
+    // number — the response carries no name, address, mobile or email, so a
+    // guessed or shared id reveals nothing but a delivery state. The
+    // fulfilment `status` is whatever Admin → Orders set (placed /
+    // dispatched / delivered / cancelled).
+    if (path === "/track" && req.method === "GET") {
+      const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+      if (trackThrottled(ip)) return json({ error: "Too many requests. Try again in a minute." }, 429);
+
+      const id = canonicalOrderId(url.searchParams.get("order") ?? "");
+      if (!id) return json({ error: "Enter the order ID from your confirmation, like TW-345678." }, 400);
+
+      const { data } = await supabase
+        .from("orders")
+        .select("id, order_number, status, payment_status, created_at, paid_at, updated_at")
+        .eq("order_number", id)
+        .maybeSingle();
+      if (!data) return json({ error: "We could not find an order with that ID. Check the digits, or message us on WhatsApp." }, 404);
+
+      // Milestone timestamps come from the admin trail, so the page can show
+      // when each stage actually happened rather than just the latest state.
+      const { data: events } = await supabase
+        .from("order_events")
+        .select("event, detail, created_at")
+        .eq("order_id", data.id)
+        .order("created_at", { ascending: true });
+
+      let dispatchedAt: string | null = null;
+      let deliveredAt: string | null = null;
+      let cancelledAt: string | null = null;
+      for (const e of events ?? []) {
+        const patch = (e.detail ?? {}) as { status?: string };
+        if (patch.status === "dispatched") dispatchedAt = e.created_at as string;
+        if (patch.status === "delivered") deliveredAt = e.created_at as string;
+        if (patch.status === "cancelled") cancelledAt = e.created_at as string;
+      }
+
+      // Same read the admin uses: `status` is the fulfilment word, so the
+      // customer sees exactly what the operator set in the dashboard.
+      const fulfilment = String((data as { status?: string }).status ?? "placed");
+
+      const timeline: { at: string; label: string }[] = [
+        { at: (data as { created_at: string }).created_at, label: "Order placed" },
+      ];
+      if ((data as { payment_status?: string }).payment_status === "paid") {
+        const paidAt = ((data as { paid_at?: string }).paid_at) ?? (data as { updated_at: string }).updated_at;
+        if (paidAt) timeline.push({ at: paidAt, label: "Payment confirmed" });
+      }
+      if (dispatchedAt) timeline.push({ at: dispatchedAt, label: "Dispatched" });
+      if (deliveredAt) timeline.push({ at: deliveredAt, label: "Delivered" });
+      if (cancelledAt) timeline.push({ at: cancelledAt, label: "Order cancelled" });
+      if ((data as { payment_status?: string }).payment_status === "refunded") {
+        timeline.push({ at: (data as { updated_at: string }).updated_at, label: "Refunded" });
+      }
+
+      return json({
+        track: {
+          order_number: (data as { order_number: string }).order_number,
+          status: fulfilment,
+          payment_status: (data as { payment_status: string }).payment_status,
+          created_at: (data as { created_at: string }).created_at,
+          updated_at: (data as { updated_at: string }).updated_at,
+          dispatched_at: dispatchedAt,
+          delivered_at: deliveredAt,
+          cancelled_at: cancelledAt,
+        },
+        events: timeline,
       });
     }
 

@@ -124,16 +124,27 @@ export default function ProductPage() {
   const imageSoldOut = (src?: string) => {
     if (!src) return false;
     const color = colorForImage(src);
-    return allColorsSoldOut || (color >= 0 && colorSoldOut[color]);
+    // A photo that belongs to a colour is out of stock with that colour. A
+    // photo nobody owns (the operator gave fewer shots than colours) belongs
+    // to every colour at once, so it is marked whenever the colour the page
+    // is showing is sold out — never when the whole product is gone, because
+    // that shows its own overlay.
+    if (color >= 0) return allColorsSoldOut || colorSoldOut[color];
+    return allColorsSoldOut || (Boolean(colorSoldOut[colorIdx]) && !allColorsSoldOut);
   };
 
   // Open on a colour that can actually be bought. Without this, a product whose
   // first colour just sold out would load on a disabled colour and an
-  // out-of-stock image.
+  // out-of-stock image. Only the first paint falls back — a sold-out colour
+  // stays reachable by tapping its swatch afterwards, so its photo and its
+  // "Out of stock" badge can still be seen.
+  const autoJumped = useRef<string | null>(null);
   useEffect(() => {
-    if (!product || !colorSoldOut[colorIdx]) return;
+    if (!product || autoJumped.current === product.id) return;
+    if (!colorSoldOut[colorIdx]) { autoJumped.current = product.id; return; }
     const firstAvailable = colorSoldOut.findIndex((soldOut) => !soldOut);
     if (firstAvailable < 0) return;
+    autoJumped.current = product.id;
     setColorIdx(firstAvailable);
     setSize(null);
     setError(null);
@@ -278,8 +289,9 @@ export default function ProductPage() {
    */
   const applyColor = (i: number) => {
     if (i === colorIdx) return;
-    // A sold-out colour cannot be selected, so its photo is never shown.
-    if (colorSoldOut[i]) return;
+    // A sold-out colour can be VIEWED (photo + out-of-stock badge + crossed
+    // sizes); it just cannot be bought — add-to-cart is blocked by its zero
+    // stock everywhere else.
     setColorIdx(i);
     // The size picked for the old colour may be sold out on the new one, in
     // which case it cannot stay selected.
@@ -309,10 +321,10 @@ export default function ProductPage() {
   };
 
   const selectColor = (i: number) => {
-    // A sold-out colour cannot be selected, so its photo is never shown.
-    if (colorSoldOut[i]) return;
     // The colour itself must change even when the operator has not given it a
     // dedicated photo. The photo swap is a bonus, not the source of the state.
+    // Sold-out colours are allowed through: their photo shows with the
+    // "Out of stock" overlay and every size crossed out.
     applyColor(i);
     const at = photoIndexForColor(i);
     if (at === null) return;
@@ -503,8 +515,8 @@ export default function ProductPage() {
                 const soldOut = colorSoldOut[i];
                 return (
                   <button key={v.color} onClick={() => selectColor(i)} title={soldOut ? `${v.color} — sold out` : v.color}
-                    disabled={soldOut}
-                    className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    aria-pressed={colorIdx === i}
+                    className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition ${colorIdx === i ? 'border-ink ring-2 ring-ink/10' : 'border-ink/15'} ${soldOut ? 'opacity-40' : ''}`}
                     style={{ backgroundColor: v.hex }} aria-label={soldOut ? `${v.color} sold out` : v.color}>
                     {/* A cross marks the sold-out colour without relying on
                         the faded swatch alone, so it reads at a glance. */}

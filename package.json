@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "prebuild": "node scripts/check-payment-csp.mjs",
+    "prebuild": "node scripts/check-payment-csp.mjs && node scripts/check-functions.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",

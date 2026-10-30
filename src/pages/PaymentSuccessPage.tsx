@@ -19,7 +19,6 @@ import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
 import { downloadReceipt } from '@/lib/receipt';
 import { refreshLiveCatalog } from '@/lib/storefrontCatalog';
 import { readWhatsAppOrder, confirmWhatsAppOrder } from '@/lib/whatsappOrders';
-import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 
 const POLL_MS = 5000;
 const LIVE_ORIGIN = 'https://www.triosworld.in';
@@ -230,10 +229,7 @@ export default function PaymentSuccessPage() {
       checkout.open();
     } catch (err) {
       setOpeningCheckout(false);
-      const message = err instanceof Error ? err.message : 'Could not open the secure payment window.';
-      setError(result?.payment?.upi_direct
-        ? `${message} You can still pay using the UPI QR above, or message us on WhatsApp.`
-        : message);
+      setError(err instanceof Error ? err.message : 'Could not open the secure payment window.');
     }
   };
 
@@ -464,10 +460,6 @@ export default function PaymentSuccessPage() {
   const paymentStatus = result!.payment_status;
   const order = result!.order;
   const payment = result!.payment;
-  const directUpi = Boolean(payment.upi_direct && payment.upi_intent);
-  const upiHelpHref = whatsappLink(
-    `Hi TriosWorld, I paid ${formatINR(order.total)} for order ${order.order_number}. My UPI reference (UTR) is: `,
-  );
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
@@ -614,11 +606,6 @@ export default function PaymentSuccessPage() {
                           ? 'Secure payment window'
                           : 'Demo payment'}
                     </p>
-                    {directUpi && payment.upi_vpa && (
-                      <p className="text-[10px] text-ink/60 text-center mt-1 font-mono break-all">
-                        {payment.upi_vpa}
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex-1 text-center md:text-left">
@@ -626,13 +613,7 @@ export default function PaymentSuccessPage() {
                     <p className="font-display text-4xl font-bold mb-5">{formatINR(order.total)}</p>
 
                     {payment.mode === 'live' ? (
-                      directUpi ? (
-                        <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
-                          <li>1. Scan the QR with any UPI app</li>
-                          <li>2. Pay the exact amount shown</li>
-                          <li>3. Send the UTR on WhatsApp — we&rsquo;ll confirm after verifying</li>
-                        </ul>
-                      ) : qrDataUrl || payment.qr_image_url ? (
+                      qrDataUrl || payment.qr_image_url ? (
                         <ul className="text-sm text-ink/60 space-y-2 mb-6 text-left inline-block">
                           <li>1. Scan the QR with any UPI app</li>
                           <li>2. Pay the exact amount shown</li>
@@ -655,20 +636,8 @@ export default function PaymentSuccessPage() {
                       </div>
                     )}
 
-                    {directUpi && (
-                      <div className="mb-5 text-left p-3.5 rounded-xl bg-amber-50 border border-amber-200">
-                        <p className="text-xs font-semibold text-amber-900 mb-1">Direct UPI payment</p>
-                        <p className="text-xs text-amber-800">
-                          We verify this payment manually in our bank account.
-                          {payment.razorpay_order_id && payment.razorpay_key_id
-                            ? ' For instant confirmation, use the secure Razorpay option below.'
-                            : ' Card / netbanking checkout is temporarily unavailable — pay by UPI and send us the reference.'}
-                        </p>
-                      </div>
-                    )}
-
                     <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                      {payment.mode === 'live' && payment.razorpay_order_id && payment.razorpay_key_id && (
+                      {payment.mode === 'live' && (
                         <button
                           type="button"
                           onClick={handleCheckout}
@@ -680,11 +649,9 @@ export default function PaymentSuccessPage() {
                             : <ShieldCheck size={16} />}
                           {openingCheckout
                             ? 'Opening secure payment…'
-                            : directUpi
-                              ? 'Pay by card / netbanking'
-                              : qrDataUrl || payment.qr_image_url
-                                ? 'Open secure checkout instead'
-                                : `Pay ${formatINR(order.total)} securely`}
+                            : qrDataUrl || payment.qr_image_url
+                              ? 'Open secure checkout instead'
+                              : `Pay ${formatINR(order.total)} securely`}
                         </button>
                       )}
 
@@ -699,19 +666,8 @@ export default function PaymentSuccessPage() {
                         }
                       >
                         {checking ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                        {directUpi ? 'Refresh status' : 'I’ve paid — check now'}
+                        I’ve paid — check now
                       </button>
-
-                      {directUpi && (
-                        <a
-                          href={upiHelpHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-5 py-3 rounded-full border border-ink/20 text-sm font-semibold hover:bg-stone/30 transition inline-flex items-center gap-2"
-                        >
-                          <WhatsAppIcon size={16} /> I’ve paid — send UTR
-                        </a>
-                      )}
 
                       {payment.mode === 'demo' && (
                         <button
@@ -741,9 +697,8 @@ export default function PaymentSuccessPage() {
                 </div>
 
                 <p className="text-[11px] text-ink/65 mt-3 text-center">
-                  {directUpi
-                    ? 'Direct UPI payments are confirmed manually after we verify the reference in our bank account. Razorpay payments are confirmed automatically by the gateway.'
-                    : 'We never mark an order paid from this page. Status is confirmed by our server against the payment gateway (or a signed webhook).'}
+                  We never mark an order paid from this page. Status is confirmed by our server
+                  against the payment gateway (or a signed webhook).
                 </p>
               </div>
 
@@ -773,9 +728,7 @@ export default function PaymentSuccessPage() {
               <p className="text-sm text-ink/60 max-w-md mx-auto mb-2">
                 {paymentStatus === 'failed'
                   ? 'We have not captured this payment. If your bank or UPI app shows a debit, Razorpay reverses it automatically within 7 working days.'
-                  : directUpi
-                    ? 'This payment window has closed. If you already paid by UPI, send the UTR on WhatsApp and we will verify it — please do not pay again.'
-                    : 'This order expired before the payment was completed. No money has been taken.'}
+                  : 'This order expired before the payment was completed. No money has been taken.'}
               </p>
               {paymentStatus === 'failed' && result?.payment?.failure_reason?.toLowerCase().includes('website') && (
                 <p className="text-xs text-ink/65 max-w-md mx-auto mb-2">
@@ -802,16 +755,6 @@ export default function PaymentSuccessPage() {
                 >
                   Continue shopping
                 </Link>
-                {paymentStatus === 'expired' && directUpi && (
-                  <a
-                    href={upiHelpHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-6 py-3.5 rounded-full border border-ink/15 text-sm font-semibold hover:bg-stone/30 transition inline-flex items-center gap-2"
-                  >
-                    <WhatsAppIcon size={16} /> I’ve paid — send UTR
-                  </a>
-                )}
               </div>
             </motion.div>
           )}

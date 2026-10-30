@@ -56,10 +56,6 @@ export interface CreateOrderResult {
     provider: string;
     expires_at: string;
     upi_intent: string | null;
-    /** True when the QR points at the store's own VPA, not a gateway intent. */
-    upi_direct?: boolean;
-    upi_vpa?: string | null;
-    upi_payee_name?: string | null;
     qr_id?: string;
     qr_image_url?: string;
     razorpay_order_id?: string;
@@ -94,11 +90,6 @@ export interface PaymentInfo {
   provider: string;
   expires_at: string;
   upi_intent: string | null;
-  /** True when the QR points at the store's own VPA, not a gateway intent. */
-  upi_direct?: boolean;
-  /** The direct UPI address shown under the QR, e.g. name@bank. */
-  upi_vpa?: string | null;
-  upi_payee_name?: string | null;
   qr_image_url: string | null;
   qr_id: string | null;
   /** Razorpay order for the hosted checkout; null in demo mode. */

@@ -322,12 +322,7 @@ export const getOrders = (params: { status?: string; q?: string } = {}) => {
   return adminRequest<{ orders: AdminOrder[] }>(`/orders?${qs.toString()}`).then(r => r.orders);
 };
 
-export const updateOrder = (id: string, patch: {
-  status?: string;
-  payment_status?: string;
-  payment_reference?: string;
-  payment_provider?: string;
-}) =>
+export const updateOrder = (id: string, patch: { status?: string; payment_status?: string }) =>
   adminRequest<{ ok: boolean }>('/order', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
 
 export const deleteOrder = (id: string) =>

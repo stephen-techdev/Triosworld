@@ -316,13 +316,6 @@ function OverviewSection() {
 const ORDER_FILTERS = ['all', 'paid', 'pending', 'failed', 'expired'] as const;
 const FULFILMENT = ['placed', 'dispatched', 'delivered', 'cancelled'] as const;
 
-type OrderPatch = {
-  status?: string;
-  payment_status?: string;
-  payment_reference?: string;
-  payment_provider?: string;
-};
-
 function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [filter, setFilter] = useState<(typeof ORDER_FILTERS)[number]>('all');
   const [search, setSearch] = useState('');
@@ -345,7 +338,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [trashingId, setTrashingId] = useState<string | null>(null);
   const [trashErr, setTrashErr] = useState<string | null>(null);
 
-  const setStatus = async (order: AdminOrder, patch: OrderPatch) => {
+  const setStatus = async (order: AdminOrder, patch: { status?: string; payment_status?: string }) => {
     // Optimistic: flip the chip immediately so the UI feels instant, then
     // reconcile with the server. A failure restores via the silent reload.
     setData(prev => (prev ? prev.map(o => o.id === order.id ? { ...o, ...patch } : o) : prev));
@@ -744,10 +737,9 @@ function TrashSection({ onAuthFail }: { onAuthFail: () => void }) {
   );
 }
 
-function OrderDetail({ order, onPatch, onDownload, onTrash, trashing }: { order: AdminOrder; onPatch: (patch: OrderPatch) => void; onDownload: () => void; onTrash: () => void; trashing: boolean }) {
+function OrderDetail({ order, onPatch, onDownload, onTrash, trashing }: { order: AdminOrder; onPatch: (patch: { status?: string; payment_status?: string }) => void; onDownload: () => void; onTrash: () => void; trashing: boolean }) {
   const [events, setEvents] = useState<{ id: string; event: string; detail: unknown; created_at: string }[] | null>(null);
   const [showEvents, setShowEvents] = useState(false);
-  const [utr, setUtr] = useState('');
 
   const loadEvents = async () => {
     if (events) { setShowEvents(s => !s); return; }
@@ -824,16 +816,8 @@ function OrderDetail({ order, onPatch, onDownload, onTrash, trashing }: { order:
               <div className="flex justify-between gap-3"><dt className="text-ink/65">Method</dt><dd className="font-medium uppercase">{order.payment_method}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-ink/65">Provider</dt><dd className="font-medium">{order.payment_provider ?? '—'}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-ink/65">Txn ref</dt><dd className="font-mono break-all text-right">{order.payment_id ?? '—'}</dd></div>
-              {order.payment_reference && (
-                <div className="flex justify-between gap-3"><dt className="text-ink/65">UPI ref</dt><dd className="font-mono break-all text-right">{order.payment_reference}</dd></div>
-              )}
               <div className="flex justify-between gap-3"><dt className="text-ink/65">Paid at</dt><dd className="font-medium">{shortDate(order.paid_at)}</dd></div>
             </dl>
-            {order.payment_provider === 'upi' && (
-              <p className="text-[11px] text-amber-700 mt-1">
-                Direct UPI — verify the exact amount and UTR in your bank statement.
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -857,22 +841,7 @@ function OrderDetail({ order, onPatch, onDownload, onTrash, trashing }: { order:
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] uppercase tracking-wide text-ink/65 mr-1">Payment</span>
-        {order.payment_status !== 'paid' && (
-          <input
-            type="text"
-            value={utr}
-            onChange={e => setUtr(e.target.value)}
-            placeholder="UPI UTR / ref (optional)"
-            className="w-full sm:w-56 px-3 py-2 rounded-lg border border-ink/15 bg-ivory text-xs focus:outline-none focus:ring-2 focus:ring-ink/20"
-          />
-        )}
-        <button type="button" onClick={() => {
-          const ref = utr.trim();
-          onPatch(ref
-            ? { payment_status: 'paid', payment_reference: ref, payment_provider: 'upi' }
-            : { payment_status: 'paid' });
-          setUtr('');
-        }}
+        <button type="button" onClick={() => onPatch({ payment_status: 'paid' })}
           className="px-3 py-1.5 rounded-full text-xs font-medium bg-lime text-ink hover:brightness-95 transition">
           Mark paid
         </button>

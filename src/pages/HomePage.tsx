@@ -122,7 +122,7 @@ export default function HomePage() {
             <Link to="/shop/bestsellers" className="link-underline text-sm font-medium text-ink/70 hover:text-ink inline-flex items-center gap-1">Shop all <ArrowRight size={16} /></Link>
           </Reveal>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
-            {bestsellers.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} />)}
+            {bestsellers.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} priority={i < 2} />)}
           </div>
         </section>
       )}

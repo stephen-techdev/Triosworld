@@ -9,6 +9,7 @@ import { productThumb, thumbFallback } from '@/lib/imgUrl';
 
 interface Props {
   product: Product;
+  priority?: boolean;
 }
 
 /* Clean, editorial badges — mostly monochrome with a lime accent for "New". */
@@ -21,7 +22,7 @@ const badgeStyles: Record<string, string> = {
   Graphic: 'bg-ivory text-ink',
 };
 
-export default function ProductCard({ product }: Props) {
+export default function ProductCard({ product, priority = false }: Props) {
   const { toggleWishlist, isWishlisted, addToCart } = useStore();
   const wished = isWishlisted(product.id);
   const colorSoldOut = product.variants.map(
@@ -95,7 +96,8 @@ export default function ProductCard({ product }: Props) {
                 alt={`${product.name} ${v.color} view ${i + 1}`}
                 className="w-full h-full object-cover object-top transition-transform duration-[350ms] ease-out group-hover:scale-[1.02]"
                 style={{ objectPosition: 'center top' }}
-                loading="lazy"
+                loading={priority ? 'eager' : 'lazy'}
+                fetchPriority={priority ? 'high' : 'auto'}
                 decoding="async"
               />
               {!allSoldOut && soldOutImage(img) && (
@@ -271,7 +273,7 @@ export default function ProductCard({ product }: Props) {
                 aria-label={soldOut ? `${variant.color} out of stock` : `Show ${variant.color}`}
                 aria-pressed={activeColor === i}
                 title={soldOut ? `${variant.color} — out of stock` : variant.color}
-                className={`relative flex h-4 w-4 items-center justify-center rounded-full transition-transform ${soldOut ? 'opacity-35' : 'hover:scale-110 active:scale-95'}`}
+                className={`relative flex h-6 w-6 items-center justify-center rounded-full transition-transform ${soldOut ? 'opacity-35' : 'hover:scale-110 active:scale-95'}`}
               >
                 <span
                   className={`block h-2.5 w-2.5 rounded-full transition-shadow ${activeColor === i ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-inset ring-ink/25'}`}
@@ -294,7 +296,7 @@ export default function ProductCard({ product }: Props) {
   );
 }
 
-export function ProductCardMotion({ product, index = 0 }: Props & { index?: number }) {
+export function ProductCardMotion({ product, index = 0, priority = false }: Props & { index?: number; priority?: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -302,7 +304,7 @@ export function ProductCardMotion({ product, index = 0 }: Props & { index?: numb
       viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: 0.5, delay: (index % 4) * 0.05 }}
     >
-      <ProductCard product={product} />
+      <ProductCard product={product} priority={priority} />
     </motion.div>
   );
 }

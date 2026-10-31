@@ -24,7 +24,7 @@ function HeaderLockup({
   return (
     <span className="inline-flex flex-col items-center">
       <Wordmark variant="ink" showMonogram={false} className={wordmarkClassName} />
-      <img src="/logo-opt.webp" alt="TriosWorld" width={49} height={32} className={`mt-0.5 w-auto ${markClassName}`} />
+      <img src="/logo-opt.webp" alt="TriosWorld" width={49} height={32} style={{ aspectRatio: '49 / 32' }} className={`mt-0.5 w-auto ${markClassName}`} />
     </span>
   );
 }

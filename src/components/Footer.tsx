@@ -65,7 +65,7 @@ export default function Footer() {
   }).filter(s => s.href);
 
   return (
-    <footer className="bg-ink text-ivory mt-24">
+    <footer className="bg-ink text-ivory mt-24" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 1500px' }}>
       <div className="page-container">
         <Newsletter />
         <Reveal className="py-16 grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-12 md:gap-12">

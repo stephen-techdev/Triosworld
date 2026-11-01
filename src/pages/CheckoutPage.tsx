@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,10 +17,11 @@ import { uploadOrderImage, orderImageUrl } from '@/lib/orderImageUpload';
 import { saveWhatsAppOrder, setWhatsAppOrderImage } from '@/lib/whatsappOrders';
 import {
   PaymentServiceUnavailableError, createOrder, markPendingOrder, rememberOrder,
-  rememberOrderReview, rememberPendingPayment, FUNCTIONS_URL,
+  rememberOrderReview, rememberPendingPayment,
 } from '@/lib/payments';
 import { INDIAN_STATES } from '@/lib/indianStates';
 import { prefetchPaymentFlow } from '@/lib/routePrefetch';
+import { abortPaymentWarmup } from '@/lib/paymentWarmup';
 
 interface FormState {
   fullName: string;
@@ -60,28 +61,14 @@ export default function CheckoutPage() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   // Warm the payment edge function so the first order creation is not slowed
-  // down by a cold start. Fire and forget. Also start fetching Razorpay's
-  // checkout script and the /order/:id page chunk NOW, while the customer is
-  // still typing the delivery address — so tapping "Pay securely" and the
-  // hand-off to the payment page never wait on a download (the slowest part
-  // of checkout on a phone).
-  //
-  // The warm-up is aborted the moment "Pay securely" is tapped. A cold edge
-  // function can take a couple of seconds to answer; while that warm-up GET is
-  // still open, the real order POST queued behind it on the same connection and
-  // the tap looked frozen. Aborting frees the connection, and the function
-  // still finishes booting server-side.
-  const warmAbort = useRef<AbortController | null>(null);
+  // down by a cold start, and start fetching Razorpay's checkout script and the
+  // /order/:id page chunk NOW, while the customer is still typing the delivery
+  // address — so tapping "Pay securely" and the hand-off to the payment page
+  // never wait on a boot or a download (the slowest part of checkout on a
+  // phone). The same warm-up also runs when the cart drawer opens, giving it
+  // even more of a head start.
   useEffect(() => {
-    const controller = new AbortController();
-    warmAbort.current = controller;
-    void fetch(`${FUNCTIONS_URL}/trios-pay/`, {
-      method: 'GET',
-      mode: 'no-cors',
-      signal: controller.signal,
-    }).catch(() => {});
     prefetchPaymentFlow();
-    return () => controller.abort();
   }, []);
   /**
    * WhatsApp ordering. We open WhatsApp with the full order details so the
@@ -311,9 +298,8 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     setServerError(null);
-    // Free the connection for the real order request (see the warm-up above).
-    warmAbort.current?.abort();
-    warmAbort.current = null;
+    // Let the real order request own the connection (see paymentWarmup.ts).
+    abortPaymentWarmup();
 
     try {
       const order = await createOrder({

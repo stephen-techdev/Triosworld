@@ -21,6 +21,7 @@
  * The admin dashboard is never prefetched.
  */
 import { loadRazorpayCheckout } from '@/lib/razorpayCheckout';
+import { warmPaymentFunction } from '@/lib/paymentWarmup';
 
 interface RouteChunk {
   test: (pathname: string) => boolean;
@@ -66,6 +67,9 @@ export function prefetchRoute(pathname: string): void {
  * download — especially on mobile.
  */
 export function prefetchPaymentFlow(): void {
+  // Boot the payment function while the customer is still shopping or typing
+  // their address — a cold edge function is the slowest part of the hand-off.
+  warmPaymentFunction();
   prefetchRoute('/checkout');
   prefetchRoute('/order/prefetch');
   void loadRazorpayCheckout().catch(() => {

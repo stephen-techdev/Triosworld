@@ -77,8 +77,11 @@
   }
 
   @media (hover: none) {
+    /* `scale` is a standalone property, so it composes with any transform a
+       button already has (centring, rotation, framer-motion) instead of
+       replacing it mid-press. */
     button:active:not(:disabled) {
-      transform: scale(0.97);
+      scale: 0.97;
     }
   }
 

@@ -61,7 +61,10 @@ export default function PaymentSuccessPage() {
 
   const token = searchParams.get('token') ?? findOrderToken(orderNumber) ?? '';
 
-  const initialSeed = readPendingPayment(orderNumber);
+  // Read the hand-off seed ONCE. It is cleared on mount, so re-reading it on
+  // every render made the initial refresh effect fire a second time for the
+  // same order — two identical /status calls, one of them blocking the UI.
+  const [initialSeed] = useState(() => readPendingPayment(orderNumber));
   const [result, setResult] = useState<StatusResult | null>(() =>
     initialSeed
       ? {

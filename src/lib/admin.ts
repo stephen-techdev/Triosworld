@@ -268,7 +268,19 @@ function tokenExpiry(token: string): number | null {
 function readStoredSession(): AdminSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AdminSession;
+    if (raw) {
+      const local = JSON.parse(raw) as AdminSession;
+      if (sessionIsFresh(local)) return local;
+      // An expired local copy must not hide a fresh session shared through
+      // the .triosworld.in cookie — the operator may have just signed in on
+      // the other hostname, and being sent back to the login page there was
+      // exactly the "random sign-out" this mirror exists to prevent.
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   } catch {
     /* fall through to the shared cookie */
   }
@@ -276,7 +288,15 @@ function readStoredSession(): AdminSession | null {
     const prefix = `${COOKIE_KEY}=`;
     const entry = document.cookie.split('; ').find(c => c.startsWith(prefix));
     if (!entry) return null;
-    return JSON.parse(decodeURIComponent(entry.slice(prefix.length))) as AdminSession;
+    const shared = JSON.parse(decodeURIComponent(entry.slice(prefix.length))) as AdminSession;
+    if (!sessionIsFresh(shared)) return null;
+    // Rehydrate this origin so the next read is local and instant.
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(shared));
+    } catch {
+      /* ignore */
+    }
+    return shared;
   } catch {
     return null;
   }

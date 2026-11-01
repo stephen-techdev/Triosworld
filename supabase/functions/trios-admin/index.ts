@@ -268,11 +268,16 @@ async function requireAdmin(req: Request): Promise<AdminSession | Response> {
 
   // Re-check the operator on every request so deactivating an admin takes
   // effect immediately rather than when the token expires.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("admins")
     .select("id, is_active")
     .eq("id", session.sub)
     .maybeSingle();
+  // A failed lookup is not a disabled account. Returning 403 here made a
+  // momentary database blip look like the operator had been thrown out.
+  if (error) {
+    return json({ error: "Could not verify the operator session. Please try again." }, 500);
+  }
   if (!data || data.is_active === false) return json({ error: "Account disabled" }, 403);
 
   return session;
@@ -307,7 +312,7 @@ Deno.serve(async (req: Request) => {
   }
   // Distinct path used to defeat stale edge caching while diagnosing.
   if (path === "/health-canary") {
-    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 5 });
+    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 6 });
   }
 
   try {

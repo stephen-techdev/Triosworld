@@ -43,6 +43,25 @@ export default defineConfig(({ mode }) => {
     fetch(sUrl, { headers: h }).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
   ]).then(function (rs) {
     b.products = rs[0]; b.storeRow = rs[1]; b.ok = rs[0] !== null || rs[1] !== null;
+    /* Preload the top two card thumbnails: on the shop front door the LCP is
+       one of these images, and without this it waits for the bundle to parse
+       and React to paint before the request even starts. Same thumbnail URL
+       mapping as src/lib imgUrl.productThumb. Only on shop pages, so the
+       homepage does not download images it will not show. */
+    try {
+      var path = (location.pathname || '');
+      var isShop = path === '/' || path.indexOf('/shop') === 0;
+      if (isShop && rs[0] && rs[0][0] && rs[0][0].images && rs[0][0].images[0]) {
+        var feeds = [rs[0][0], rs[0][1]].filter(Boolean);
+        for (var i = 0; i < feeds.length && feeds[i].images && feeds[i].images[0]; i++) {
+          var u = String(feeds[i].images[0]).replace('/storage/v1/object/public/product-images/', '/storage/v1/object/public/product-images-opt/').replace(/\\.(jpe?g|png|webp)(\\?.*)?$/i, '.webp');
+          if (u.indexOf('/product-images-opt/') === -1) continue;
+          var l = document.createElement('link');
+          l.rel = 'preload'; l.as = 'image'; l.fetchpriority = 'high'; l.href = u;
+          document.head.appendChild(l);
+        }
+      }
+    } catch (e) {}
   }).catch(function () {}).then(function () { b.done = true; });
 })();
 `;

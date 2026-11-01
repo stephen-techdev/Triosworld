@@ -1,3 +1,22 @@
+/* Self-hosted variable fonts (latin subset). Serving them from origin with a
+   `<link rel="preload">` in index.html removes the fonts.googleapis.com
+   stylesheet from the critical path (~1.2s wasted per Lighthouse) while the
+   identical family names keep every Tailwind class working unchanged. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/space-grotesk.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter.woff2') format('woff2');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

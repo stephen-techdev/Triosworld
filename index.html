@@ -24,31 +24,25 @@
     <meta name="twitter:description" content="Premium Indian men's streetwear, graphic tees and everyday essentials." />
     <meta name="twitter:image" content="https://www.triosworld.in/og-image.jpg" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
+    <!-- Fonts are self-hosted (public/fonts, single latin variable file per
+         family). Preloading the two critical files here replaces the old
+         fonts.googleapis.com stylesheet entirely, which Lighthouse measured
+         at ~1.2s of render-blocking time. crossorigin is required because
+         font preloads always use CORS mode. -->
+    <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
     <!-- The two image hosts the storefront renders from. Warmed during the
          HTML request so the LCP hero and the first product shots do not pay a
          fresh DNS + TLS round trip on every cold visit. -->
+    <!-- Preconnects only. There is deliberately no `preload as=image` for the
+         homepage hero: "/" renders the shop grid, not the hero, so a preloaded
+         campaign photo only stole bandwidth from the product image that is the
+         real LCP here (measured in Lighthouse). -->
     <link rel="preconnect" href="https://images.pexels.com" crossorigin />
     <link rel="preconnect" href="https://clvwowrplnkwkiotriiu.supabase.co" crossorigin />
     <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
     <link rel="preconnect" href="https://api.razorpay.com" crossorigin />
     <link rel="dns-prefetch" href="https://lumberjack.razorpay.com" />
-
-    <!-- LCP preload. The hero is client-rendered, so without this its photo
-         waits more than a second for React to hydrate before the download
-         even starts (measured: 1.1s "resource load delay" in Lighthouse).
-         This preloads the first campaign slide at exactly the widths
-         HeroSlider can request (same URL builder, same srcset), so the
-         browser picks the same variant and there is no double fetch. If a
-         new campaign photo is set in Admin → Content, the preload simply
-         fetches an unused file once and stops mattering. -->
-    <link rel="preload" as="image" fetchpriority="high"
-      imagesizes="100vw"
-      imagesrcset="https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=640&h=360 640w, https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=900&h=506 900w, https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=1280&h=720 1280w" />
   </head>
   <body>
     <div id="root"></div>

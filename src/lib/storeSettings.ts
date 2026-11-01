@@ -114,6 +114,14 @@ export function useStoreSettings(): { settings: StoreSettings; ready: boolean } 
 }
 
 /**
+ * Start the settings read before any component mounts (main.tsx). Shares the
+ * cache/promise with useStoreSettings, so it is a no-op when the hook runs.
+ */
+export function primeStoreSettings(): void {
+  void load();
+}
+
+/**
  * Shipping for a subtotal, from the operator's numbers.
  *
  * A threshold of 0 means "always free". An empty cart is 0 shipping rather than

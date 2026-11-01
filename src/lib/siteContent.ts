@@ -590,6 +590,15 @@ export function useSiteContent(): { content: SiteContent; ready: boolean } {
   return { content, ready };
 }
 
+/**
+ * Start the store_settings read before any component mounts (main.tsx).
+ * Shares the cache/promise with useSiteContent, so it is a no-op when the
+ * hook fires next.
+ */
+export function primeSiteContent(): void {
+  void load();
+}
+
 /** The rotating announcement-bar lines the operator owns (not the shipping line). */
 export function announcementExtras(content: SiteContent): string[] {
   return content.announcement.map((s) => s.trim()).filter(Boolean).slice(0, 6);

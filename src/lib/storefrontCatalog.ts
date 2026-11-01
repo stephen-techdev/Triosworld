@@ -281,9 +281,8 @@ export function liveSearch(q: string): Product[] {
     (p.fabric?.toLowerCase().includes(t) ?? false) ||
     p.description.toLowerCase().includes(t));
 }
-
 /**
- * Re-renders once dashboard products arrive. Returns the merged list so callers
+ * Re-reads once dashboard products arrive. Returns the merged list so callers
  * never have to call allProducts() themselves.
  */
 export function useLiveCatalog(): { products: Product[]; ready: boolean } {
@@ -297,4 +296,13 @@ export function useLiveCatalog(): { products: Product[]; ready: boolean } {
   }, []);
 
   return { products: allProducts(), ready: fetched };
+}
+
+/**
+ * Start the catalog fetch before any component mounts (main.tsx calls this at
+ * boot). It shares the same cache/promise as useLiveCatalog, so the hook's own
+ * fetchRuntime() call below is a no-op while the request is in flight.
+ */
+export function primeLiveCatalog(): void {
+  void fetchRuntime();
 }

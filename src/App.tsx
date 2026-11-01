@@ -7,14 +7,16 @@ import { AuthProvider } from '@/store/AuthContext';
 import Layout from '@/components/Layout';
 import { ADMIN_BASE, ADMIN_LOGIN_PATH } from '@/lib/adminRoute';
 
-// Every route is its own chunk so a visitor downloads only the page they
-// opened. This keeps the main bundle (app shell, header, footer, shared
-// stores) the only thing in the initial request and is worth a large chunk of
-// the Lighthouse "unused JavaScript" the homepage was penalised for.
+// Eagerly imported: "/" IS the shop grid, so a lazy chunk here put the whole
+// storefront behind a second serial network request — Lighthouse measured the
+// Suspense spinner state collapsing into a 0.76 CLS when the chunk finally
+// finished loading. Every other route stays lazy; only pages reachable from
+// products cards and links pay that cost on their first visit.
+import ShopPage from '@/pages/ShopPage';
+
 // Split the heavy, rarely-visited routes out of the main bundle: the order page
 // pulls in the QR renderer and jsPDF, and the dashboard is admin-only.
 const HomePage = lazy(() => import('@/pages/HomePage'));
-const ShopPage = lazy(() => import('@/pages/ShopPage'));
 const ProductPage = lazy(() => import('@/pages/ProductPage'));
 const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
 const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'));
@@ -31,8 +33,10 @@ const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
 const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
 
 function RouteFallback() {
+  // Sized like the shop shell it stands in for, so a slow deep-link chunk can
+  // never collapse the layout and drag the footer into the viewport.
   return (
-    <div className="page-container py-32 grid place-items-center text-ink/65">
+    <div className="page-container py-32 grid place-items-center text-ink/65 min-h-[70svh]">
       <Loader2 className="animate-spin" size={26} />
     </div>
   );
@@ -55,10 +59,13 @@ export default function App() {
                 <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
                 <Route element={<Layout />}>
-                  {/* The shop is the front door: a visitor landing on the bare
-                      domain is taken straight to Shop All, and reaches the
-                      homepage by tapping the logo or "Home" in the nav. */}
-                  <Route path="/" element={<Navigate to="/shop/shop-all" replace />} />
+                  {/* The shop is the front door: the bare domain renders
+                      Shop All directly (no Login redirect, no second chunk
+                      request), and the homepage is reached by tapping the
+                      logo or "Home" in the nav. ShopPage defaults its slug to
+                      "shop-all" when useParams has no slug, which is exactly
+                      what happens here. */}
+                  <Route path="/" element={<ShopPage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/shop/:slug" element={<ShopPage />} />
                   <Route path="/product/:slug" element={<ProductPage />} />

@@ -35,6 +35,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, X-Client-Info, Apikey, X-Razorpay-Signature",
+  // Cache the create-order preflight, so a retry after a failed payment does
+  // not pay a second round trip before the request even starts.
+  "Access-Control-Max-Age": "600",
 };
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";

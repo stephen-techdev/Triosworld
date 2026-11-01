@@ -169,12 +169,17 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // A bodyless GET carrying `Content-Type: application/json` is NOT a "simple"
+  // cross-origin request, so every 8-second status poll paid a CORS preflight
+  // before it could even reach the function. With no body there is nothing to
+  // describe, so omit the header and the poll becomes one request.
+  const hasBody = init.body != null;
   let res: Response;
   try {
     res = await fetch(`${FUNCTIONS_URL}/trios-pay${path}`, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(init.headers ?? {}),
       },
     });

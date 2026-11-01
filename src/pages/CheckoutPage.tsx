@@ -20,6 +20,7 @@ import {
   rememberOrderReview, rememberPendingPayment, FUNCTIONS_URL,
 } from '@/lib/payments';
 import { INDIAN_STATES } from '@/lib/indianStates';
+import { prefetchPaymentFlow } from '@/lib/routePrefetch';
 
 interface FormState {
   fullName: string;
@@ -59,9 +60,14 @@ export default function CheckoutPage() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   // Warm the payment edge function so the first order creation is not slowed
-  // down by a cold start. Fire and forget.
+  // down by a cold start. Fire and forget. Also start fetching Razorpay's
+  // checkout script and the /order/:id page chunk NOW, while the customer is
+  // still typing the delivery address — so tapping "Pay securely" and the
+  // hand-off to the payment page never wait on a download (the slowest part
+  // of checkout on a phone).
   useEffect(() => {
     void fetch(`${FUNCTIONS_URL}/trios-pay/`, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
+    prefetchPaymentFlow();
   }, []);
   /**
    * WhatsApp ordering. We open WhatsApp with the full order details so the

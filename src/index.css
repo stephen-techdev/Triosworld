@@ -62,6 +62,38 @@
     outline-offset: 2px;
   }
 
+  /* Mobile touch responsiveness.
+     `touch-action: manipulation` lets a tap fire immediately instead of
+     waiting out the double-tap-to-zoom window. The pressed scale below gives
+     every PLAIN button (close, qty +/-, filters, sizes, swatches) a visible
+     click the moment the finger lands — framer-motion buttons keep their own
+     whileTap, since inline transforms win over this rule. */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  @media (hover: none) {
+    button:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+  }
+
+  /* iOS Safari zooms the whole page when a form control under 16px is
+     focused, then the customer has to pinch back — awful on checkout. Keep
+     controls at 16px on phones so tapping a field never throws the layout
+     off-screen. */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
   img {
     -webkit-user-drag: none;
   }

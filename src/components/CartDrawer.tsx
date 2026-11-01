@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -5,6 +6,7 @@ import { useStore, resolveProduct } from '@/store/StoreContext';
 import { formatINR } from '@/data/catalog';
 import { amountToFreeShipping, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 import { productThumb, thumbFallback } from '@/lib/imgUrl';
+import { prefetchPaymentFlow } from '@/lib/routePrefetch';
 
 interface Props {
   open: boolean;
@@ -17,6 +19,13 @@ export default function CartDrawer({ open, onClose }: Props) {
   const shipping = shippingFor(settings, subtotal);
   const toFree = amountToFreeShipping(settings, subtotal);
 
+  // Opening the bag is purchase intent: fetch the checkout page chunk and
+  // Razorpay's checkout script now, so the route to payment is already warm
+  // by the time the customer reaches the pay button.
+  useEffect(() => {
+    if (open && cart.length > 0) prefetchPaymentFlow();
+  }, [open, cart.length]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -24,7 +33,7 @@ export default function CartDrawer({ open, onClose }: Props) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-ink/40 z-[55]" onClick={onClose} />
           <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.3 }}
+            transition={{ type: 'tween', duration: 0.22, ease: 'easeOut' }}
             className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[100vw] sm:max-w-[92vw] bg-ivory z-[55] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-ink/10">
               <h3 className="font-display text-lg font-semibold">Your Bag{cartCount ? ` (${cartCount})` : ''}</h3>

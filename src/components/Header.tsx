@@ -247,10 +247,10 @@ export default function Header({ onOpenCart, onOpenSearch }: Props) {
         {mobileOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.18 }}
               className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 xl:hidden" onClick={() => setMobileOpen(false)} />
             <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 40 }}
+              transition={{ type: 'tween', duration: 0.21, ease: 'easeOut' }}
               className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-ivory z-50 xl:hidden flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-ink/10">
                 <span className="text-lg text-ink"><HeaderLockup wordmarkClassName="text-[13px]" markClassName="h-6" /></span>

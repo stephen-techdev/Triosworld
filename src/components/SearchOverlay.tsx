@@ -46,8 +46,10 @@ export default function SearchOverlay({ open, onClose }: Props) {
     <AnimatePresence>
       {open && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
           className="fixed inset-0 z-[60] bg-ink/40 backdrop-blur-sm flex items-start justify-center p-4 pt-20" onClick={onClose}>
           <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             className="bg-ivory w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-5 py-4 border-b border-ink/10">
               <Search size={20} className="text-ink/65" />

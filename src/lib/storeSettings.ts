@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
+import { awaitBootData } from '@/lib/bootGate';
 
 export interface StoreSettings {
   shippingFee: number;
@@ -41,18 +42,28 @@ function load(): Promise<StoreSettings> {
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
-    const { data, error } = await supabase
-      .from('store_settings')
-      .select('shipping_fee, free_shipping_threshold, announcement')
-      .maybeSingle();
+    // Consume the eager boot row first (src/bootFetch.ts: one store_settings
+    // read shared with siteContent). If the boot fetch gave up or missed the
+    // gate, the SDK query below runs as it always has.
+    const boot = await awaitBootData();
+    let row: { shipping_fee?: number; free_shipping_threshold?: number; announcement?: string | null } | null =
+      boot && typeof boot.storeRow === 'object' && boot.storeRow !== null
+        ? (boot.storeRow as { shipping_fee?: number; free_shipping_threshold?: number; announcement?: string | null })
+        : null;
 
-    // On error keep the defaults rather than blanking the storefront: a cart
-    // with no shipping figure is worse than one showing the previous number.
-    const row = error ? null : (data as {
-      shipping_fee?: number;
-      free_shipping_threshold?: number;
-      announcement?: string | null;
-    } | null);
+    if (!row) {
+      const { data, error } = await supabase
+        .from('store_settings')
+        .select('shipping_fee, free_shipping_threshold, announcement')
+        .maybeSingle();
+      row = error
+        ? null
+        : (data as {
+            shipping_fee?: number;
+            free_shipping_threshold?: number;
+            announcement?: string | null;
+          } | null);
+    }
 
     cached = {
       shippingFee: Number(row?.shipping_fee ?? DEFAULT_SETTINGS.shippingFee) || 0,

@@ -15,6 +15,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
+import { awaitBootData } from '@/lib/bootGate';
 import {
   SIZES, COLORS, type Product, type Badge, type Fit, type Fabric, type Gender,
 } from '@/data/catalog';
@@ -179,6 +180,9 @@ let fetched = false;
 let inFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
+/** Boot-cache gate: at most one consume per tab (see fetchRuntime). */
+let catalogBootTaken = false;
+
 function emit() {
   for (const l of listeners) l();
 }
@@ -189,6 +193,17 @@ async function fetchRuntime(): Promise<void> {
 
   inFlight = (async () => {
     try {
+      // Consume the eager boot fetch (src/bootFetch.ts) if it landed in time.
+      // Same columns/order as the query below, so the rows map identically.
+      // Taken at most once per tab — refreshLiveCatalog() after a paid order
+      // must always go to the database for fresh stock, never the boot cache.
+      const fromBoot = catalogBootTaken ? null : await awaitBootData();
+      catalogBootTaken = true;
+      if (fromBoot && Array.isArray(fromBoot.products)) {
+        runtimeProducts = (fromBoot.products as RuntimeRow[]).map(toProduct);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('products')
         .select('id, slug, name, description, care, fit, fabric, badge, price, mrp, category, colors, stock, images, is_active, bestseller, new_arrival, created_at')
@@ -210,6 +225,11 @@ async function fetchRuntime(): Promise<void> {
 
   return inFlight;
 }
+
+/**
+ * The gate helper used above is shared with siteContent and storeSettings
+ * (src/lib/bootGate.ts) so every lib waits identically on the boot reads.
+ */
 
 /**
  * The storefront serves ONLY products created in the admin dashboard.

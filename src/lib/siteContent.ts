@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import { setWhatsAppNumber } from '@/components/WhatsApp';
+import { awaitBootData } from '@/lib/bootGate';
 
 // ────────────────────────────── content shape ──────────────────────────────
 
@@ -525,14 +526,25 @@ function load(): Promise<SiteContent> {
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
-    const { data, error } = await supabase
-      .from('store_settings')
-      .select('content')
-      .maybeSingle();
+    // Consume the eager boot row first (src/bootFetch.ts: one store_settings
+    // read shared with storeSettings). Same row either way; if the boot fetch
+    // gave up or missed the gate, the SDK query below runs as it always has.
+    const boot = await awaitBootData();
+    let row: { content?: unknown } | null = (boot && typeof boot.storeRow === 'object' && boot.storeRow !== null
+      ? (boot.storeRow as { content?: unknown })
+      : null);
+
+    if (!row) {
+      const { data, error } = await supabase
+        .from('store_settings')
+        .select('content')
+        .maybeSingle();
+      row = error ? null : (data as { content?: unknown } | null);
+    }
 
     // On error keep the defaults: a storefront with no copy is worse than one
     // showing the last known copy, and the defaults ARE the shipped copy.
-    cached = normalizeContent(error ? null : (data as { content?: unknown } | null)?.content ?? null);
+    cached = normalizeContent(row?.content ?? null);
     // The wa.me number shown in the footer and used by every chat link.
     setWhatsAppNumber(cached.footer.whatsapp);
     return cached;

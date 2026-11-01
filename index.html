@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- boot.js (generated at build by vite.config.ts) evaluates during HTML
+         parse — before the module bundle downloads — and starts the two
+         Supabase reads every first shop paint waits on. Consumers gate on it
+         via src/lib/bootGate.ts; it can only make the paint earlier. -->
+    <script src="/boot.js"></script>
     <meta name="description" content="TRIOSWORLD — Three vibes, one world. Premium Indian men's streetwear, graphic tees and everyday essentials. Shop men's t-shirts online in India." />
     <meta name="keywords" content="men's t-shirts, streetwear india, oversized tees, graphic tees, men's fashion, triosworld" />
     <meta name="theme-color" content="#171717" />

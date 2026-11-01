@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { Loader2, Lock, ShieldAlert } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { EASE } from '@/components/Motion';
-import { AdminAuthError, AdminServiceUnavailableError, adminLogin, readSession } from '@/lib/admin';
+import { AdminAuthError, AdminServiceUnavailableError, adminLogin, getOverview, readSession } from '@/lib/admin';
 import { ADMIN_BASE } from '@/lib/adminRoute';
+import { prefetchAdminConsole } from '@/lib/routePrefetch';
 
 /**
  * Standalone operator sign-in at /admin/login (also served at the private
@@ -34,12 +35,25 @@ export default function AdminLoginPage() {
     if (readSession()) navigate(ADMIN_BASE, { replace: true });
   }, [navigate]);
 
+  // Sign-in is the operator's slowest moment: the dashboard is a separate
+  // 30 KB chunk, and its first data call pays an edge-function cold start.
+  // Fetch the chunk and ping the function while the password is being typed,
+  // so the dashboard opens with data already on the way.
+  useEffect(() => {
+    prefetchAdminConsole();
+    const base = import.meta.env.VITE_SUPABASE_URL as string;
+    void fetch(`${base}/functions/v1/trios-admin/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
       await adminLogin(email.trim(), password);
+      // The token is stored: start the overview request in flight before the
+      // route changes, so the dashboard joins it rather than starting cold.
+      void getOverview().catch(() => {});
       navigate(ADMIN_BASE, { replace: true });
     } catch (err) {
       setError(
@@ -60,9 +74,9 @@ export default function AdminLoginPage() {
       <SEO title="Admin sign in" noindex />
 
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: EASE }}
+        transition={{ duration: 0.16, ease: EASE }}
         className="w-full max-w-sm"
       >
         <div className="text-center mb-8">

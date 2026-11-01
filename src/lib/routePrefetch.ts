@@ -131,6 +131,21 @@ export function scheduleIdlePrefetch(): void {
 }
 
 /**
+ * Warm the operator dashboard bundle. Called from the admin sign-in page only:
+ * the storefront never downloads the dashboard, and the dashboard is
+ * admin-only. By the time the credentials are accepted the chunk is already
+ * cached, so opening the dashboard is instant instead of a full-page spinner.
+ */
+let adminConsoleRequested = false;
+export function prefetchAdminConsole(): void {
+  if (adminConsoleRequested) return;
+  adminConsoleRequested = true;
+  void import('@/pages/admin/AdminPage').catch(() => {
+    adminConsoleRequested = false;
+  });
+}
+
+/**
  * Attach delegated intent listeners once (Layout mounts them). A pointer or
  * finger reaching an internal link — or keyboard focus landing on it — starts
  * the destination chunk immediately, before the tap's click event.

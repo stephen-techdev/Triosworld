@@ -9,6 +9,15 @@
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 import { hexForColorName } from '@/lib/colors';
 const STORAGE_KEY = 'triosworld-admin-session';
+/**
+ * Mirrored onto .triosworld.in so the dashboard survives a switch between the
+ * apex and www hosts — localStorage is per-origin, and being sent back to the
+ * login page merely because a bookmark used the other hostname looked like a
+ * random sign-out. The token is the same one already kept in localStorage and
+ * grants nothing on its own (the server re-verifies every request).
+ */
+const COOKIE_KEY = 'triosworld_admin_session';
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60;
 
 export interface AdminAccount {
   id: string;
@@ -241,13 +250,48 @@ export class AdminServiceUnavailableError extends Error {
   }
 }
 
-export function readSession(): AdminSession | null {
+/** The expiry embedded in the server-issued token (ms since epoch), or null
+ *  if the payload cannot be read. */
+function tokenExpiry(token: string): number | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AdminSession) : null;
+    const payload = token.split('.')[0];
+    if (!payload) return null;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const parsed = JSON.parse(atob(padded)) as { exp?: unknown };
+    return typeof parsed.exp === 'number' ? parsed.exp : null;
   } catch {
     return null;
   }
+}
+
+function readStoredSession(): AdminSession | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as AdminSession;
+  } catch {
+    /* fall through to the shared cookie */
+  }
+  try {
+    const prefix = `${COOKIE_KEY}=`;
+    const entry = document.cookie.split('; ').find(c => c.startsWith(prefix));
+    if (!entry) return null;
+    return JSON.parse(decodeURIComponent(entry.slice(prefix.length))) as AdminSession;
+  } catch {
+    return null;
+  }
+}
+
+function sessionIsFresh(session: AdminSession | null): session is AdminSession {
+  if (!session || !session.token || !session.admin) return false;
+  const exp = tokenExpiry(session.token);
+  // If the payload cannot be read, let the server make the call.
+  return exp === null || exp > Date.now();
+}
+
+export function readSession(): AdminSession | null {
+  const session = readStoredSession();
+  return sessionIsFresh(session) ? session : null;
 }
 
 function writeSession(session: AdminSession | null) {
@@ -257,10 +301,29 @@ function writeSession(session: AdminSession | null) {
   } catch {
     // ignore
   }
+  try {
+    if (!/^(.+\.)?triosworld\.in$/i.test(location.hostname)) return;
+    if (session) {
+      const value = encodeURIComponent(JSON.stringify(session));
+      document.cookie = `${COOKIE_KEY}=${value}; Domain=.triosworld.in; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`;
+    } else {
+      document.cookie = `${COOKIE_KEY}=; Domain=.triosworld.in; Path=/; Max-Age=0; SameSite=Lax; Secure`;
+    }
+  } catch {
+    // ignore
+  }
 }
 
 async function adminRequest<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const session = readSession();
+
+  // No usable token (expired or storage cleared): fail immediately instead of
+  // sending a request that can only come back 401. The dashboard's onAuthFail
+  // returns to the login page without a pointless network wait.
+  if (!session && path !== '/login') {
+    writeSession(null);
+    throw new AdminAuthError('Your session has expired. Please sign in again.');
+  }
 
   let res: Response;
   try {
@@ -290,9 +353,11 @@ async function adminRequest<T>(path: string, init: RequestInit = {}, retry = tru
   if (res.status === 404 && !data?.error) throw new AdminServiceUnavailableError();
 
   // Expired or revoked session: clear it so the dashboard returns to the login.
-  if (res.status === 401 && retry) {
+  // `/password` also answers 401 when the CURRENT password is wrong — that is
+  // an ordinary form error and must never sign out a valid session.
+  if (res.status === 401 && retry && path !== '/login' && path !== '/password') {
     writeSession(null);
-    if (path !== '/login') throw new AdminAuthError(data?.error ?? 'Session expired');
+    throw new AdminAuthError(data?.error ?? 'Session expired');
   }
 
   if (!res.ok) throw new Error(data?.error ?? 'Request failed');
@@ -313,7 +378,21 @@ export function adminLogout() {
   writeSession(null);
 }
 
-export const getOverview = () => adminRequest<{ overview: Overview }>('/overview').then(r => r.overview);
+/**
+ * The sign-in page starts this as soon as the token is stored, so the request
+ * is already in flight while the dashboard chunk mounts. Sharing the in-flight
+ * promise means the dashboard joins that request instead of firing a second
+ * one — the overview appears sooner and the function is hit once.
+ */
+let overviewInFlight: Promise<Overview> | null = null;
+export function getOverview(): Promise<Overview> {
+  if (!overviewInFlight) {
+    overviewInFlight = adminRequest<{ overview: Overview }>('/overview')
+      .then(r => r.overview)
+      .finally(() => { overviewInFlight = null; });
+  }
+  return overviewInFlight;
+}
 
 export const getOrders = (params: { status?: string; q?: string } = {}) => {
   const qs = new URLSearchParams();

@@ -122,6 +122,23 @@ export default function CheckoutPage() {
   };
 
   /**
+   * Point the customer at the first problem INSTANTLY.
+   *
+   * The page scrolls smoothly (the global `scroll-behavior`), so a plain
+   * `focus()` glided the page for roughly half a second — long enough that
+   * tapping "Pay securely" looked like it had not reacted at all. Focus
+   * without the native scroll, then jump straight to the field.
+   */
+  const revealFirstError = (errs: FormErrors) => {
+    const first = Object.keys(errs)[0];
+    if (!first) return;
+    const el = document.getElementById(first);
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+  };
+
+  /**
    * The greeting that goes with the order.
    *
    * It is the first line of the message the customer sends, and it is printed
@@ -196,7 +213,7 @@ export default function CheckoutPage() {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      document.getElementById(Object.keys(errs)[0])?.focus();
+      revealFirstError(errs);
       return;
     }
 
@@ -274,7 +291,7 @@ export default function CheckoutPage() {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) {
-      document.getElementById(Object.keys(e)[0])?.focus();
+      revealFirstError(e);
       return;
     }
 

@@ -85,6 +85,8 @@ export default function PaymentSuccessPage() {
   const [checking, setChecking] = useState(false);
   const [settling, setSettling] = useState(false);
   const [openingCheckout, setOpeningCheckout] = useState(false);
+  /** True once the first server status check has answered. */
+  const [statusChecked, setStatusChecked] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(0);
@@ -98,6 +100,10 @@ export default function PaymentSuccessPage() {
   const [imageGone, setImageGone] = useState(false);
 
   const clearedRef = useRef(false);
+  /** True only when this page was opened straight from the checkout hand-off. */
+  const arrivedFromCheckout = useRef(Boolean(initialSeed));
+  /** Razorpay must be auto-opened at most once per visit. */
+  const autoOpened = useRef(false);
 
   // Clear the short-lived seed once we've used it, so a later revisit re-fetches.
   useEffect(() => {
@@ -133,6 +139,7 @@ export default function PaymentSuccessPage() {
     } finally {
       setChecking(false);
       setLoading(false);
+      setStatusChecked(true);
     }
   }, [orderNumber, token]);
 
@@ -242,6 +249,24 @@ export default function PaymentSuccessPage() {
       setError(err instanceof Error ? err.message : 'Could not open the secure payment window.');
     }
   };
+
+  /**
+   * The customer already tapped "Pay securely" on the checkout page. The
+   * checkout handed us the server-created order and the page has now confirmed
+   * with the bank-side order that it is still waiting for payment — so open
+   * Razorpay straight away instead of asking for the same tap twice.
+   *
+   * Only a hand-off from checkout carries the short-lived seed, so reopening
+   * this page later (a saved order link) never pops the payment window on its
+   * own. If a browser refuses the modal, the normal button is still there.
+   */
+  useEffect(() => {
+    if (autoOpened.current || !arrivedFromCheckout.current || !statusChecked) return;
+    if (result?.payment_status !== 'pending' || result?.payment?.mode !== 'live') return;
+    if (!isApprovedPaymentOrigin()) return;
+    autoOpened.current = true;
+    void handleCheckout();
+  }, [statusChecked, result, handleCheckout]);
 
   const handleReceipt = async () => {
     if (!token) return;
@@ -569,9 +594,9 @@ export default function PaymentSuccessPage() {
           {paymentStatus === 'pending' && (
             <motion.div
               key="pending"
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: EASE }}
+              transition={{ duration: 0.18, ease: EASE }}
             >
               <div className="text-center mb-8">
                 <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">

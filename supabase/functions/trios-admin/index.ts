@@ -31,7 +31,12 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const sessionSecret = Deno.env.get("ADMIN_SESSION_SECRET") || serviceRoleKey;
 
-const SESSION_HOURS = 12;
+// Operator sessions last a week. 12 hours signed the owner out mid-work (a
+// dashboard left open overnight, or a shift that crossed the 12-hour mark),
+// which read as a random logout. Tokens are still HMAC-signed and re-verified
+// against the admins table on every request, so shortening or revoking access
+// takes effect immediately.
+const SESSION_HOURS = 168;
 const BCRYPT_ROUNDS = 10;
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -302,7 +307,7 @@ Deno.serve(async (req: Request) => {
   }
   // Distinct path used to defeat stale edge caching while diagnosing.
   if (path === "/health-canary") {
-    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 4 });
+    return json({ ok: true, function: "trios-admin", rawPath: url.pathname, build: 5 });
   }
 
   try {
@@ -1431,7 +1436,9 @@ function storageKeyFromUrl(url: string): string | null {
 
       const { data } = await supabase.from("admins").select("password_hash").eq("id", session.sub).maybeSingle();
       if (!data || !(await bcrypt.compare(current, data.password_hash))) {
-        return json({ error: "Current password is incorrect" }, 401);
+        // 400, not 401: the session is perfectly valid, the typed password is
+        // not. A 401 here used to wipe the operator's session mid-dashboard.
+        return json({ error: "Current password is incorrect" }, 400);
       }
 
       await supabase

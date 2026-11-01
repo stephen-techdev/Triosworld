@@ -67,6 +67,14 @@ function shortDate(iso: string | null): string {
 export default function AdminPage() {
   const [session, setSession] = useState<AdminSession | null>(() => readSession());
   const [tab, setTab] = useState<Tab>('overview');
+  // Sections stay mounted once opened, so going back to a tab is instant: no
+  // spinner, no second fetch, no lost search/filter. Orders is mounted from
+  // the start (hidden) so it is already loaded the first time it is opened.
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['overview', 'orders']));
+  const selectTab = useCallback((id: Tab) => {
+    setTab(id);
+    setVisited(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
 
   const signOut = useCallback(() => {
     adminLogout();
@@ -112,7 +120,7 @@ export default function AdminPage() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => selectTab(t.id)}
                 className={`px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition ${
                   tab === t.id ? 'bg-lime text-ink' : 'text-ivory/60 hover:text-ivory'
                 }`}
@@ -132,7 +140,7 @@ export default function AdminPage() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => selectTab(t.id)}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${
                   tab === t.id ? 'bg-ink text-ivory' : 'text-ink/60 hover:bg-stone/50 hover:text-ink'
                 }`}
@@ -152,24 +160,18 @@ export default function AdminPage() {
         </aside>
 
         <main className="flex-1 min-w-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25, ease: EASE }}
-            >
-              {tab === 'overview' && <OverviewSection />}
-              {tab === 'orders' && <OrdersSection onAuthFail={signOut} />}
-              {tab === 'trash' && <TrashSection onAuthFail={signOut} />}
-              {tab === 'customers' && <CustomersSection onAuthFail={signOut} />}
-              {tab === 'products' && <ProductsSection onAuthFail={signOut} />}
-              {tab === 'content' && <ContentSection onAuthFail={signOut} />}
-              {tab === 'feedback' && <FeedbackSection onAuthFail={signOut} />}
-              {tab === 'settings' && <SettingsSection onAuthFail={signOut} />}
-            </motion.div>
-          </AnimatePresence>
+          {/* No exit animation: the old AnimatePresence held the next tab back
+              for 0.25s before it appeared. Sections stay mounted once opened
+              (hidden, not unmounted), so switching back is instant and keeps
+              scroll position, search and filters. */}
+          <div hidden={tab !== 'overview'}><OverviewSection /></div>
+          <div hidden={tab !== 'orders'}><OrdersSection onAuthFail={signOut} /></div>
+          {visited.has('trash') && <div hidden={tab !== 'trash'}><TrashSection onAuthFail={signOut} /></div>}
+          {visited.has('customers') && <div hidden={tab !== 'customers'}><CustomersSection onAuthFail={signOut} /></div>}
+          {visited.has('products') && <div hidden={tab !== 'products'}><ProductsSection onAuthFail={signOut} /></div>}
+          {visited.has('content') && <div hidden={tab !== 'content'}><ContentSection onAuthFail={signOut} /></div>}
+          {visited.has('feedback') && <div hidden={tab !== 'feedback'}><FeedbackSection onAuthFail={signOut} /></div>}
+          {visited.has('settings') && <div hidden={tab !== 'settings'}><SettingsSection onAuthFail={signOut} /></div>}
         </main>
       </div>
     </div>
@@ -322,7 +324,7 @@ function OrdersSection({ onAuthFail }: { onAuthFail: () => void }) {
   const [debounced, setDebounced] = useState('');
 
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(search), 350);
+    const id = setTimeout(() => setDebounced(search), 250);
     return () => clearTimeout(id);
   }, [search]);
 

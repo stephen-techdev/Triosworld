@@ -57,10 +57,11 @@ export default function ProductCard({ product, priority = false }: Props) {
 
   const stockOf = (size: string) => v.sizes.find(x => x.size === size)?.stock ?? 0;
 
-  // The hover photos (views 2-5 of the selected colour) are a desktop nicety.
-  // Rendering them up front meant every visible card downloaded its whole
-  // gallery even though the extra views are hidden behind opacity-0 — so they
-  // mount only when the pointer actually reaches the card.
+  {/* The hover photos (views 2-5 of the selected colour) are a desktop nicety.
+      Rendering them up front meant every visible card downloaded its whole
+      gallery even though the extra views are hidden behind opacity-0 — so they
+      only mount while the pointer is over the card's image. Mouseleave unmounts
+      them again; the old version latched them open for the tab's lifetime. */}
   const [hovered, setHovered] = useState(false);
 
   const handleQuickAdd = (size: string) => {
@@ -75,7 +76,7 @@ export default function ProductCard({ product, priority = false }: Props) {
   return (
     <div className="group">
       {/* Image + overlays share one stacking context so the quick-add stays on the image */}
-      <div className="relative" onMouseEnter={() => setHovered(true)}>
+      <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <Link
           to={`/product/${product.slug}`}
           className="block relative overflow-hidden bg-stone/50 aspect-[3/4]"
@@ -269,7 +270,20 @@ export default function ProductCard({ product, priority = false }: Props) {
               <button
                 key={variant.color}
                 type="button"
-                onClick={() => setActiveColor(i)}
+                onClick={() => {
+                  /* A swatch click must visibly answer on the card itself:
+                     the new colour's photo IS the reply. The hover preview
+                     stacks extra views over the primary, and with exactly
+                     one photo per colour those extras are the OTHER
+                     colours' shots — with the preview up (the pointer rests
+                     on the swatch row, still inside the CSS group), a
+                     swatch click looked dead: the photo underneath changed
+                     but the stack on top never did. Clearing the preview
+                     lets the selected colour's photo lead again, and
+                     unmounts the extra views it was keeping alive. */
+                  setActiveColor(i);
+                  setHovered(false);
+                }}
                 aria-label={soldOut ? `${variant.color} out of stock` : `Show ${variant.color}`}
                 aria-pressed={activeColor === i}
                 title={soldOut ? `${variant.color} — out of stock` : variant.color}

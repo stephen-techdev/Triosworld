@@ -299,7 +299,14 @@ export default function ProductCard({ product, priority = false }: Props) {
 export function ProductCardMotion({ product, index = 0, priority = false }: Props & { index?: number; priority?: boolean }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      /* Entrance starts at 2% opacity instead of a pure 0. An element at
+         opacity: 0 is skipped by the browser's Largest Contentful Paint logic
+         entirely, so the shop grid's LCP used to wait for this entrance
+         animation to finish before it could score — even with the card image
+         already preloaded and sitting in cache. 2% is indistinguishable in a
+         single frame while the 0.5s fade still runs exactly as it did.
+         (prior art: the "epsilon opacity" LCP technique) */
+      initial={{ opacity: 0.02, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: 0.5, delay: (index % 4) * 0.05 }}

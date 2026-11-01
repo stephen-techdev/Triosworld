@@ -318,7 +318,12 @@ export default function ShopPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-5 lg:gap-x-8 lg:gap-y-12">
-              {filtered.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} priority={i < 2} />)}
+              {/* First viewport's four cards get eager/high-priority images:
+                  on the shop front door the LCP is one of these. Boot's
+                  preload (dist/boot.js) already races them into cache; the
+                  eager fetch + high fetchpriority on the elements themselves
+                  closes the remaining gap when a preload misses. */}
+              {filtered.map((p, i) => <ProductCardMotion key={p.id} product={p} index={i} priority={i < 4} />)}
             </div>
           )}
       </div>

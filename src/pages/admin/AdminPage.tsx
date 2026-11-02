@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -247,18 +247,26 @@ function useAdminData<T>(loader: () => Promise<T>, onAuthFail: () => void) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // `onAuthFail` is read through a ref so its identity can never churn `load`.
+  // If it were a `useCallback` dep, a caller passing an inline arrow would give
+  // `load` a new identity on every render, and the mount effect below would
+  // re-fire forever — a self-sustaining request loop (the admin flood: 261k
+  // /overview calls in a single day, 3.49 GB of ingested logs, org over quota).
+  const authFailRef = useRef(onAuthFail);
+  useEffect(() => { authFailRef.current = onAuthFail; });
+
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
       setData(await loader());
     } catch (err) {
-      if (err instanceof AdminAuthError) { onAuthFail(); return; }
+      if (err instanceof AdminAuthError) { authFailRef.current(); return; }
       setError(err instanceof Error ? err.message : 'Could not load data');
     } finally {
       if (silent) setRefreshing(false); else setLoading(false);
     }
-  }, [loader, onAuthFail]);
+  }, [loader]);
 
   useEffect(() => { void load(false); }, [load]);
   const reload = useCallback(() => load(true), [load]);

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Lock, Check, ArrowLeft, ShieldCheck, Truck, Smartphone, Loader2, UserRound,
   AlertTriangle,
@@ -476,17 +475,16 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            <motion.button
+            <button
               type="button"
               onClick={handlePay}
               disabled={submitting}
-              whileTap={{ scale: 0.99 }}
               className="mt-5 w-full py-4 rounded-full bg-ink text-ivory font-semibold hover:bg-ink/80 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
               {submitting
                 ? <><Loader2 size={18} className="animate-spin" /> Starting secure payment…</>
                 : <>Pay securely · {formatINR(total)}</>}
-            </motion.button>
+            </button>
 
             {waStage === 'sent' ? (
               <div className="mt-3 rounded-xl border border-lime/40 bg-lime/10 p-4">
@@ -577,6 +575,37 @@ export default function CheckoutPage() {
           </div>
         </aside>
       </div>
+
+      {/* Payment hand-off.
+          This covers the page on the very next frame after the tap — before the
+          order request has even left the phone — so the first "Pay securely"
+          button never looks dead while the server creates the order. There is
+          no page reload: the order page is a normal SPA route whose chunk has
+          already been prefetched, so it appears the moment the order exists. */}
+      {submitting && (
+        <div
+          className="fixed inset-0 z-[90] grid place-items-center bg-ivory/95 px-6"
+          style={{ touchAction: 'none' }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm text-center">
+            <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-ink text-ivory">
+              <Lock size={24} />
+            </div>
+            <p className="font-display text-2xl font-semibold">Creating your secure order…</p>
+            <p className="mt-2 text-sm text-ink/60">
+              Opening Razorpay’s secure checkout. Please keep this page open.
+            </p>
+            <div className="mt-7 h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
+              <div className="h-full w-1/3 rounded-full bg-ink animate-[handoff-progress_1.1s_ease-in-out_infinite]" />
+            </div>
+            <p className="mt-5 text-[11px] uppercase tracking-[0.18em] text-ink/45">
+              Step 1 of 2 · Creating order
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -91,7 +91,18 @@ export default function TrackOrderPage() {
       if (document.hidden) return;
       load(trackedId.current!, true);
     }, 20_000);
-    return () => window.clearInterval(t);
+    // Returning to the tab or app shows the latest status at once instead of
+    // waiting up to 20 seconds for the next poll — no manual refresh needed.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && trackedId.current) {
+        load(trackedId.current, true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [result, load]);
 
   const open = Boolean(result);

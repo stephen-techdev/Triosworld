@@ -85,6 +85,12 @@
     }
   }
 
+  /* Indeterminate bar for the checkout hand-off state. */
+  @keyframes handoff-progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+
   /* iOS Safari zooms the whole page when a form control under 16px is
      focused, then the customer has to pinch back — awful on checkout. Keep
      controls at 16px on phones so tapping a field never throws the layout

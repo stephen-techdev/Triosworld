@@ -165,6 +165,25 @@ export default function PaymentSuccessPage() {
     return () => clearInterval(id);
   }, [isPending, refresh]);
 
+  // Coming back from the UPI app (or unlocking the phone) re-checks the order
+  // immediately. Without this, a customer who paid in another app could sit on
+  // a stale "pending" screen until the next 8-second poll or a manual refresh.
+  useEffect(() => {
+    if (!isPending) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh({ silent: true });
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void refresh({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [isPending, refresh]);
+
   // Countdown to the end of the payment window.
   const expiresAt = result?.payment?.expires_at ?? null;
   useEffect(() => {
@@ -620,8 +639,8 @@ export default function PaymentSuccessPage() {
 
                   {payment.mode === 'live' ? (
                     <ul className="text-sm text-ink/60 space-y-2 mb-7 text-left inline-block">
-                      <li>1. Tap “Pay securely” below</li>
-                      <li>2. Choose UPI or your bank in Razorpay</li>
+                      <li>1. Razorpay’s secure window opens automatically</li>
+                      <li>2. Choose UPI or your bank</li>
                       <li>3. This page confirms automatically once the bank responds</li>
                     </ul>
                   ) : (

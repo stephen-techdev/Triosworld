@@ -6,9 +6,11 @@ import {
   MapPin, PackageCheck,
 } from 'lucide-react';
 import SEO from '@/components/SEO';
+import PaymentHandoff from '@/components/PaymentHandoff';
 import { EASE } from '@/components/Motion';
 import { formatINR } from '@/data/catalog';
-import { useStore } from '@/store/StoreContext';
+import { productThumb } from '@/lib/imgUrl';
+import { useStore, resolveProduct } from '@/store/StoreContext';
 import {
   PaymentServiceUnavailableError, clearOrderReview, demoSettle, findOrderToken, getReceipt,
   getStatus, readOrderReview, takePendingOrder, type OrderItemSummary, type OrderReviewAddress,
@@ -88,8 +90,6 @@ export default function PaymentSuccessPage() {
   const [checking, setChecking] = useState(false);
   const [settling, setSettling] = useState(false);
   const [openingCheckout, setOpeningCheckout] = useState(false);
-  /** True once the first server status check has answered. */
-  const [statusChecked, setStatusChecked] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(0);
@@ -103,10 +103,6 @@ export default function PaymentSuccessPage() {
   const [imageGone, setImageGone] = useState(false);
 
   const clearedRef = useRef(false);
-  /** True only when this page was opened straight from the checkout hand-off. */
-  const arrivedFromCheckout = useRef(Boolean(initialSeed));
-  /** Razorpay must be auto-opened at most once per visit. */
-  const autoOpened = useRef(false);
 
   // Clear the short-lived seed once we've used it, so a later revisit re-fetches.
   useEffect(() => {
@@ -142,7 +138,6 @@ export default function PaymentSuccessPage() {
     } finally {
       setChecking(false);
       setLoading(false);
-      setStatusChecked(true);
     }
   }, [orderNumber, token]);
 
@@ -271,24 +266,6 @@ export default function PaymentSuccessPage() {
       setError(err instanceof Error ? err.message : 'Could not open the secure payment window.');
     }
   };
-
-  /**
-   * The customer already tapped "Pay securely" on the checkout page. The
-   * checkout handed us the server-created order and the page has now confirmed
-   * with the bank-side order that it is still waiting for payment — so open
-   * Razorpay straight away instead of asking for the same tap twice.
-   *
-   * Only a hand-off from checkout carries the short-lived seed, so reopening
-   * this page later (a saved order link) never pops the payment window on its
-   * own. If a browser refuses the modal, the normal button is still there.
-   */
-  useEffect(() => {
-    if (autoOpened.current || !arrivedFromCheckout.current || !statusChecked) return;
-    if (result?.payment_status !== 'pending' || result?.payment?.mode !== 'live') return;
-    if (!isApprovedPaymentOrigin()) return;
-    autoOpened.current = true;
-    void handleCheckout();
-  }, [statusChecked, result, handleCheckout]);
 
   const handleReceipt = async () => {
     if (!token) return;
@@ -526,6 +503,16 @@ export default function PaymentSuccessPage() {
   const reviewItems = (order.items?.length ? order.items : localReview?.items) ?? [];
   const reviewAddress = order.shipping_address ?? localReview?.address ?? null;
 
+  // The second hand-off (order page → Razorpay) repeats the same bag, so the
+  // customer never loses sight of what they are paying for.
+  const handoffThumbs = reviewItems.flatMap(item => {
+    const product = resolveProduct(item.productId);
+    const variant = product?.variants.find(v => v.color === item.color);
+    const image = productThumb(variant?.colorImage ?? variant?.images[0]);
+    return image ? [image] : [];
+  });
+  const handoffItemCount = reviewItems.reduce((count, item) => count + item.qty, 0);
+
   return (
     <div className="page-container py-12 md:py-20">
       <SEO title={paymentStatus === 'paid' ? 'Payment successful' : 'Complete payment'} noindex />
@@ -639,7 +626,7 @@ export default function PaymentSuccessPage() {
 
                   {payment.mode === 'live' ? (
                     <ul className="text-sm text-ink/60 space-y-2 mb-7 text-left inline-block">
-                      <li>1. Razorpay’s secure window opens automatically</li>
+                      <li>1. Tap ‘Pay securely’ below</li>
                       <li>2. Choose UPI or your bank</li>
                       <li>3. This page confirms automatically once the bank responds</li>
                     </ul>
@@ -772,6 +759,27 @@ export default function PaymentSuccessPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Opening Razorpay from the second "Pay securely" tap. The overlay
+          appears immediately, then stays behind the payment sheet until
+          Razorpay succeeds or is dismissed. Razorpay is never opened on its
+          own: the customer always makes this second, explicit tap. */}
+      {openingCheckout && payment.mode === 'live' && (
+        <PaymentHandoff
+          title="Opening secure payment…"
+          subtitle="Razorpay’s checkout is loading. Your order is saved — complete the payment in the secure window."
+          amount={order.total}
+          itemCount={handoffItemCount}
+          thumbnails={handoffThumbs}
+          steps={[
+            { label: `Order ${order.order_number} created`, state: 'done' },
+            { label: 'Opening Razorpay’s secure checkout', state: 'active' },
+            { label: 'Choose UPI or your bank', state: 'pending' },
+          ]}
+          progressLabel="Step 2 of 3 · Secure checkout"
+          note="Keep this page open — it confirms your payment automatically when you return."
+        />
+      )}
     </div>
   );
 }

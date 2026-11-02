@@ -91,6 +91,24 @@
     100% { transform: translateX(400%); }
   }
 
+  /* The shared checkout → Razorpay hand-off card. The scrim fades in on the
+     same frame as the tap; the card lifts a few pixels so the screen feels
+     alive rather than like a frozen page. */
+  @keyframes handoff-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes handoff-card {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .payment-handoff {
+    animation: handoff-fade 0.16s ease-out both;
+  }
+  .payment-handoff__card {
+    animation: handoff-card 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
   /* iOS Safari zooms the whole page when a form control under 16px is
      focused, then the customer has to pinch back — awful on checkout. Keep
      controls at 16px on phones so tapping a field never throws the layout

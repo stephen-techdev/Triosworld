@@ -9,6 +9,7 @@ import { useAuth } from '@/store/AuthContext';
 import { formatINR } from '@/data/catalog';
 import { freeShippingLabel, shippingFor, useStoreSettings } from '@/lib/storeSettings';
 import SEO from '@/components/SEO';
+import PaymentHandoff from '@/components/PaymentHandoff';
 import { whatsappLink } from '@/components/WhatsApp';
 import { renderOrderImage } from '@/lib/orderImage';
 import { productThumb, thumbFallback } from '@/lib/imgUrl';
@@ -99,6 +100,16 @@ export default function CheckoutPage() {
 
   const shipping = shippingFor(settings, subtotal);
   const total = subtotal + shipping;
+
+  // The hand-off overlay shows the same bag the customer is paying for, so the
+  // wait never feels like a different page took over.
+  const handoffThumbs = cart.flatMap(item => {
+    const product = resolveProduct(item.productId);
+    const variant = product?.variants.find(v => v.color === item.color);
+    const image = productThumb(variant?.colorImage ?? variant?.images[0]);
+    return image ? [image] : [];
+  });
+  const handoffItemCount = cart.reduce((count, item) => count + item.qty, 0);
 
   const updateField = (key: keyof FormState, value: string) => {
     setForm(f => ({ ...f, [key]: value }));
@@ -583,28 +594,18 @@ export default function CheckoutPage() {
           no page reload: the order page is a normal SPA route whose chunk has
           already been prefetched, so it appears the moment the order exists. */}
       {submitting && (
-        <div
-          className="fixed inset-0 z-[90] grid place-items-center bg-ivory/95 px-6"
-          style={{ touchAction: 'none' }}
-          role="status"
-          aria-live="polite"
-        >
-          <div className="w-full max-w-sm text-center">
-            <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-ink text-ivory">
-              <Lock size={24} />
-            </div>
-            <p className="font-display text-2xl font-semibold">Creating your secure order…</p>
-            <p className="mt-2 text-sm text-ink/60">
-              Opening Razorpay’s secure checkout. Please keep this page open.
-            </p>
-            <div className="mt-7 h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
-              <div className="h-full w-1/3 rounded-full bg-ink animate-[handoff-progress_1.1s_ease-in-out_infinite]" />
-            </div>
-            <p className="mt-5 text-[11px] uppercase tracking-[0.18em] text-ink/45">
-              Step 1 of 2 · Creating order
-            </p>
-          </div>
-        </div>
+        <PaymentHandoff
+          title="Creating your secure order…"
+          subtitle="We’re saving your delivery details and reserving your items. Razorpay opens on the next step — nothing has been charged."
+          amount={total}
+          itemCount={handoffItemCount}
+          thumbnails={handoffThumbs}
+          steps={[
+            { label: 'Creating your order', state: 'active' },
+            { label: 'Opening Razorpay’s secure checkout', state: 'pending' },
+          ]}
+          progressLabel="Step 1 of 2 · Creating order"
+        />
       )}
     </div>
   );

@@ -9,8 +9,8 @@ import {
 } from '@/lib/admin';
 import { prepareImage } from '@/lib/imagePrep';
 import {
-  normalizeContent, setSiteContent,
-  type SiteContent, type BenefitIconKey, type SocialIconKey,
+  normalizeContent, setSiteContent, DEFAULT_SITE_CONTENT,
+  type SiteContent, type BenefitIconKey, type SocialIconKey, type HeroSlide,
 } from '@/lib/siteContent';
 
 /**
@@ -294,6 +294,15 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
   const c = content;
   const setC = (fn: (prev: SiteContent) => SiteContent) => setContent(prev => (prev ? fn(prev) : prev));
 
+  // The "Homepage hero" card edits slide 1 of the reel — the slide most
+  // visitors actually see. It used to edit a separate `hero` document that no
+  // page ever read, so a save looked successful while the homepage never
+  // changed. One source of truth now; the card steps aside if the reel has
+  // been emptied rather than crashing on a slide that is not there.
+  const hero0 = c.heroSlides[0];
+  const setHero0 = (next: Partial<HeroSlide>) =>
+    setC(p => ({ ...p, heroSlides: p.heroSlides.map((s, i) => (i === 0 ? { ...s, ...next } : s)) }));
+
   return (
     <div className="space-y-5">
       {/* Header + save */}
@@ -348,31 +357,33 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
       </Group>
 
       {/* ── Hero ────────────────────────────────────────────────── */}
-      <Group icon={LayoutTemplate} title="Homepage hero" hint="Eyebrow, headline, subtitle and buttons" defaultOpen>
+      {hero0 && (
+      <Group icon={LayoutTemplate} title="Homepage hero"
+        hint="Slide 1 — the eyebrow, headline, subtitle and buttons most visitors see first" defaultOpen>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Eyebrow (small line above)" value={c.hero.eyebrow}
-            onChange={v => setC(p => ({ ...p, hero: { ...p.hero, eyebrow: v } }))} />
-          <ImageField label="Hero image" value={c.hero.image}
-            onChange={v => setC(p => ({ ...p, hero: { ...p.hero, image: v } }))} />
+          <Field label="Eyebrow (small line above)" value={hero0.eyebrow}
+            onChange={v => setHero0({ eyebrow: v })} />
+          <ImageField label="Hero image" value={hero0.image}
+            onChange={v => setHero0({ image: v })} />
         </div>
-        <LinesField label="Headline — one line each (big text)" value={c.hero.titleLines}
-          onChange={v => setC(p => ({ ...p, hero: { ...p.hero, titleLines: v } }))}
+        <LinesField label="Headline — one line each (big text)" value={hero0.titleLines}
+          onChange={v => setHero0({ titleLines: v })}
           hint="Each line becomes its own row. Two or three short lines look best." />
-        <Area label="Subtitle" value={c.hero.subtitle} rows={2}
-          onChange={v => setC(p => ({ ...p, hero: { ...p.hero, subtitle: v } }))} />
+        <Area label="Subtitle" value={hero0.subtitle} rows={2}
+          onChange={v => setHero0({ subtitle: v })} />
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Primary button" value={c.hero.ctaPrimaryLabel}
-              onChange={v => setC(p => ({ ...p, hero: { ...p.hero, ctaPrimaryLabel: v } }))} />
-            <Field label="Goes to" value={c.hero.ctaPrimaryTo}
-              onChange={v => setC(p => ({ ...p, hero: { ...p.hero, ctaPrimaryTo: v } }))} />
+            <Field label="Primary button" value={hero0.ctaPrimaryLabel}
+              onChange={v => setHero0({ ctaPrimaryLabel: v })} />
+            <Field label="Goes to" value={hero0.ctaPrimaryTo}
+              onChange={v => setHero0({ ctaPrimaryTo: v })} />
             <div />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Secondary button" value={c.hero.ctaSecondaryLabel}
-              onChange={v => setC(p => ({ ...p, hero: { ...p.hero, ctaSecondaryLabel: v } }))} />
-            <Field label="Goes to" value={c.hero.ctaSecondaryTo}
-              onChange={v => setC(p => ({ ...p, hero: { ...p.hero, ctaSecondaryTo: v } }))} />
+            <Field label="Secondary button" value={hero0.ctaSecondaryLabel}
+              onChange={v => setHero0({ ctaSecondaryLabel: v })} />
+            <Field label="Goes to" value={hero0.ctaSecondaryTo}
+              onChange={v => setHero0({ ctaSecondaryTo: v })} />
             <div />
           </div>
         </div>
@@ -380,6 +391,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           “Goes to” accepts site paths (/shop/new-arrivals) or full URLs (https://…).
         </p>
       </Group>
+      )}
 
       {/* ── Hero slides ─────────────────────────────────────────── */}
       <Group icon={GalleryHorizontal} title="Homepage hero slides"
@@ -422,7 +434,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           <AddRow label="Add a slide" onClick={() => setC(p => ({ ...p, heroSlides: [...p.heroSlides, {
             eyebrow: 'New drop', titleLines: ['YOUR HEADLINE', 'GOES HERE.'], subtitle: 'Say what makes this one worth a look.',
             ctaPrimaryLabel: 'SHOP NOW', ctaPrimaryTo: '/shop/shop-all', ctaSecondaryLabel: 'SHOP ALL', ctaSecondaryTo: '/shop/shop-all',
-            image: c.hero.image, seconds: 6,
+            image: c.heroSlides[0]?.image ?? DEFAULT_SITE_CONTENT.heroSlides[0].image, seconds: 6,
           }] }))} />
         </div>
         <p className="text-[10px] text-ink/65">

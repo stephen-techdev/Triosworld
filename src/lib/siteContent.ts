@@ -30,17 +30,6 @@ export type BenefitIconKey =
   | 'shield' | 'badge' | 'truck' | 'headphones'
   | 'refresh' | 'lock' | 'star' | 'globe' | 'heart' | 'zap';
 
-export interface HeroContent {
-  eyebrow: string;
-  titleLines: string[];
-  subtitle: string;
-  ctaPrimaryLabel: string;
-  ctaPrimaryTo: string;
-  ctaSecondaryLabel: string;
-  ctaSecondaryTo: string;
-  image: string;
-}
-
 /**
  * One slide of the homepage hero.
  *
@@ -179,7 +168,6 @@ export interface SiteContent {
   announcement: string[];
   newsletter: NewsletterContent;
   header: HeaderContent;
-  hero: HeroContent;
   heroSlides: HeroSlide[];
   ticker: { showFreeShipping: boolean; items: string[] };
   categoriesHeading: { title: string; sub: string };
@@ -211,17 +199,6 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     heading: 'GOOD STYLE. STRAIGHT TO YOUR INBOX.',
     sub: 'Get early access to new drops, member-only pricing and the occasional good idea. No spam.',
     disclaimer: 'By subscribing you agree to receive marketing emails from TriosWorld.',
-  },
-
-  hero: {
-    eyebrow: 'Three Vibes. One World.',
-    titleLines: ['YOUR WORLD.', 'YOUR STYLE.'],
-    subtitle: "Discover men's everyday essentials, oversized fits and statement streetwear.",
-    ctaPrimaryLabel: 'SHOP NOW',
-    ctaPrimaryTo: '/shop/shop-all',
-    ctaSecondaryLabel: 'NEW ARRIVALS',
-    ctaSecondaryTo: '/shop/new-arrivals',
-    image: 'https://images.pexels.com/photos/9775889/pexels-photo-9775889.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=2400&h=1350',
   },
 
   // The opening slide is the shipped hero verbatim, so an operator who never

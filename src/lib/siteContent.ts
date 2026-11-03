@@ -22,7 +22,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import { setWhatsAppNumber } from '@/components/WhatsApp';
-import { awaitBootData } from '@/lib/bootGate';
+import { awaitBootData, bootStoreRow } from '@/lib/bootGate';
 
 // ────────────────────────────── content shape ──────────────────────────────
 
@@ -530,9 +530,9 @@ function load(): Promise<SiteContent> {
     // read shared with storeSettings). Same row either way; if the boot fetch
     // gave up or missed the gate, the SDK query below runs as it always has.
     const boot = await awaitBootData();
-    let row: { content?: unknown } | null = (boot && typeof boot.storeRow === 'object' && boot.storeRow !== null
-      ? (boot.storeRow as { content?: unknown })
-      : null);
+    // bootStoreRow() unwraps the PostgREST array; null means "no usable row",
+    // which is what makes the SDK query below run instead of the defaults.
+    let row = boot ? bootStoreRow() : null;
 
     if (!row) {
       const { data, error } = await supabase

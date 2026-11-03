@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
-import { awaitBootData } from '@/lib/bootGate';
+import { awaitBootData, bootStoreRow, type StoreSettingsBootRow } from '@/lib/bootGate';
 
 export interface StoreSettings {
   shippingFee: number;
@@ -46,10 +46,9 @@ function load(): Promise<StoreSettings> {
     // read shared with siteContent). If the boot fetch gave up or missed the
     // gate, the SDK query below runs as it always has.
     const boot = await awaitBootData();
-    let row: { shipping_fee?: number; free_shipping_threshold?: number; announcement?: string | null } | null =
-      boot && typeof boot.storeRow === 'object' && boot.storeRow !== null
-        ? (boot.storeRow as { shipping_fee?: number; free_shipping_threshold?: number; announcement?: string | null })
-        : null;
+    // bootStoreRow() unwraps the PostgREST array; null means "no usable row",
+    // which is what makes the SDK query below run instead of the defaults.
+    let row: StoreSettingsBootRow | null = boot ? bootStoreRow() : null;
 
     if (!row) {
       const { data, error } = await supabase

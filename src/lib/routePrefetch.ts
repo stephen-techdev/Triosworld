@@ -41,7 +41,7 @@ const ROUTES: RouteChunk[] = [
   { test: (p) => p === '/register', load: () => import('@/pages/RegisterPage') },
   { test: (p) => p === '/forgot-password', load: () => import('@/pages/ForgotPasswordPage') },
   {
-    test: (p) => ['/about', '/shipping', '/returns', '/privacy', '/terms', '/contact', '/faqs'].includes(p),
+    test: (p) => ['/about', '/shipping', '/privacy', '/terms', '/contact', '/faqs'].includes(p),
     load: () => import('@/pages/StaticPage'),
   },
 ];

@@ -6,9 +6,9 @@ import { freeShippingLabel, useStoreSettings, type StoreSettings } from '@/lib/s
 import { useSiteContent } from '@/lib/siteContent';
 
 /**
- * About, shipping, returns, privacy, terms, contact and FAQs are operator-owned
- * pages now: the copy lives in the `pages` document under Admin → Content and
- * is edited per slug from the dashboard. Until a page is edited there, the
+ * About, shipping, privacy, terms, contact and FAQs are operator-owned pages
+ * now: the copy lives in the `pages` document under Admin → Content and is
+ * edited per slug from the dashboard. Until a page is edited there, the
  * rendered text is the shipped copy merged in by siteContent.ts — which is the
  * same wording this file used to hardcode.
  *

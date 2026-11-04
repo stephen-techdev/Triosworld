@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Heart, Minus, Plus, Check, Truck, RefreshCw, ShieldCheck, Ruler, Star, X, Maximize2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Heart, Minus, Plus, Check, Truck, BadgeCheck, ShieldCheck, Ruler, Star, X, Maximize2 } from 'lucide-react';
 import WhatsAppIcon, { whatsappLink } from '@/components/WhatsApp';
 import { formatINR, discountPercent, SIZES } from '@/data/catalog';
 import { liveProduct, liveRelated, useLiveCatalog } from '@/lib/storefrontCatalog';
@@ -22,10 +22,10 @@ export default function ProductPage() {
   const { ready } = useLiveCatalog();
   const product = slug ? liveProduct(slug) : undefined;
   const { settings, ready: settingsReady } = useStoreSettings();
-  // Size guide, reviews, promises and the returns line are operator-owned
-  // (Admin → Content). The three reviews this page used to hardcode are gone:
-  // a rating is now only shown when the operator has actually published
-  // reviews, so no number on this page is invented.
+  // Size guide, reviews and promises are operator-owned (Admin → Content). The
+  // three reviews this page used to hardcode are gone: a rating is now only
+  // shown when the operator has actually published reviews, so no number on
+  // this page is invented.
   const { content } = useSiteContent();
   const { addToCart, toggleWishlist, isWishlisted, cart } = useStore();
 
@@ -623,7 +623,7 @@ export default function ProductPage() {
           {/* Promises — copy typed in Admin → Content; the glyph set is code */}
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
             {content.pdp.promises.slice(0, 3).map((promise, i) => {
-              const Icon = [Truck, RefreshCw, ShieldCheck][i % 3];
+              const Icon = [Truck, BadgeCheck, ShieldCheck][i % 3];
               return (
                 <div key={`${promise}-${i}`} className="p-3 rounded-lg border border-ink/8">
                   <Icon size={18} className="mx-auto mb-1" />
@@ -646,7 +646,7 @@ export default function ProductPage() {
               {(['description', 'care', 'shipping'] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
                   className={`text-sm font-medium capitalize border-b-2 pb-1 transition ${activeTab === t ? 'border-ink' : 'border-transparent text-ink/65 hover:text-ink'}`}>
-                  {t === 'shipping' ? 'Delivery & Returns' : t === 'care' ? 'Fabric & Care' : 'Description'}
+                  {t === 'shipping' ? 'Delivery' : t === 'care' ? 'Fabric & Care' : 'Description'}
                 </button>
               ))}
             </div>
@@ -676,7 +676,6 @@ export default function ProductPage() {
                         : ''}`
                       : 'Shipping is calculated at checkout. Standard delivery in 3–5 business days across India.'}
                   </p>
-                  <p>{content.pdp.returnsLine}</p>
                 </div>
               )}
             </div>

@@ -35,7 +35,7 @@ const BENEFIT_ICON_KEYS: BenefitIconKey[] = [
   'shield', 'badge', 'truck', 'headphones', 'refresh', 'lock', 'star', 'globe', 'heart', 'zap',
 ];
 const SOCIAL_ICON_KEYS: SocialIconKey[] = ['instagram', 'facebook', 'whatsapp', 'mail', 'youtube'];
-const PAGE_SLUGS = ['about', 'shipping', 'returns', 'privacy', 'terms', 'contact', 'faqs'] as const;
+const PAGE_SLUGS = ['about', 'shipping', 'privacy', 'terms', 'contact', 'faqs'] as const;
 
 // ───────────────────────────── small editors ───────────────────────────────
 
@@ -612,7 +612,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
       </Group>
 
       {/* ── Product page ────────────────────────────────────────── */}
-      <Group icon={PackageCheck} title="Product page" hint="Size guide, reviews, promises, returns line">
+      <Group icon={PackageCheck} title="Product page" hint="Size guide, reviews, promises">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-ink/65">Size guide (3 columns)</p>
           <p className="text-[10px] text-ink/65 -mt-2">First row is the header. Delete every row to hide the size guide.</p>
@@ -669,13 +669,11 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
           }))} />
         </div>
 
-        <div className="pt-2 border-t border-ink/8 grid sm:grid-cols-2 gap-3">
+        <div className="pt-2 border-t border-ink/8">
           <LinesField label="Promise tiles (max 3)" value={c.pdp.promises}
             onChange={v => setC(p => ({ ...p, pdp: { ...p.pdp, promises: v } }))}
             rows={3}
-            hint="The short line under each tile: shipping, returns, payment." />
-          <Area label="Returns line (Delivery & Returns tab)" value={c.pdp.returnsLine} rows={3}
-            onChange={v => setC(p => ({ ...p, pdp: { ...p.pdp, returnsLine: v } }))} />
+            hint="The short line under each tile: dispatch, quality, payment." />
         </div>
       </Group>
 
@@ -779,7 +777,7 @@ export default function ContentSection({ onAuthFail }: { onAuthFail: () => void 
   );
 }
 
-/** About / shipping / returns / privacy / terms / contact / FAQs, per slug. */
+/** About / shipping / privacy / terms / contact / FAQs, per slug. */
 function StaticPagesEditor({ content, onChange }: {
   content: SiteContent;
   onChange: (p: Partial<SiteContent>) => void;
@@ -790,7 +788,7 @@ function StaticPagesEditor({ content, onChange }: {
   const page = pages[active];
 
   return (
-    <Group icon={FileText} title="Static pages" hint="About, shipping, returns, privacy, terms, contact, FAQs">
+    <Group icon={FileText} title="Static pages" hint="About, shipping, privacy, terms, contact, FAQs">
       <SelectField
         label="Page"
         value={active}

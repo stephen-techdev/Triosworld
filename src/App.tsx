@@ -81,7 +81,6 @@ export default function App() {
                   <Route path={ADMIN_BASE} element={<AdminPage />} />
                   <Route path="/about" element={<StaticPage page="about" />} />
                   <Route path="/shipping" element={<StaticPage page="shipping" />} />
-                  <Route path="/returns" element={<StaticPage page="returns" />} />
                   <Route path="/privacy" element={<StaticPage page="privacy" />} />
                   <Route path="/terms" element={<StaticPage page="terms" />} />
                   <Route path="/contact" element={<StaticPage page="contact" />} />

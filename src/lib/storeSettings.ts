@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import { awaitBootData, bootStoreRow, type StoreSettingsBootRow } from '@/lib/bootGate';
+import { publish, subscribe } from '@/lib/tabSync';
 
 export interface StoreSettings {
   shippingFee: number;
@@ -82,7 +83,21 @@ function load(): Promise<StoreSettings> {
 export function setStoreSettings(next: StoreSettings) {
   cached = next;
   emit();
+  // Shipping/announcement are global: every open tab should agree immediately.
+  publish('store-settings', next);
 }
+
+// A save from another tab: normalise defensively, then re-render consumers.
+subscribe('store-settings', (raw) => {
+  if (!raw || typeof raw !== 'object') return;
+  const s = raw as Partial<StoreSettings>;
+  cached = {
+    shippingFee: Number(s.shippingFee) || 0,
+    freeShippingThreshold: Number(s.freeShippingThreshold) || 0,
+    announcement: typeof s.announcement === 'string' ? s.announcement : '',
+  };
+  emit();
+});
 
 /** Test seam: drops the cache so the next read refetches. */
 export function resetStoreSettings() {

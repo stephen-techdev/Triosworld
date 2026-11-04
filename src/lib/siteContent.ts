@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import { setWhatsAppNumber } from '@/components/WhatsApp';
 import { awaitBootData, bootStoreRow } from '@/lib/bootGate';
+import { publish, subscribe } from '@/lib/tabSync';
 
 // ────────────────────────────── content shape ──────────────────────────────
 
@@ -537,7 +538,18 @@ export function setSiteContent(raw: unknown) {
   cached = normalizeContent(raw);
   setWhatsAppNumber(cached.footer.whatsapp);
   emit();
+  // Other tabs (and the admin preview in this one) apply the same document
+  // without a reload; see src/lib/tabSync.ts.
+  publish('site-content', raw);
 }
+
+// A save made in another tab arrives here as the stored document. Applying it
+// to the shared cache re-renders every mounted useSiteContent() consumer.
+subscribe('site-content', (raw) => {
+  cached = normalizeContent(raw);
+  setWhatsAppNumber(cached.footer.whatsapp);
+  emit();
+});
 
 /** Test seam: drops the cache so the next read refetches. */
 export function resetSiteContent() {

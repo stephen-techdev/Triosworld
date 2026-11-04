@@ -8,6 +8,7 @@
  */
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 import { hexForColorName } from '@/lib/colors';
+import { publish } from '@/lib/tabSync';
 const STORAGE_KEY = 'triosworld-admin-session';
 /**
  * Mirrored onto .triosworld.in so the dashboard survives a switch between the
@@ -472,7 +473,7 @@ export const updateProduct = (payload: {
   badge?: string;
   bestseller?: boolean;
   new_arrival?: boolean;
-}) => adminRequest<{ ok: boolean }>('/product', { method: 'POST', body: JSON.stringify(payload) });
+}) => withCatalogSync(adminRequest<{ ok: boolean }>('/product', { method: 'POST', body: JSON.stringify(payload) }));
 
 // ─────────────────────── customer moderation ───────────────────────
 export const getCustomer = (mobile: string) =>
@@ -506,6 +507,17 @@ export const deleteGuest = (mobile: string) =>
 
 // ───────────────────────── product management ──────────────────────
 /**
+ * Tell every open storefront tab that the catalog changed, but only after the
+ * server confirmed the write. Receivers re-read products (stock included);
+ * nothing is inferred from the payload.
+ */
+const withCatalogSync = <T>(request: Promise<T>): Promise<T> =>
+  request.then((result) => {
+    publish('catalog', null);
+    return result;
+  });
+
+/**
  * Upload a product image. Goes through the admin function rather than Storage
  * directly so the `product-images` bucket never needs a public write policy.
  */
@@ -538,23 +550,23 @@ export const createProduct = (payload: {
   bestseller?: boolean;
   new_arrival?: boolean;
   is_active?: boolean;
-}) => adminRequest<{ ok: true; id: string; slug: string }>('/product-create', {
+}) => withCatalogSync(adminRequest<{ ok: true; id: string; slug: string }>('/product-create', {
   method: 'POST',
   body: JSON.stringify(payload),
-});
+}));
 
 /** Retires a card. Catalog products are soft-deleted; runtime ones are removed. */
 export const deleteProduct = (productId: string) =>
-  adminRequest<{ ok: true; mode: string; inOrders: boolean }>('/product-delete', {
+  withCatalogSync(adminRequest<{ ok: true; mode: string; inOrders: boolean }>('/product-delete', {
     method: 'POST',
     body: JSON.stringify({ productId }),
-  });
+  }));
 
 export const restoreProduct = (productId: string) =>
-  adminRequest<{ ok: true }>('/product-restore', {
+  withCatalogSync(adminRequest<{ ok: true }>('/product-restore', {
     method: 'POST',
     body: JSON.stringify({ productId }),
-  });
+  }));
 
 export const getFeedback = (status?: string) =>
   adminRequest<{ feedback: AdminFeedback[] }>(`/feedback?status=${status ?? 'all'}`).then(r => r.feedback);

@@ -16,6 +16,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/store/AuthContext';
 import { awaitBootData } from '@/lib/bootGate';
+import { subscribe } from '@/lib/tabSync';
 import {
   SIZES, COLORS, type Product, type Badge, type Fit, type Fabric, type Gender,
 } from '@/data/catalog';
@@ -326,3 +327,9 @@ export function useLiveCatalog(): { products: Product[]; ready: boolean } {
 export function primeLiveCatalog(): void {
   void fetchRuntime();
 }
+
+// Admin saved a product (price, photos, stock, bestseller flag): an already
+// open storefront tab re-reads the catalog instead of waiting for a reload.
+subscribe('catalog', () => {
+  void refreshLiveCatalog();
+});

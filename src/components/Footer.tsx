@@ -112,7 +112,7 @@ export default function Footer() {
               </ul>
             </div>
           ))}
-          <div className="col-span-2 md:col-span-2 space-y-3">
+          <div className="col-span-2 md:col-span-2 min-w-0 space-y-3">
             <h3 className="text-xs font-semibold tracking-widest uppercase text-ivory/60 mb-4">Contact</h3>
             {footer.address && (
               <p className="text-sm text-ivory/80 flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0" /> {footer.address}</p>
@@ -123,8 +123,9 @@ export default function Footer() {
               </a>
             )}
             {footer.email && (
-              <a href={`mailto:${footer.email}`} className="text-sm text-ivory/80 flex items-center gap-2 hover:text-lime transition-colors">
-                <Mail size={16} /> {footer.email}
+              <a href={`mailto:${footer.email}`} className="text-sm text-ivory/80 flex items-start gap-2 min-w-0 hover:text-lime transition-colors">
+                <Mail size={16} className="mt-0.5 shrink-0" />
+                <span className="min-w-0 [overflow-wrap:anywhere]">{footer.email}</span>
               </a>
             )}
 
